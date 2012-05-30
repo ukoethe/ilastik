@@ -98,7 +98,7 @@ class OpSegmentor(Operator):
     self.uncertainty.meta.dtype = numpy.uint8
 
     self.regions.meta.shape = shape
-    self.regions.meta.dtype = numpy.int32
+    self.regions.meta.dtype = numpy.uint8
 
     self._eraser = self.eraser.value
 
@@ -108,21 +108,24 @@ class OpSegmentor(Operator):
     print "####################################### segmentor setupOutputs ############################"
     
   def setInSlot(self, slot, key, value):
-    if self.seg is not None:
-      print "  ========================= setInSlot"
-      if slot == self.writeSeeds:
-        print "  =========================== WriteSeeds"
-        key = key[1:-1]
-        value = numpy.where(value == self._eraser, 255, value[:])
+    if self.seg is None:
+      self.segmentor.value
 
-        self.seg.seeds[key] = value
-        self._dirty = True
-      
-      elif slot == self.deleteSeed:
+    print "  ========================= setInSlot"
+    if slot == self.writeSeeds:
+      print "  =========================== WriteSeeds"
+      key = key[1:-1]
+      value = numpy.where(value == self._eraser, 255, value[:])
+
+      self.seg.seeds[key] = value
+      self._dirty = True
+    
+    elif slot == self.deleteSeed:
+      label = value
+      if label != -1:
+        print "DELETING SEED", label
 
         lut = self.seg.seeds.lut[:]
-        label = value
-        print "DELETING SEED", label
         lut = numpy.where(lut == label, 0, lut)
         lut = numpy.where(lut > label, lut - 1, lut)
         self.seg.seeds.lut[:] = lut
@@ -142,14 +145,16 @@ class OpSegmentor(Operator):
     elif slot == self.regions:
       if self.seg is not None:
         res = self.seg.regionVol[key] % 256
+        print "........", result.dtype
         result[0,:,:,:,0] = res[:]
     elif slot == self.seedNumbers:
       if self.seg is not None:
         result[0] = numpy.unique(self.seg.seeds.lut)
       else:
-        result[0] = 0
+        result[0] = [0]
       return result
     elif slot == self.segmentor:
+      self.lock.acquire()
       if self._dirtySeg:
         volume = self.image[:].wait()
         border_indicator = self.border_indicator.value
@@ -170,18 +175,30 @@ class OpSegmentor(Operator):
         labelVolume = vigra.analysis.watersheds(volume_feat)[0].astype(numpy.int32)
         print "Preprocessor: Construct MSTSegmentor..."
         mst = MSTSegmentor(labelVolume, volume_feat.astype(numpy.float32), edgeWeightFunctor = "minimum")
+
         mst.raw = volume[0,:,:,:,0]
+
+        if self.seg is not None:# save and restore the seeds
+          seeds = self.seg.seeds[:]
+          mst.seeds[:] = seeds
+
         self.seg = mst
         self._dirtySeg = False
+      self.lock.release()
       result[0] = self.seg
       return result
 
     else:    # segmentation or uncertainty is requested
-      self.lock.acquire()
+
       # get own outputslot
       segmentor = self.segmentor.value
 
       algorithm = self.algorithm.value
+
+      if algorithm == "PrioMST" and self.seg.__class__ != MSTSegmentor:
+        self.seg = MSTSegmentor.fromOtherSegmentor(self.seg)
+      if algorithm == "PrioMSTperturb" and self.seg.__class__ != PerturbMSTSegmentor:
+        self.seg = PerturbMSTSegmentor.fromOtherSegmentor(self.seg)
       
       self._parameters = self.parameters.value
       
@@ -194,11 +211,12 @@ class OpSegmentor(Operator):
           self._parameters["prios"] = prios
         while labelCount > len(self._parameters["prios"]):
             self._parameters["prios"].append(1.0)
+        while labelCount < len(self._parameters["prios"]):
+            self._parameters["prios"].pop()
         unaries =  numpy.zeros((self.seg.numNodes,labelCount)).astype(numpy.float32)
         print "parameters", self._parameters
         self.seg.run(unaries, **self._parameters)
         self._dirty = False
-      self.lock.release()
 
       if slot == self.segmentation:
         print " ========== getting segmentation"

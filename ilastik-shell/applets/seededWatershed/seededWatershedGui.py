@@ -28,6 +28,7 @@ from labelListModel import LabelListModel
 from ilastikshell.applet import Applet
 
 import vigra
+import random
 
 from utility.simpleSignal import SimpleSignal
 from utility import bind
@@ -76,13 +77,12 @@ class PreprocessSettings(HasTraits):
       elif self.edgeIndicator == "Dark Lines":
         self.operator.border_indicator.setValue("hessian_ev_0_inv")
       # initiate calculation
-      print "kasdlaksdlsdajkl", self.operator.segmentor[0].meta.shape
       self.operator.segmentor[0].value 
 
     
 class AlgorithmSettings(HasTraits):
     sigma = Float(1.6)
-    algorithm = Enum("Prio MST", "Perturb Prio MST")
+    algorithm = Enum("Perturb Prio MST","Prio MST")
     background_priority = Float(0.95)
     perturbation = Float(0.1)
     trials       = Int(5)
@@ -106,26 +106,26 @@ class AlgorithmSettings(HasTraits):
 
     def on_segment(self):
       print "__________ SEGMENT ____________"
-      self.update_segmentor()
       self.update_parameters()
       self.gui.setupSegmentationLayer()
       self.gui.editor.scheduleSlicesRedraw()
 
-    def update_segmentor(self):
-      pass
-
     def update_parameters(self):
       params = dict()
       if self.algorithm == "Prio MST":
+        self.operator.algorithm.setValue("PrioMST")
         if self.uncertainty_normal == "Local Margin":
           params["uncertainty"] = "localMargin"
         elif self.uncertainty_normal == "Exchange Count":
           params["uncertainty"] = "exchangeCount"
       elif self.algorithm == "Perturb Prio MST":
+        self.operator.algorithm.setValue("PrioMSTperturb")
         if self.uncertainty_perturb == "Affected Subtree Size":
           params["uncertainty"] = "cumSubtreeSize"
         elif self.uncertainty_perturb == "Exchange Count":
           params["uncertainty"] = "cumExchangeCount"
+        else:
+          print " ---------------- ERROR: unknown uncertainty"
       if self.background_priority < 1.0:
         params["prios"] = [1.0]*len(self.operator.seedNumbers[0].value)
         params["prios"][1] = self.background_priority
@@ -200,6 +200,9 @@ class SeededWatershedGui(QMainWindow):
         self.editor = None
         self.labellayer = None
         
+        transparent = QColor(0,0,0,0)
+        self.labelColorTable = [transparent.rgba()]
+
         #Normalize the data if true
         self._normalize_data=True
         
@@ -590,12 +593,13 @@ class SeededWatershedGui(QMainWindow):
         print "switching to label=%r" % (self._labelControlUi.labelListModel[row])
         #+1 because first is transparent
         #FIXME: shouldn't be just row+1 here
-        self.editor.brushingModel.setDrawnNumber(row+1)
-        self.editor.brushingModel.setBrushColor(self._labelControlUi.labelListModel[row].color)
+        if self.editor:
+          self.editor.brushingModel.setDrawnNumber(row+1)
+          self.editor.brushingModel.setBrushColor(self._labelControlUi.labelListModel[row].color)
         
     def switchColor(self, row, color):
         print "label=%d changes color to %r" % (row, color)
-        self.labellayer.colorTable[row]=color.rgba()
+        self.labelColorTable[row]=color.rgba()
         self.editor.brushingModel.setBrushColor(color)
         self.editor.scheduleSlicesRedraw()
     
@@ -608,25 +612,24 @@ class SeededWatershedGui(QMainWindow):
         We need to add/remove labels until we have the right number
         """
         # Get the number of labels in the label data
+        if self.editor is not None:
+          numLabels = len(self.pipeline.seedNumbers[self.imageIndex].value)
+          numLabels = numLabels - 1
 
-        numLabels = self.pipeline.seedNumbers[self.imageIndex].value
-        if numLabels == None:
-            numLabels = 0
+          # Add rows until we have the right number
+          while self._labelControlUi.labelListModel.rowCount() < numLabels:
+              self.addNewLabel()
+          
+          # Remove rows until we have the right number
+          while self._labelControlUi.labelListModel.rowCount() > numLabels:
+              self.removeLastLabel()
 
-        # Add rows until we have the right number
-        while self._labelControlUi.labelListModel.rowCount() < numLabels:
-            self.addNewLabel()
-        
-        # Remove rows until we have the right number
-        while self._labelControlUi.labelListModel.rowCount() > numLabels:
-            self.removeLastLabel()
-
-        # Select a label by default so the brushing controller doesn't get confused.
-        if numLabels > 0:
-            selectedRow = self._labelControlUi.labelListModel.selectedRow()
-            if selectedRow == -1:
-                selectedRow = 0 
-            self.switchLabel(selectedRow)
+          # Select a label by default so the brushing controller doesn't get confused.
+          if numLabels > 1:
+              selectedRow = self._labelControlUi.labelListModel.selectedRow()
+              if selectedRow == -1:
+                  selectedRow = 0 
+              self.switchLabel(selectedRow)
 
     def handleAddLabelButtonClicked(self):
         """
@@ -640,11 +643,11 @@ class SeededWatershedGui(QMainWindow):
         Add a new label to the label list GUI control.
         Return the new number of labels in the control.
         """
-        color = QColor(numpy.random.randint(0,255), numpy.random.randint(0,255), numpy.random.randint(0,255))
+        color = QColor(random.randint(0,255), random.randint(0,255), random.randint(0,255))
         numLabels = len(self._labelControlUi.labelListModel)
         if numLabels < len(self._colorTable16):
             color = self._colorTable16[numLabels]
-        self.labellayer.colorTable.append(color.rgba())
+        self.labelColorTable.append(color.rgba())
         
         self._labelControlUi.labelListModel.insertRow(self._labelControlUi.labelListModel.rowCount(), Label("Label %d" % (self._labelControlUi.labelListModel.rowCount() + 1), color))
         nlabels = self._labelControlUi.labelListModel.rowCount()
@@ -682,9 +685,8 @@ class SeededWatershedGui(QMainWindow):
         #the interface only allows to remove one label at a time?
         
         # Don't respond unless this actually came from the GUI
-        if self._programmaticallyRemovingLabels:
-            return
-        
+        # if self._programmaticallyRemovingLabels:
+        #    return
         nout = start-end+1
         ncurrent = self._labelControlUi.labelListModel.rowCount()
         print "removing", nout, "out of ", ncurrent
@@ -692,33 +694,55 @@ class SeededWatershedGui(QMainWindow):
         for il in range(start, end+1):
             # Changing the deleteLabel input causes the operator (OpBlockedSparseArray)
             #  to search through the entire list of labels and delete the entries for the matching label.
-            self.pipeline.opLabelArray.inputs["deleteLabel"].setValue(il+1)
-            
-            # We need to "reset" the deleteLabel input to -1 when we're finished.
-            #  Otherwise, you can never delete the same label twice in a row.
-            #  (Only *changes* to the input are acted upon.)
-            self.pipeline.opLabelArray.inputs["deleteLabel"].setValue(-1)
+            self.labelColorTable.remove(il+1)
+            self.pipeline.deleteSeed[0][0] = il+1
+            print "removing ", il + 1
         
         self.algorithmSettings.update_parameters()
-            
+    
+    def getRandomColorTable(self):
+        tab = []
+        random.seed(13)
+        for i in range(255):
+          tab.append(QColor(random.randint(0,255),random.randint(0,255),random.randint(0,255)).rgba())
+        return tab
+
+
+
     def setupSegmentationLayer(self):
         """
-        Add all prediction label layers to the volume editor
+        Add all layers of the segmentor to the layer stack
         """
         if self.editor is not None and not self.layerInStack("Segmentation"):
           self.segsource = LazyflowSource( self.pipeline.segmentation[self.imageIndex])
-          
-          transparent = QColor(0,0,0,0)
-          self.seglayer = ColortableLayer(self.segsource, colorTable = self.labellayer.colorTable )
+          self.seglayer = ColortableLayer(self.segsource, colorTable = self.labelColorTable )
           self.seglayer.name = "Segmentation"
           self.seglayer.ref_object = None
           self.seglayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
-
           # Labels should be second (on top)
           self.layerstack.insert(1, self.seglayer)
+          
+          self.svsource = LazyflowSource( self.pipeline.regions[self.imageIndex])
+          self.svlayer = ColortableLayer(self.svsource, colorTable = self.getRandomColorTable())
+          self.svlayer.name = "Supervoxels"
+          self.svlayer.ref_object = None
+          self.svlayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
+          #Supervoxels dhould third from top
+          self.layerstack.insert(2, self.svlayer)
+
+
+          self.ucsource = LazyflowSource( self.pipeline.uncertainty[self.imageIndex])
+          self.uclayer = AlphaModulatedLayer(self.ucsource, tintColor = QColor(255,0,0))
+          self.uclayer.name = "Uncertainty"
+          self.uclayer.ref_object = None
+          self.uclayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
+          #Supervoxels dhould third from top
+          self.layerstack.insert(3, self.uclayer)
     
     def removeSegmentationLayer(self):
         self.removeLayersFromEditorStack( "Segmentation" )
+        self.removeLayersFromEditorStack( "Supervoxels" )
+        self.removeLayersFromEditorStack( "Uncertainty" )
     
     
     def handleGraphInputChanged(self):
@@ -840,8 +864,7 @@ class SeededWatershedGui(QMainWindow):
                                                )
             self.labelsrc.setObjectName("labels")
         
-            transparent = QColor(0,0,0,0)
-            self.labellayer = ColortableLayer(self.labelsrc, colorTable = [transparent.rgba()] )
+            self.labellayer = ColortableLayer(self.labelsrc, colorTable = self.labelColorTable )
             self.labellayer.name = "Labels"
             self.labellayer.ref_object = None
             self.labellayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
