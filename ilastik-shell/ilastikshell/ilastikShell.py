@@ -226,6 +226,7 @@ class IlastikShell( QMainWindow ):
         rootItem = self.appletBar.invisibleRootItem()
         appletDrawerItem = rootItem.child(self.currentAppletIndex).child(0)
         appletDrawerWidget = self.appletBar.itemWidget(appletDrawerItem, 0)
+        appletDrawerWidget.updateGeometry()
         appletDrawerHeight = appletDrawerWidget.frameSize().height()
     
         # Auto-size the splitter height based on the height of the applet bar.
