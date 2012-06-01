@@ -38,13 +38,13 @@ os.environ['ETS_TOOLKIT'] = 'qt4'
 
 hasTraits = False
 try:
-  from enthought.traits.api import Enum, Bool, Float, Int, String, on_trait_change,  Button
-  from enthought.traits.ui.api import Item, View, Group, Action
+  from enthought.traits.api import Enum, Bool, Float, Int, String, on_trait_change,  Button, String, List
+  from enthought.traits.ui.api import Item, View, Group, Action, EnumEditor
   from enthought.traits.api import HasTraits
   hasTraits = True
 except:
-  from traits.api import Enum, Bool, Float, Int, String, on_trait_change, Button
-  from traitsui.api import Item, View, Group, Action
+  from traits.api import Enum, Bool, Float, Int, String, on_trait_change, Button, String, List
+  from traitsui.api import Item, View, Group, Action, EnumEditor
   from traits.api import HasTraits
   hasTraits = True
 
@@ -52,7 +52,7 @@ if not hasTraits:
   raise RuntimeError("ERROR: Interactive Segmentation needs the Traits UI python libraryies from Enthought installed !")
 
 
-class PreprocessSettings(HasTraits):
+class PreprocessSettingsApplet(HasTraits):
     sigma = Float(1.6)
     edgeIndicator = Enum("Bright Lines", "Dark Lines")
     preprocess = Action(name = 'Preprocess Data')
@@ -79,8 +79,11 @@ class PreprocessSettings(HasTraits):
       # initiate calculation
       self.operator.segmentor[0].value 
 
+      self.gui.resizeLabels(2)
+      self.gui.setupSegmentationLayer()
+
     
-class AlgorithmSettings(HasTraits):
+class AlgorithmSettingsApplet(HasTraits):
     sigma = Float(1.6)
     algorithm = Enum("Perturb Prio MST","Prio MST")
     background_priority = Float(0.95)
@@ -118,6 +121,8 @@ class AlgorithmSettings(HasTraits):
           params["uncertainty"] = "localMargin"
         elif self.uncertainty_normal == "Exchange Count":
           params["uncertainty"] = "exchangeCount"
+        else:
+          print " ---------------- ERROR: unknown uncertainty"
       elif self.algorithm == "Perturb Prio MST":
         self.operator.algorithm.setValue("PrioMSTperturb")
         if self.uncertainty_perturb == "Affected Subtree Size":
@@ -126,6 +131,9 @@ class AlgorithmSettings(HasTraits):
           params["uncertainty"] = "cumExchangeCount"
         else:
           print " ---------------- ERROR: unknown uncertainty"
+      else:
+        print " ---------------- ERROR: unknown algorithm"
+
       if self.background_priority < 1.0:
         params["prios"] = [1.0]*len(self.operator.seedNumbers[0].value)
         params["prios"][1] = self.background_priority
@@ -138,16 +146,106 @@ class AlgorithmSettings(HasTraits):
       self.operator.segmentation[0][:]
 
 
-class SegmentorSettings(HasTraits):
-    bias = Float(0.95)
-    biasThreshold = Float(64)
-    biasedLabel = Int(1)
+class ObjectLoadingDialog(HasTraits):
+    object_list = List([0])
+    Object = String
     
-    advanced = Bool(True)
+    
+    traits_view = View(Item(name='Object', editor=EnumEditor(name='object_list')),
+                       buttons = ["Cancel", "OK"])
 
-    viewAdvanced = Group(Item('biasThreshold'),  Item('biasedLabel'), visible_when = 'advanced==True')
-    #view = View( Item('edgeIndicator'), buttons = ['OK', 'Cancel'],  )
-    default = View(Item('bias'), Item("advanced"),Group(viewAdvanced))
+    def __init__(self, operator):
+      self.operator = operator
+    
+    def populate(self):
+      seg = self.operator.segmentor[0].value
+      values = list(sorted(seg.object_names.keys()))
+      self.object_list = values
+
+    def load(self):
+      objName = self.Object
+      self.operator.loadObject[0][0] = objName
+      print " ==================== Object %r loaded" % objName
+    
+
+class ObjectSavingDialog(HasTraits):
+    seed_list = List([0])
+    seed = Int
+    name = String("Object name..")
+    
+    
+    traits_view = View(Item(name='seed', editor=EnumEditor(name='seed_list')),
+                       Item("name"), buttons = ["Cancel", "OK"])
+
+    def __init__(self, operator):
+      self.__operator = operator
+
+    def populate(self):
+      values = list(self.__operator.seedNumbers[0].value)
+      try:
+        values.remove(0)
+        values.remove(1)
+      except:
+        pass
+      self.seed_list = values
+
+    def save(self):
+      seedNr = self.seed
+      objName = self.name
+      self.__operator.saveObject[0][0] = (objName, seedNr)
+      print " ==================== Object with seed=%r saved as %r" % (seedNr, objName)
+
+
+class ObjectSavingApplet(HasTraits):
+    current_object     = String("")
+    save_object        = Action(name = "Store segmentation")
+    load_object        = Action(name = "Load object")
+    delete_object      = Action(name = "Delete current object")
+
+    default = View(Item("current_object"), buttons=[save_object, load_object, delete_object])
+    
+    def __init__(self, gui, operator):
+      self.operator = operator
+      self.gui = gui
+
+      self.save_object.on_perform = self.on_save
+      self.load_object.on_perform = self.on_load
+
+      self.load_dialog = ObjectLoadingDialog(self.operator)
+      self.save_dialog = ObjectSavingDialog(self.operator)
+    
+    def on_save(self):
+      # set new possible values
+      self.save_dialog.populate()
+      self.save_dialog.configure_traits(kind = "modal")
+      if self.save_dialog.seed != 0:
+        self.save_dialog.save()
+        self.current_object = self.save_dialog.name
+
+      
+    
+    def on_load(self):
+      before = self.load_dialog.Object
+
+      # set new possible values
+      self.load_dialog.populate()
+
+      # show dialog
+      self.load_dialog.configure_traits(kind = "modal")
+
+      now = self.load_dialog.Object
+
+      if now != before:
+        self.load_dialog.load()
+        self.current_object = self.load_dialog.Object
+        seeds = self.operator.seedNumbers[0].value
+        self.gui.resizeLabels(len(seeds)-1)
+        self.gui.setupSegmentationLayer()
+
+    def on_delete(self):
+      if current_object != "":
+        self.operator.deleteObject[0][0] = self.current_object
+        self.current_object = ""
 
 
 class Tool():
@@ -169,8 +267,9 @@ class SeededWatershedGui(QMainWindow):
 
         self.pipeline = pipeline
         
-        self.preprocessSettings = PreprocessSettings(self, self.pipeline)
-        self.algorithmSettings = AlgorithmSettings(self, self.pipeline)
+        self.preprocessSettings = PreprocessSettingsApplet(self, self.pipeline)
+        self.algorithmSettings = AlgorithmSettingsApplet(self, self.pipeline)
+        self.objectSavingApplet = ObjectSavingApplet(self, self.pipeline)
 
         self.imageIndex = 0
 
@@ -455,7 +554,7 @@ class SeededWatershedGui(QMainWindow):
             self.changeInteractionMode( toolId )
 
     @property
-    def setupPreprocessSettingsUi(self):
+    def setupPreprocessSettingsAppletUi(self):
         control = self.preprocessSettings.edit_traits('default', kind='subpanel').control 
 
         def fct(flag):
@@ -466,7 +565,7 @@ class SeededWatershedGui(QMainWindow):
         return control
     
     @property
-    def setupAlgorithmSettingsUi(self):
+    def setupAlgorithmSettingsAppletUi(self):
         control = self.algorithmSettings.edit_traits('default', kind='subpanel').control 
 
         def fct(flag):
@@ -474,6 +573,18 @@ class SeededWatershedGui(QMainWindow):
           return
 
         control.enableControls = fct
+        return control
+    
+    @property
+    def setupObjectSavingAppletUi(self):
+        control = self.objectSavingApplet.edit_traits('default', kind='subpanel').control 
+
+        def fct(flag):
+          #TODO: do we need to do something here ?
+          return
+
+        control.enableControls = fct
+        assert control is not None
         return control
 
     def initPredictionControlsUic(self):
@@ -637,19 +748,35 @@ class SeededWatershedGui(QMainWindow):
         """
         self.addNewLabel()
         self.algorithmSettings.update_parameters()
+
+    def resizeLabels(self, count):
+        while len(self._labelControlUi.labelListModel) < count:
+          self.addNewLabel()
+        while len(self._labelControlUi.labelListModel) > count:
+          self.removeLastLabel()
+
     
-    def addNewLabel(self):
+    def addNewLabel(self, name = None, color = None):
         """
         Add a new label to the label list GUI control.
         Return the new number of labels in the control.
         """
-        color = QColor(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-        numLabels = len(self._labelControlUi.labelListModel)
-        if numLabels < len(self._colorTable16):
-            color = self._colorTable16[numLabels]
+        number = (self._labelControlUi.labelListModel.rowCount() + 1)
+        if name is None:
+          if number == 1:
+            name = "Background"
+          elif number == 2:
+            name = "Object 1"
+          else:
+            name = "Label %d" % number
+        if color is None:
+          color = QColor(random.randint(0,255), random.randint(0,255), random.randint(0,255))
+          numLabels = len(self._labelControlUi.labelListModel)
+          if numLabels < len(self._colorTable16):
+              color = self._colorTable16[numLabels]
         self.labelColorTable.append(color.rgba())
-        
-        self._labelControlUi.labelListModel.insertRow(self._labelControlUi.labelListModel.rowCount(), Label("Label %d" % (self._labelControlUi.labelListModel.rowCount() + 1), color))
+
+        self._labelControlUi.labelListModel.insertRow(self._labelControlUi.labelListModel.rowCount(), Label(name, color))
         nlabels = self._labelControlUi.labelListModel.rowCount()
 
         #make the new label selected
