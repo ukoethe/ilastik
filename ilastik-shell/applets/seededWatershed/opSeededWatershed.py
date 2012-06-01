@@ -20,6 +20,11 @@ class OpSegmentor(Operator):
 
   writeSeeds = InputSlot(optional=True)
   deleteSeed = InputSlot(optional=True)
+
+  saveObject = InputSlot(optional=True) 
+  loadObject = InputSlot(optional=True) 
+  deleteObject = InputSlot(optional=True) 
+
   update = InputSlot(value = False)
   eraser = InputSlot(value=100)
   algorithm = InputSlot(value="PrioMST")
@@ -105,9 +110,19 @@ class OpSegmentor(Operator):
     self.writeSeeds.meta.shape = shape
     self.writeSeeds.meta.dtype = numpy.uint8
 
+    self.saveObject.meta.shape = (1,)
+    self.saveObject.meta.dtype = object
+    
+    self.loadObject.meta.shape = (1,)
+    self.loadObject.meta.dtype = object
+    
+    self.deleteObject.meta.shape = (1,)
+    self.deleteObject.meta.dtype = object
+
     print "####################################### segmentor setupOutputs ############################"
     
   def setInSlot(self, slot, key, value):
+    print "setInSlot"
     if self.seg is None:
       self.segmentor.value
 
@@ -130,6 +145,74 @@ class OpSegmentor(Operator):
         lut = numpy.where(lut > label, lut - 1, lut)
         self.seg.seeds.lut[:] = lut
         self._dirty = True
+
+    elif slot == self.saveObject:
+      name, seed = value
+      print "   --> Saving object %r from seed %r" % (name, seed)
+      if self.seg.object_names.has_key(name):
+        objNr = self.seg.object_names[name]
+      else:
+        # find free objNr
+        if len(self.seg.object_names.values())> 0:
+          objNr = numpy.max(numpy.array(self.seg.object_names.values())) + 1
+        else:
+          objNr = 1
+
+      #delete old object, if it exists
+      lut_objects = self.seg.objects.lut[:]
+      lut_objects[:] = numpy.where(lut_objects == objNr, 0, lut_objects)
+
+      #save new object 
+      lut_segmentation = self.seg.segmentation.lut[:]
+      lut_objects[:] = numpy.where(lut_segmentation == seed, objNr, lut_objects)
+
+      #save object name with objNr
+      self.seg.object_names[name] = objNr
+
+      lut_seeds = self.seg.seeds.lut[:]
+      print  "nonzero fg seeds shape: ",numpy.where(lut_seeds == seed)[0].shape
+  
+      # save object seeds
+      self.seg.object_seeds_fg[name] = numpy.where(lut_seeds == seed)[0]
+      self.seg.object_seeds_bg[name] = numpy.where(lut_seeds == 1)[0] #one is background
+
+    elif slot == self.loadObject:
+      name = value
+      objNr = self.seg.object_names[name]
+      print "   --> Loading object %r from nr %r" % (name, objNr)
+
+      lut_segmentation = self.seg.segmentation.lut[:]
+      lut_objects = self.seg.objects.lut[:]
+      lut_seeds = self.seg.seeds.lut[:]
+
+      obj_seeds_fg = self.seg.object_seeds_fg[name]
+      obj_seeds_bg = self.seg.object_seeds_bg[name]
+      
+      # clean seeds
+      lut_seeds[:] = 0
+
+      # set foreground and background seeds
+      lut_seeds[obj_seeds_fg] = 2
+      lut_seeds[obj_seeds_bg] = 1
+
+      # set current segmentation
+      lut_segmentation[:] = numpy.where( lut_objects == objNr, 2, 1)
+    
+    elif slot == self.deleteObject:
+      name = value
+      if self.seg.object_names.has_key(name):
+        objNr = self.seg.object_names[name]
+        print "   --> Deleting object %r with nr %r" % (name, objNr)
+
+        #delete object from overall segmentation
+        lut_objects = self.seg.objects.lut[:]
+        lut_objects[:] = numpy.where(lut_objects == objNr, 0, lut_objects)
+
+        del self.seg.object_names[name]
+        del self.seg.object_seeds_fg[name]
+        del self.seg.object_seeds_bg[name]
+
+
 
 
   def execute(self, slot, roi, result):
