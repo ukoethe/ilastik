@@ -141,6 +141,7 @@ class AlgorithmSettingsApplet(HasTraits):
         params["prios"] = [1.0 / self.background_priority]*len(self.operator.seedNumbers[0].value)
         params["prios"][1] = 1.0
       
+      self.operator.parameters.setValue(-1)
       self.operator.parameters.setValue(params)
       # run calculation
       self.operator.segmentation[0][:]
@@ -821,7 +822,10 @@ class SeededWatershedGui(QMainWindow):
         for il in range(start, end+1):
             # Changing the deleteLabel input causes the operator (OpBlockedSparseArray)
             #  to search through the entire list of labels and delete the entries for the matching label.
-            self.labelColorTable.remove(il+1)
+            try:
+              self.labelColorTable.remove(il+1)
+            except:
+              pass
             self.pipeline.deleteSeed[0][0] = il+1
             print "removing ", il + 1
         

@@ -74,7 +74,10 @@ class OpSegmentor(Operator):
 
   def onNewParameters(self, slot):
     print "================= setting segmentation to dirty = True"
-    self._dirty = True
+    if self._parameters != self.parameters.value:
+      self._dirty = True
+    if self.parameters.value != -1:
+      self._parameters = self.parameters.value
         
   def updateSeeds(self, oldseg, newseg):
     newseg.seeds.lut[:] = oldseg.seeds.lut[:]
@@ -283,10 +286,10 @@ class OpSegmentor(Operator):
       if algorithm == "PrioMSTperturb" and self.seg.__class__ != PerturbMSTSegmentor:
         self.seg = PerturbMSTSegmentor.fromOtherSegmentor(self.seg)
       
-      self._parameters = self.parameters.value
       
       labelNumbers = numpy.unique(self.seg.seeds.lut)
 
+      self.lock.acquire()
       if self._dirty:
         labelCount = len(labelNumbers)
         if not self._parameters.has_key("prios"):
@@ -300,6 +303,7 @@ class OpSegmentor(Operator):
         print "parameters", self._parameters
         self.seg.run(unaries, **self._parameters)
         self._dirty = False
+      self.lock.release()
 
       if slot == self.segmentation:
         print " ========== getting segmentation"
