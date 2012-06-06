@@ -236,7 +236,7 @@ class OpSegmentor(Operator):
         result[0,:,:,:,0] = res[:]
     elif slot == self.seedNumbers:
       if self.seg is not None:
-        result[0] = numpy.unique(self.seg.seeds.lut)
+        result[0] = range(0,numpy.max(self.seg.seeds.lut)+1)
       else:
         result[0] = [0]
       return result
@@ -289,7 +289,7 @@ class OpSegmentor(Operator):
         self.seg = PerturbMSTSegmentor.fromOtherSegmentor(self.seg)
       
       
-      labelNumbers = numpy.unique(self.seg.seeds.lut)
+      labelNumbers = numpy.arange(0, numpy.max(self.seg.seeds.lut)+1)
 
       self.lock.acquire()
       if self._dirty:
