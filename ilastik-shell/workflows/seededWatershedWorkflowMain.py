@@ -25,7 +25,7 @@ graph = Graph()
 
 # Create the applets for our workflow
 projectMetadataApplet = ProjectMetadataApplet()
-dataSelectionApplet = DataSelectionApplet(graph)
+dataSelectionApplet = DataSelectionApplet(graph, "Data loading")
 #featureSelectionApplet = FeatureSelectionApplet(graph)
 segApplet = SeededWatershedApplet(graph)
 
@@ -34,8 +34,8 @@ opData = dataSelectionApplet.topLevelOperator
 opSegmentor = segApplet.topLevelOperator
 
 # Connect the operators together
-# opFeatures.InputImages.connect( opData.ProcessedImages )
-opSegmentor.image.connect( opData.ProcessedImage )
+# opFeatures.InputImages.connect( opData.Images )
+opSegmentor.image.connect( opData.Image )
 
 shell = IlastikShell()
 shell.addApplet(projectMetadataApplet)
