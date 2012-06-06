@@ -775,9 +775,8 @@ class SeededWatershedGui(QMainWindow):
             name = "Label %d" % number
         if color is None:
           color = QColor(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-          numLabels = len(self._labelControlUi.labelListModel)
-          if numLabels < len(self._colorTable16):
-              color = self._colorTable16[numLabels]
+          if number < len(self._colorTable16):
+              color = self._colorTable16[number]
         self.labelColorTable.append(color.rgba())
 
         self._labelControlUi.labelListModel.insertRow(self._labelControlUi.labelListModel.rowCount(), Label(name, color))
