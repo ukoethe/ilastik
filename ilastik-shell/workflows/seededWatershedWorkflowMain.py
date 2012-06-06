@@ -25,7 +25,7 @@ graph = Graph()
 
 # Create the applets for our workflow
 projectMetadataApplet = ProjectMetadataApplet()
-dataSelectionApplet = DataSelectionApplet(graph, "Data loading")
+dataSelectionApplet = DataSelectionApplet(graph, "DataSelection")
 #featureSelectionApplet = FeatureSelectionApplet(graph)
 segApplet = SeededWatershedApplet(graph)
 

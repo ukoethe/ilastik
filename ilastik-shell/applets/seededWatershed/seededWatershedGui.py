@@ -262,6 +262,7 @@ def getPathToLocalDirectory():
 class SeededWatershedGui(QMainWindow):
     def __init__(self, pipeline = None, graph = None ):
         QMainWindow.__init__(self)
+        self.editor = None
         
 
         self.pipeline = pipeline
@@ -285,6 +286,9 @@ class SeededWatershedGui(QMainWindow):
             if len(self.pipeline.segmentation) > 0 and len(self.pipeline.seedNumbers) > 0:
                 self.pipeline.segmentation[self.imageIndex].notifyMetaChanged( bind(self.updateForNewClasses) )
                 self.pipeline.seedNumbers[self.imageIndex].notifyMetaChanged( bind(self.updateLabelList) )
+                self.pipeline.seedNumbers[self.imageIndex].notifyDirty( bind(self.updateLabelList) )
+                self.updateLabelList(self.pipeline.seedNumbers[self.imageIndex])
+
         self.pipeline.segmentation.notifyInserted( bind(handleOutputListChanged) )
         self.pipeline.segmentation.notifyRemove( bind(handleOutputListChanged) )
         handleOutputListChanged()
@@ -723,6 +727,7 @@ class SeededWatershedGui(QMainWindow):
         """
         # Get the number of labels in the label data
         if self.editor is not None:
+          print " =========== updating label lsit"
           numLabels = len(self.pipeline.seedNumbers[self.imageIndex].value)
           numLabels = numLabels - 1
 
