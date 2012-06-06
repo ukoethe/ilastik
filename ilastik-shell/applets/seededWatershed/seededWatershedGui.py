@@ -849,9 +849,10 @@ class SeededWatershedGui(QMainWindow):
         """
         if self.editor is not None and not self.layerInStack("Segmentation"):
           self.segsource = LazyflowSource( self.pipeline.segmentation[self.imageIndex])
-          self.seglayer = ColortableLayer(self.segsource, colorTable = self.labelColorTable )
+          self.seglayer = ColortableLayer(self.segsource, colorTable = self.labelColorTable)
           self.seglayer.name = "Segmentation"
           self.seglayer.ref_object = None
+          self.seglayer.opacity = 0.5
           self.seglayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
           # Labels should be second (on top)
           self.layerstack.insert(1, self.seglayer)
@@ -860,6 +861,8 @@ class SeededWatershedGui(QMainWindow):
           self.svlayer = ColortableLayer(self.svsource, colorTable = self.getRandomColorTable())
           self.svlayer.name = "Supervoxels"
           self.svlayer.ref_object = None
+          self.svlayer.opacitiy = 0.5
+          self.svlayer.visible = False
           self.svlayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
           #Supervoxels dhould third from top
           self.layerstack.insert(2, self.svlayer)
