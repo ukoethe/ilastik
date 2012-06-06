@@ -70,6 +70,7 @@ class OpSegmentor(Operator):
       if self.initial_seg != seg:
         self.seg = seg
         self._dirtySeg = False
+        self.seedNumbers.setDirty(slice(None,None,None))
       self.initial_seg = seg
 
   def onNewParameters(self, slot):
@@ -270,6 +271,7 @@ class OpSegmentor(Operator):
 
         self.seg = mst
         self._dirtySeg = False
+        self.seedNumbers.setDirty(slice(None,None,None))
       self.lock.release()
       result[0] = self.seg
       return result
