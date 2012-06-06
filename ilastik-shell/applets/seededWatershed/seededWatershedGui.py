@@ -8,8 +8,6 @@ from PyQt4.QtGui import *
 
 from PyQt4 import uic
 
-from igms.stackloader import OpStackChainBuilder,StackLoader
-
 from lazyflow.graph import Graph
 from lazyflow.operators import Op5ToMulti, OpArrayCache, OpBlockedArrayCache, \
                                OpArrayPiper, OpPredictRandomForest, \
@@ -284,7 +282,7 @@ class SeededWatershedGui(QMainWindow):
 
         def handleOutputListChanged():
             """This closure is called when an image is added or removed from the output."""
-            if len(self.pipeline.segmentation) > 0:
+            if len(self.pipeline.segmentation) > 0 and len(self.pipeline.seedNumbers) > 0:
                 self.pipeline.segmentation[self.imageIndex].notifyMetaChanged( bind(self.updateForNewClasses) )
                 self.pipeline.seedNumbers[self.imageIndex].notifyMetaChanged( bind(self.updateLabelList) )
         self.pipeline.segmentation.notifyInserted( bind(handleOutputListChanged) )
