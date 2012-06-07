@@ -1046,6 +1046,11 @@ class SeededWatershedGui(QMainWindow):
         # Give the editor the appropriate shape
         shape = self.pipeline.image[self.imageIndex].shape
         self.editor.dataShape = shape
+        halfPos = tuple()
+        for i,s in enumerate(shape):
+          halfPos = halfPos + (int(s / 2),)
+
+        self.editor.posModel.slicingPos = halfPos[1:-1]
 
     def _createDefault16ColorColorTable(self):
         c = []
