@@ -439,7 +439,7 @@ class SeededWatershedGui(QMainWindow):
         #  so locate the .ui file relative to this .py file's path
         p = os.path.split(__file__)[0]+'/'
         if p == "/": p = "."+p
-        _labelControlUi = uic.loadUi(p+"/../pixelClassification/labelingDrawer.ui") # Don't pass self: applet ui is separate from the main ui
+        _labelControlUi = uic.loadUi(p+"/labelingDrawer.ui") # Don't pass self: applet ui is separate from the main ui
 
         # We own the applet bar ui
         self._labelControlUi = _labelControlUi
@@ -502,14 +502,15 @@ class SeededWatershedGui(QMainWindow):
                              Tool.Paint      : _labelControlUi.paintToolButton,
                              Tool.Erase      : _labelControlUi.eraserToolButton }
         
-        self.brushSizes = [ (1,  ""),
-                            (3,  "Tiny"),
+        self.brushSizes = [ 
                             (5,  "Small"),
                             (7,  "Medium"),
                             (11, "Large"),
                             (23, "Huge"),
                             (31, "Megahuge"),
                             (61, "Gigahuge") ]
+
+        self._brushSize = self.brushSizes[0][0]
 
         for size, name in self.brushSizes:
             _labelControlUi.brushSizeComboBox.addItem( str(size) + " " + name )
@@ -519,6 +520,21 @@ class SeededWatershedGui(QMainWindow):
         self.eraserSizeIndex = 0
         
         self._labelControlUi.checkInteractive.setEnabled(True)
+
+
+        _labelControlUi.segmentButton.clicked.connect(self.algorithmSettings.on_segment)
+
+        def on_uncertainFG():
+          pos = tuple(self.pipeline.maxUncertainFG[0].value)
+          self.editor.posModel.slicingPos = pos
+        
+        def on_uncertainBG():
+          pos = tuple(self.pipeline.maxUncertainBG[0].value)
+          self.editor.posModel.slicingPos = pos
+        
+        _labelControlUi.uncertainFGButton.clicked.connect(on_uncertainFG)
+        _labelControlUi.uncertainBGButton.clicked.connect(on_uncertainBG)
+
         
         def enableDrawerControls(enabled):
             """
@@ -545,6 +561,9 @@ class SeededWatershedGui(QMainWindow):
         """
         # Users can only *switch between* tools, not turn them off.
         # If they try to, re-select the button automatically.
+        if self._labelControlUi.labelListModel.rowCount() == 0:
+          return
+
         if not checked:
             self.toolButtons[toolId].setChecked(True)
         # If the user is checking a new button
@@ -553,6 +572,8 @@ class SeededWatershedGui(QMainWindow):
             for tool, button in self.toolButtons.items():
                 if tool != toolId:
                     button.setChecked(False)
+                else:
+                  button.setChecked(True)
 
             self.changeInteractionMode( toolId )
 
@@ -660,6 +681,7 @@ class SeededWatershedGui(QMainWindow):
             if self.editor.brushingModel.erasing:
                 self.editor.brushingModel.disableErasing()
             # Set the brushing size
+            self.paintBrushSizeIndex = self.eraserSizeIndex
             brushSize = self.brushSizes[self.paintBrushSizeIndex][0]
             self.editor.brushingModel.setBrushSize(brushSize)
 
@@ -679,6 +701,8 @@ class SeededWatershedGui(QMainWindow):
             if not self.editor.brushingModel.erasing:
                 self.editor.brushingModel.setErasing()
             # Set the brushing size
+            self.eraserSizeIndex = self.paintBrushSizeIndex
+
             eraserSize = self.brushSizes[self.eraserSizeIndex][0]
             self.editor.brushingModel.setBrushSize(eraserSize)
             
@@ -696,6 +720,7 @@ class SeededWatershedGui(QMainWindow):
               them depending on which tool is selected.
         """
         newSize = self.brushSizes[index][0]
+        self._brushSize = newSize
         if self.editor.brushingModel.erasing:
             self.eraserSizeIndex = index
             self.editor.brushingModel.setBrushSize(newSize)
@@ -710,6 +735,7 @@ class SeededWatershedGui(QMainWindow):
         if self.editor:
           self.editor.brushingModel.setDrawnNumber(row+1)
           self.editor.brushingModel.setBrushColor(self._labelControlUi.labelListModel[row].color)
+          self.editor.brushingModel.setBrushSize(self._brushSize)
         
     def switchColor(self, row, color):
         print "label=%d changes color to %r" % (row, color)
@@ -788,7 +814,7 @@ class SeededWatershedGui(QMainWindow):
         
         #FIXME: this should watch for model changes
         #drawing will be enabled when the first label is added
-        self.changeInteractionMode( Tool.Navigation )
+        self.handleToolButtonClicked(True, Tool.Paint)
 
 #        if self.pipeline is not None:
 #            print "Label added, changing predictions"
@@ -874,6 +900,7 @@ class SeededWatershedGui(QMainWindow):
           self.uclayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
           #Supervoxels dhould third from top
           self.layerstack.insert(3, self.uclayer)
+        
     
     def removeSegmentationLayer(self):
         self.removeLayersFromEditorStack( "Segmentation" )
@@ -965,6 +992,13 @@ class SeededWatershedGui(QMainWindow):
             layer1.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
 
             self.initLabelLayer()
+
+            shape = self.pipeline.image[self.imageIndex].shape
+            halfPos = tuple()
+            for i,s in enumerate(shape):
+              halfPos = halfPos + (int(s / 2),)
+
+            self.editor.posModel.slicingPos = halfPos[1:-1]
     
     def layerInStack(self, layerName):
         """
@@ -1046,11 +1080,6 @@ class SeededWatershedGui(QMainWindow):
         # Give the editor the appropriate shape
         shape = self.pipeline.image[self.imageIndex].shape
         self.editor.dataShape = shape
-        halfPos = tuple()
-        for i,s in enumerate(shape):
-          halfPos = halfPos + (int(s / 2),)
-
-        self.editor.posModel.slicingPos = halfPos[1:-1]
 
     def _createDefault16ColorColorTable(self):
         c = []
