@@ -523,14 +523,53 @@ class SeededWatershedGui(QMainWindow):
 
 
         _labelControlUi.segmentButton.clicked.connect(self.algorithmSettings.on_segment)
+        
+
+        
+
+        class Navigator(QObject):
+          def __init__(self,gui):
+            QObject.__init__(self)
+            self.gui = gui
+            self.arrival = 4000
+            self.speed = 100
+            self.timerId = -1
+            self.time = 0
+          
+          def function(self, i):
+            return  ( int( self.startPos[i] + (self.destPos[i] - self.startPos[i])* self.time / self.arrival),)
+
+          def navigate(self, pos):
+            if self.timerId >= 0:
+              self.killTimer(self.timerId)
+            self.time = 0
+            self.timerId = self.startTimer(self.speed)
+            self.startPos = self.gui.editor.posModel.slicingPos
+            self.destPos = pos
+
+          def timerEvent(self, event):
+            pos = self.gui.editor.posModel.slicingPos
+            self.time += self.speed
+            if self.time > self.arrival:
+              self.killTimer(self.timerId)
+              self.gui.editor.posModel.slicingPos = self.destPos
+            else:
+              curPos = tuple()
+              for i,val in enumerate(pos):
+                curPos = curPos + self.function(i)
+              self.gui.editor.posModel.slicingPos = curPos
+
+        self.navigator = Navigator(self)
 
         def on_uncertainFG():
           pos = tuple(self.pipeline.maxUncertainFG[0].value)
-          self.editor.posModel.slicingPos = pos
+          #self.editor.posModel.slicingPos = pos
+          self.navigator.navigate(pos)
         
         def on_uncertainBG():
           pos = tuple(self.pipeline.maxUncertainBG[0].value)
-          self.editor.posModel.slicingPos = pos
+          #self.editor.posModel.slicingPos = pos
+          self.navigator.navigate(pos)
         
         _labelControlUi.uncertainFGButton.clicked.connect(on_uncertainFG)
         _labelControlUi.uncertainBGButton.clicked.connect(on_uncertainBG)
