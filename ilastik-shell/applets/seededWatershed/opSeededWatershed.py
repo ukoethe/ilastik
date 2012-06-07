@@ -123,6 +123,12 @@ class OpSegmentor(Operator):
     self.deleteObject.meta.shape = (1,)
     self.deleteObject.meta.dtype = object
 
+    self.maxUncertainFG.meta.shape = (1,)
+    self.maxUncertainFG.meta.dtype = object
+    
+    self.maxUncertainBG.meta.shape = (1,)
+    self.maxUncertainBG.meta.dtype = object
+
     print "####################################### segmentor setupOutputs ############################"
     
   def setInSlot(self, slot, key, value):
@@ -138,7 +144,7 @@ class OpSegmentor(Operator):
 
       self.seg.seeds[key] = value
       self._dirty = True
-    
+
     elif slot == self.deleteSeed:
       label = value
       if label != -1:
@@ -237,9 +243,18 @@ class OpSegmentor(Operator):
     elif slot == self.seedNumbers:
       if self.seg is not None:
         result[0] = range(0,numpy.max(self.seg.seeds.lut)+1)
+        if len(result[0]) == 1:
+          result[0].append(1)
       else:
-        result[0] = [0]
+        result[0] = [0, 1]
       return result
+    
+    elif slot == self.maxUncertainFG:
+      result[0] = self.get_maxUncertainFG()
+    
+    elif slot == self.maxUncertainBG:
+      result[0] = self.get_maxUncertainBG()
+
     elif slot == self.segmentor:
       self.lock.acquire()
       if self._dirtySeg:
@@ -249,11 +264,11 @@ class OpSegmentor(Operator):
 
         if border_indicator == "hessian_ev_0":
           print "Preprocessor: Eigenvalues (sigma = %r)" % (sigma,)
-          fvol = volume.astype(numpy.float32)[0,:,:,:,0]
+          fvol = (numpy.max(volume) - volume).astype(numpy.float32)[0,:,:,:,0]
           volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
         elif border_indicator == "hessian_ev_0_inv":
           print "Preprocessor: Eigenvalues (inverted, sigma = %r)" % (sigma,)
-          fvol = (numpy.max(volume) - volume).astype(numpy.float32)[0,:,:,:,0]
+          fvol = volume.astype(numpy.float32)[0,:,:,:,0]
           volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
         volume_ma = numpy.max(volume_feat)
         volume_mi = numpy.min(volume_feat)
@@ -289,7 +304,7 @@ class OpSegmentor(Operator):
         self.seg = PerturbMSTSegmentor.fromOtherSegmentor(self.seg)
       
       
-      labelNumbers = numpy.arange(0, numpy.max(self.seg.seeds.lut)+1)
+      labelNumbers = numpy.arange(0, max(numpy.max(self.seg.seeds.lut)+1,2))
 
       self.lock.acquire()
       if self._dirty:
@@ -314,7 +329,6 @@ class OpSegmentor(Operator):
           print "Label=%r, count = %r" % ( l, numpy.sum(numpy.where(res == l, 1, 0)))
       if slot == self.uncertainty:
         res = self.seg.uncertainty[key]
-      print res.shape, result.shape
       result[0,:,:,:,0] = res[:]
     return result
   
@@ -327,12 +341,12 @@ class OpSegmentor(Operator):
       self.segmentation.setDirty(slice(None,None,None))
 
 
-  def maxUncertainFG(self):
+  def get_maxUncertainFG(self):
     ufg = numpy.where(self.seg.segmentation.lut > 1, self.seg.uncertainty.lut, 0)
     index = numpy.argmax(ufg)
     return self.seg.regionCenter[index]
 
-  def maxUncertainBG(self):
+  def get_maxUncertainBG(self):
     ufg = numpy.where(self.seg.segmentation.lut == 1, self.seg.uncertainty.lut, 0)
     index = numpy.argmax(ufg)
     return self.seg.regionCenter[index]
