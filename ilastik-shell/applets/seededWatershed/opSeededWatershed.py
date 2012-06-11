@@ -62,6 +62,8 @@ class OpSegmentor(Operator):
     self.initial_segmentor.notifyConnect(self.onInitialSegmentor)
     self.initial_segmentor.notifyMetaChanged(self.onInitialSegmentor)
     self.parameters.notifyMetaChanged(self.onNewParameters)
+    self._seedNumbers = [0,1]
+    self._seedNumbersDirty = False
 
   def onInitialSegmentor(self, slot):
     if slot.meta.shape is not None:
@@ -144,6 +146,7 @@ class OpSegmentor(Operator):
 
       self.seg.seeds[key] = value
       self._dirty = True
+      self._seedNumbersDirty = True
 
     elif slot == self.deleteSeed:
       label = value
@@ -155,6 +158,7 @@ class OpSegmentor(Operator):
         lut = numpy.where(lut > label, lut - 1, lut)
         self.seg.seeds.lut[:] = lut
         self._dirty = True
+      self._seedNumbersDirty = True
 
     elif slot == self.saveObject:
       name, seed = value
@@ -241,12 +245,17 @@ class OpSegmentor(Operator):
         print "........", result.dtype
         result[0,:,:,:,0] = res[:]
     elif slot == self.seedNumbers:
-      if self.seg is not None:
-        result[0] = range(0,numpy.max(self.seg.seeds.lut)+1)
-        if len(result[0]) == 1:
-          result[0].append(1)
+      if self._seedNumbersDirty:
+        if self.seg is not None:
+          result[0] = range(0,numpy.max(self.seg.seeds.lut)+1)
+          if len(result[0]) == 1:
+            result[0].append(1)
+        else:
+          result[0] = [0, 1]
+        self._seedNumbers = result[0]
+        self._seedNumbersDirty = True
       else:
-        result[0] = [0, 1]
+        result[0] = self._seedNumbers
       return result
     
     elif slot == self.maxUncertainFG:

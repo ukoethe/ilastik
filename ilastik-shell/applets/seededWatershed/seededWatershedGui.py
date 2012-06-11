@@ -618,7 +618,7 @@ class SeededWatershedGui(QMainWindow):
 
     @property
     def setupPreprocessSettingsAppletUi(self):
-        control = self.preprocessSettings.edit_traits('default', kind='subpanel').control 
+        control = self.preprocessSettings.edit_traits('default', parent = self, kind='subpanel').control 
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -629,7 +629,7 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupAlgorithmSettingsAppletUi(self):
-        control = self.algorithmSettings.edit_traits('default', kind='subpanel').control 
+        control = self.algorithmSettings.edit_traits('default', parent = self, kind='subpanel').control 
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -640,7 +640,7 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupObjectSavingAppletUi(self):
-        control = self.objectSavingApplet.edit_traits('default', kind='subpanel').control 
+        control = self.objectSavingApplet.edit_traits('default', parent = self, kind='subpanel').control 
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -916,7 +916,7 @@ class SeededWatershedGui(QMainWindow):
           self.seglayer = ColortableLayer(self.segsource, colorTable = self.labelColorTable)
           self.seglayer.name = "Segmentation"
           self.seglayer.ref_object = None
-          self.seglayer.opacity = 0.5
+          self.seglayer.opacity = 0.3
           self.seglayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
           # Labels should be second (on top)
           self.layerstack.insert(1, self.seglayer)
