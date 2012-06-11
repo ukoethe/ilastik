@@ -179,7 +179,7 @@ def test():
 #timer.start()
 
 # Run a test
-#QTimer.singleShot(1, test )
+PyQt4.QtCore.QTimer.singleShot(1, test )
 
 app.exec_()
 

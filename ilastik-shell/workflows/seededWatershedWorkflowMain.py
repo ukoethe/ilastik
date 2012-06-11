@@ -47,4 +47,21 @@ shell.show()
 # Hide the splash screen
 splashScreen.finish(shell)
 
+def test():
+    from functools import partial
+    
+    # Open a test project
+    shell.openProjectFile('/home/cstraehl/ilastik06-seg.ilp')
+    
+    # Select a drawer
+    shell.setSelectedAppletDrawer( 3 )
+    
+    # Check the 'interactive mode' checkbox.
+    #QTimer.singleShot( 2000, partial(pcApplet.centralWidget._labelControlUi.checkInteractive.setChecked, True) )
+
+
+# Run a test
+#QTimer.singleShot(1, test )
+test()
+
 app.exec_()
