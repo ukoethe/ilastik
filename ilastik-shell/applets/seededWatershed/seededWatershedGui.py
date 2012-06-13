@@ -30,6 +30,7 @@ import random
 
 from utility.simpleSignal import SimpleSignal
 from utility import bind
+import ilastikshell.applet
 
 #force QT4 toolkit for the enthought traits UI
 os.environ['ETS_TOOLKIT'] = 'qt4'
@@ -42,7 +43,7 @@ try:
   hasTraits = True
 except:
   from traits.api import Enum, Bool, Float, Int, String, on_trait_change, Button, String, List
-  from traitsui.api import Item, View, Group, Action, EnumEditor
+  from traitsui.api import Item, View, Group, Action, EnumEditor 
   from traits.api import HasTraits
   hasTraits = True
 
@@ -67,9 +68,12 @@ class PreprocessSettingsApplet(HasTraits):
     def on_reset(self):
       print "__________ RESET ____________"
 
+            
     def on_preprocess(self):
       print "__________ PREPROCESS ____________"
+      self.gui.guiControlSignal.emit( ilastikshell.applet.ControlCommand.DisableSelf)
       self.operator.sigma.setValue(self.sigma)
+      self.operator.border_indicator.setValue("")
       if self.edgeIndicator == "Bright Lines":
         self.operator.border_indicator.setValue("hessian_ev_0")
       elif self.edgeIndicator == "Dark Lines":
@@ -79,6 +83,7 @@ class PreprocessSettingsApplet(HasTraits):
 
       self.gui.resizeLabels(2)
       self.gui.setupSegmentationLayer()
+      self.gui.guiControlSignal.emit( ilastikshell.applet.ControlCommand.Pop ) # Enable the others we disabled
 
     
 class AlgorithmSettingsApplet(HasTraits):
@@ -260,9 +265,11 @@ def getPathToLocalDirectory():
     return p
 
 class SeededWatershedGui(QMainWindow):
-    def __init__(self, pipeline = None, graph = None ):
+    def __init__(self, pipeline, graph, guiControlSignal):
         QMainWindow.__init__(self)
         self.editor = None
+        
+        self.guiControlSignal = guiControlSignal
         
 
         self.pipeline = pipeline
@@ -472,9 +479,6 @@ class SeededWatershedGui(QMainWindow):
 
         # Connect Applet GUI to our event handlers
         _labelControlUi.AddLabelButton.clicked.connect(self.handleAddLabelButtonClicked)
-        _labelControlUi.checkInteractive.setEnabled(False)
-        _labelControlUi.checkInteractive.toggled.connect(self.toggleInteractive)
-        _labelControlUi.labelListModel.dataChanged.connect(onDataChanged)
         
         # Initialize the arrow tool button with an icon and handler
         iconPath = getPathToLocalDirectory() + "/icons/arrow.png"
@@ -519,7 +523,6 @@ class SeededWatershedGui(QMainWindow):
         self.paintBrushSizeIndex = 0
         self.eraserSizeIndex = 0
         
-        self._labelControlUi.checkInteractive.setEnabled(True)
 
 
         _labelControlUi.segmentButton.clicked.connect(self.algorithmSettings.on_segment)
@@ -531,8 +534,8 @@ class SeededWatershedGui(QMainWindow):
           def __init__(self,gui):
             QObject.__init__(self)
             self.gui = gui
-            self.arrival = 4000
-            self.speed = 100
+            self.arrival = 2000
+            self.speed = 50
             self.timerId = -1
             self.time = 0
           
@@ -582,7 +585,6 @@ class SeededWatershedGui(QMainWindow):
             # All the controls in our GUI
             controlList = [ _labelControlUi.AddLabelButton,
                             _labelControlUi.labelListView,
-                            _labelControlUi.checkInteractive,
                             _labelControlUi.brushSizeComboBox ]
             for button in self.toolButtons.values():
                 controlList.append(button)
@@ -618,7 +620,11 @@ class SeededWatershedGui(QMainWindow):
 
     @property
     def setupPreprocessSettingsAppletUi(self):
-        control = self.preprocessSettings.edit_traits('default', parent = self, kind='subpanel').control 
+        control = self.preprocessSettings.edit_traits('default',   kind='panel').control 
+        tsize = control.frameSize()
+        control.close()
+        control = self.preprocessSettings.edit_traits('default',  parent = self, kind='panel').control 
+        control.resize(tsize)
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -629,7 +635,11 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupAlgorithmSettingsAppletUi(self):
-        control = self.algorithmSettings.edit_traits('default', parent = self, kind='subpanel').control 
+        control = self.algorithmSettings.edit_traits('default',   kind='panel').control 
+        tsize = control.frameSize()
+        control.close()
+        control = self.algorithmSettings.edit_traits('default',  parent = self, kind='panel').control 
+        control.resize(tsize)
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -640,7 +650,12 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupObjectSavingAppletUi(self):
-        control = self.objectSavingApplet.edit_traits('default', parent = self, kind='subpanel').control 
+        control = self.objectSavingApplet.edit_traits('default',  kind='panel').control 
+        tsize = control.frameSize()
+        control.close()
+        control = self.objectSavingApplet.edit_traits('default',  parent = self, kind='panel').control 
+        control.resize(tsize)
+
 
         def fct(flag):
           #TODO: do we need to do something here ?
@@ -933,7 +948,7 @@ class SeededWatershedGui(QMainWindow):
 
 
           self.ucsource = LazyflowSource( self.pipeline.uncertainty[self.imageIndex])
-          self.uclayer = AlphaModulatedLayer(self.ucsource, tintColor = QColor(255,0,0))
+          self.uclayer = AlphaModulatedLayer(self.ucsource, tintColor = QColor(0,0,255))
           self.uclayer.name = "Uncertainty"
           self.uclayer.ref_object = None
           self.uclayer.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
@@ -1030,6 +1045,14 @@ class SeededWatershedGui(QMainWindow):
             self.layerstack.insert(len(self.layerstack), layer1)
             layer1.visibleChanged.connect( self.editor.scheduleSlicesRedraw )
 
+
+            # add preprocessing layer
+            layersrc = LazyflowSource(self.pipeline.edgeWeights[0], priority = 100)
+            # layersrc.setObjectName("border indicator" )
+            # layer = GrayscaleLayer(layersrc, normalize=[0,1])
+            # layer.name = "Border indicator"
+            # self.layerstack.insert(len(self.layerstack), layer)
+
             self.initLabelLayer()
 
             shape = self.pipeline.image[self.imageIndex].shape
@@ -1123,7 +1146,6 @@ class SeededWatershedGui(QMainWindow):
     def _createDefault16ColorColorTable(self):
         c = []
         c.append(QColor(0, 0, 255))
-        c.append(QColor(255, 255, 0))
         c.append(QColor(255, 0, 0))
         c.append(QColor(0, 255, 0))
         c.append(QColor(0, 255, 255))

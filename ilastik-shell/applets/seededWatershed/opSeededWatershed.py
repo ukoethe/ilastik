@@ -42,6 +42,8 @@ class OpSegmentor(Operator):
   uncertainty = OutputSlot()
   regions = OutputSlot()
 
+  edgeWeights = OutputSlot()
+
   seedNumbers = OutputSlot()
   
   maxUncertainFG = OutputSlot()
@@ -77,6 +79,8 @@ class OpSegmentor(Operator):
 
   def onNewParameters(self, slot):
     print "================= setting segmentation to dirty = True"
+    if self.parameters.meta.shape is None:
+      return
     if self._parameters != self.parameters.value:
       self._dirty = True
     if self.parameters.value != -1:
@@ -110,6 +114,9 @@ class OpSegmentor(Operator):
 
     self.regions.meta.shape = shape
     self.regions.meta.dtype = numpy.uint8
+    
+    self.edgeWeights.meta.shape = shape
+    self.edgeWeights.meta.dtype = numpy.float32
 
     self._eraser = self.eraser.value
 
@@ -264,29 +271,34 @@ class OpSegmentor(Operator):
     elif slot == self.maxUncertainBG:
       result[0] = self.get_maxUncertainBG()
 
+    elif slot == self.edgeWeights:
+      volume = self.image.get(roi).wait()
+      border_indicator = self.border_indicator.value
+      sigma = self.sigma.value
+
+      if border_indicator == "hessian_ev_0":
+        print "Preprocessor: Eigenvalues (sigma = %r)" % (sigma,)
+        fvol = (numpy.max(volume) - volume).astype(numpy.float32)[0,:,:,:,0]
+        volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
+      elif border_indicator == "hessian_ev_0_inv":
+        print "Preprocessor: Eigenvalues (inverted, sigma = %r)" % (sigma,)
+        fvol = volume.astype(numpy.float32)[0,:,:,:,0]
+        volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
+      volume_ma = numpy.max(volume_feat)
+      volume_mi = numpy.min(volume_feat)
+      volume_feat = (volume_feat - volume_mi) * 255.0 / (volume_ma-volume_mi)
+      result[0,...,0] = volume_feat
+      
+
     elif slot == self.segmentor:
       self.lock.acquire()
       if self._dirtySeg:
-        volume = self.image[:].wait()
-        border_indicator = self.border_indicator.value
-        sigma = self.sigma.value
-
-        if border_indicator == "hessian_ev_0":
-          print "Preprocessor: Eigenvalues (sigma = %r)" % (sigma,)
-          fvol = (numpy.max(volume) - volume).astype(numpy.float32)[0,:,:,:,0]
-          volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
-        elif border_indicator == "hessian_ev_0_inv":
-          print "Preprocessor: Eigenvalues (inverted, sigma = %r)" % (sigma,)
-          fvol = volume.astype(numpy.float32)[0,:,:,:,0]
-          volume_feat = vigra.filters.hessianOfGaussianEigenvalues(fvol,sigma)[:,:,:,0]
-        volume_ma = numpy.max(volume_feat)
-        volume_mi = numpy.min(volume_feat)
-        volume_feat = (volume_feat - volume_mi) * 255.0 / (volume_ma-volume_mi)
-        print "Preprocessor: Watershed..."
+        volume_feat = self.edgeWeights[:].wait()[0,:,:,:,0]
         labelVolume = vigra.analysis.watersheds(volume_feat)[0].astype(numpy.int32)
         print "Preprocessor: Construct MSTSegmentor..."
         mst = MSTSegmentor(labelVolume, volume_feat.astype(numpy.float32), edgeWeightFunctor = "minimum")
 
+        volume = self.image[:].wait()
         mst.raw = volume[0,:,:,:,0]
 
         if self.seg is not None:# save and restore the seeds

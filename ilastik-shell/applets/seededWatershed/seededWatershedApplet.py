@@ -14,7 +14,7 @@ class SeededWatershedApplet( Applet ):
         self.pipeline = OperatorWrapper(OpSegmentor( graph ))
 
         # Instantiate the main GUI, which creates the applet drawers (for now)
-        self._centralWidget = SeededWatershedGui( self.pipeline, graph )
+        self._centralWidget = SeededWatershedGui( self.pipeline, graph, self.guiControlSignal)
 
         # To save some typing, the menu bar is defined in the .ui file 
         #  along with the rest of the central widget.

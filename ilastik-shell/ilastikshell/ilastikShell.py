@@ -260,14 +260,14 @@ class IlastikShell( QMainWindow ):
         titleHeight = self.appletBar.visualItemRect(firstItem).size().height()
         numDrawers = len(self.appletBarMapping)
         totalTitleHeight = numDrawers * titleHeight    
-        # merge error: totalTitleHeight = numDrawers * titleHeight
+        totalTitleHeight = numDrawers * titleHeight
     
-        # merge error: # Get the height of the current applet drawer               
-        # merge error: rootItem = self.appletBar.invisibleRootItem()
-        # merge error: appletDrawerItem = rootItem.child(self.currentAppletIndex).child(0)
-        # merge error: appletDrawerWidget = self.appletBar.itemWidget(appletDrawerItem, 0)
-        # merge error: appletDrawerWidget.updateGeometry()
-        # merge error: appletDrawerHeight = appletDrawerWidget.frameSize().height()
+        # Get the height of the current applet drawer               
+        rootItem = self.appletBar.invisibleRootItem()
+        appletDrawerItem = rootItem.child(self.currentAppletIndex).child(0)
+        appletDrawerWidget = self.appletBar.itemWidget(appletDrawerItem, 0)
+        appletDrawerWidget.updateGeometry()
+        appletDrawerHeight = appletDrawerWidget.frameSize().height()
     
         # Auto-size the splitter height based on the height of the applet bar.
         totalSplitterHeight = sum(self.sideSplitter.sizes())
