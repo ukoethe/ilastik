@@ -147,13 +147,14 @@ class OpSegmentor(Operator):
 
     print "  ========================= setInSlot"
     if slot == self.writeSeeds:
-      print "  =========================== WriteSeeds"
+      print "  =========================== WriteSeeds", key
       key = key[1:-1]
       value = numpy.where(value == self._eraser, 255, value[:])
 
       self.seg.seeds[key] = value
       self._dirty = True
       self._seedNumbersDirty = True
+      self.seeds.setDirty(key)
 
     elif slot == self.deleteSeed:
       label = value
