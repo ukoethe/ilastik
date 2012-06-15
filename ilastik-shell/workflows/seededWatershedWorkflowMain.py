@@ -62,6 +62,6 @@ def test():
 
 # Run a test
 #QTimer.singleShot(1, test )
-#test()
+test()
 
 app.exec_()

@@ -1,6 +1,5 @@
 import numpy, vigra, h5py
-from lazyflow.operators import OpPixelFeaturesPresmoothed, OpBlockedArrayCache, OpArrayPiper, Op5ToMulti, OpBlockedSparseLabelArray, OpArrayCache, \
-                               OpTrainRandomForestBlocked, OpPredictRandomForest, OpSlicedBlockedArrayCache
+from lazyflow.operators import OpPixelFeaturesPresmoothed, OpBlockedArrayCache, OpArrayPiper, Op5ToMulti, OpBlockedSparseLabelArray, OpArrayCache, OpTrainRandomForestBlocked, OpPredictRandomForest, OpSlicedBlockedArrayCache
 
 from lazyflow.graph import Operator, InputSlot, OutputSlot, MultiInputSlot, MultiOutputSlot
 from threading import Lock
@@ -12,6 +11,21 @@ from json import decoder, scanner
 
 from json.scanner import make_scanner
 from _json import scanstring as c_scanstring
+
+def clipToShape(shape, key, data):
+  # clip a key and the corresponding data
+  # to a defined shape range
+  #
+  newKey = tuple()
+  dataSlice = tuple()
+  for i,s in enumerate(key):
+    s2 = slice(max(s.start, 0), min(s.stop, shape[i]),None)
+    newKey = newKey + (s2,)
+    dataSlice = dataSlice + (slice(s2.start - s.start, s2.stop - s2.start, None),)
+  newData = data[dataSlice]
+  return newKey, newData
+
+    
 
 
 class OpSegmentor(Operator):
@@ -100,7 +114,7 @@ class OpSegmentor(Operator):
     self.deleteSeed.meta.shape = (1,)
     self.deleteSeed.meta.dtype = numpy.uint8
 
-    shape = self.raw.meta.shape = self.image.meta.shape
+    shape = self._shape = self.raw.meta.shape = self.image.meta.shape
     self.raw.meta.dtype = self.image.meta.dtype
 
     self.seeds.meta.shape = shape
@@ -149,6 +163,7 @@ class OpSegmentor(Operator):
     if slot == self.writeSeeds:
       print "  =========================== WriteSeeds", key
       key = key[1:-1]
+      key, value = clipToShape(self._shape[1:-1], key, value)
       value = numpy.where(value == self._eraser, 255, value[:])
 
       self.seg.seeds[key] = value
