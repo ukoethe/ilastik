@@ -21,7 +21,7 @@ def clipToShape(shape, key, data):
   for i,s in enumerate(key):
     s2 = slice(max(s.start, 0), min(s.stop, shape[i]),None)
     newKey = newKey + (s2,)
-    dataSlice = dataSlice + (slice(s2.start - s.start, s2.stop - s2.start, None),)
+    dataSlice = dataSlice + (slice(s2.start - s.start, s2.stop - s.start, None),)
   newData = data[dataSlice]
   return newKey, newData
 
@@ -80,6 +80,8 @@ class OpSegmentor(Operator):
     self.parameters.notifyMetaChanged(self.onNewParameters)
     self._seedNumbers = [0,1]
     self._seedNumbersDirty = False
+    self.opLabelArray = OpBlockedSparseLabelArray( self.graph )
+
 
   def onInitialSegmentor(self, slot):
     if slot.meta.shape is not None:
@@ -150,7 +152,11 @@ class OpSegmentor(Operator):
     self.maxUncertainFG.meta.dtype = object
     
     self.maxUncertainBG.meta.shape = (1,)
-    self.maxUncertainBG.meta.dtype = object
+    self.maxUncertainBG.meta.dtype = object                     
+
+    self.opLabelArray.inputs["shape"].setValue( shape )
+    self.opLabelArray.inputs["blockShape"].setValue((1, 32, 32, 32, 1))
+    self.opLabelArray.inputs["eraser"].setValue(self._eraser)
 
     print "####################################### segmentor setupOutputs ############################"
     
@@ -161,15 +167,21 @@ class OpSegmentor(Operator):
 
     print "  ========================= setInSlot"
     if slot == self.writeSeeds:
-      print "  =========================== WriteSeeds", key
+      key, value = clipToShape(self._shape, key, value)
+      okey = key
       key = key[1:-1]
-      key, value = clipToShape(self._shape[1:-1], key, value)
+      ovalue = value
+      print "  =========================== WriteSeeds", key, value
       value = numpy.where(value == self._eraser, 255, value[:])
 
       self.seg.seeds[key] = value
       self._dirty = True
       self._seedNumbersDirty = True
       self.seeds.setDirty(key)
+
+      # also write to the label saving operator
+      # (internal for display purposes)
+      self.opLabelArray.Input[okey] = ovalue
 
     elif slot == self.deleteSeed:
       label = value
@@ -262,6 +274,12 @@ class OpSegmentor(Operator):
       if self.seg is not None:
         res = self.seg.seeds[key]
         result[0,:,:,:,0] = res[:]
+
+      # get labeling frokm internal label saving operator
+      # nicer for displaying
+      temp = self.opLabelArray.Output.get(roi).wait()
+      result[:] = temp
+
     elif slot == self.regions:
       if self.seg is not None:
         res = self.seg.regionVol[key] % 256
