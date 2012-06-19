@@ -25,8 +25,8 @@ class SeededWatershedApplet( Applet ):
         # For now, the central widget owns the applet bar gui
         self._controlWidgets = [ ("Preprocessing", self._centralWidget.setupPreprocessSettingsAppletUi),
                                  ("Algorithm Settings", self._centralWidget.setupAlgorithmSettingsAppletUi),
-                                 ("Interactive Segmentation", self._centralWidget.labelControlUi),
-                                 ("Object Management", self._centralWidget.setupObjectSavingAppletUi)
+                                 ("Interactive Segmentation", self._centralWidget.labelControlUi)
+                                 #,("Object Management", self._centralWidget.setupObjectSavingAppletUi)
                                   ]
         
         # We provide two independent serializing objects:

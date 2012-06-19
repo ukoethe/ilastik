@@ -113,6 +113,7 @@ class AlgorithmSettingsApplet(HasTraits):
     def on_segment(self):
       print "__________ SEGMENT ____________"
       self.update_parameters()
+      self.operator.slotsetDirty[0][0] = 1 # set segmentor dirty
       self.gui.setupSegmentationLayer()
       self.gui.editor.scheduleSlicesRedraw()
 
@@ -507,6 +508,7 @@ class SeededWatershedGui(QMainWindow):
                              Tool.Erase      : _labelControlUi.eraserToolButton }
         
         self.brushSizes = [ 
+                            (2,  "Tiny"),
                             (5,  "Small"),
                             (7,  "Medium"),
                             (11, "Large"),
@@ -534,8 +536,8 @@ class SeededWatershedGui(QMainWindow):
           def __init__(self,gui):
             QObject.__init__(self)
             self.gui = gui
-            self.arrival = 2000
-            self.speed = 50
+            self.arrival = 3000
+            self.speed = 100
             self.timerId = -1
             self.time = 0
           

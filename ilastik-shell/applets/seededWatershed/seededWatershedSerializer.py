@@ -47,6 +47,29 @@ class SeededWatershedSerializer(object):
             mst = self.mainOperator.segmentor[imageIndex].value
 
             mst.saveH5G(segGroup)
+        
+        # Delete all labels from the file
+        self.deleteIfPresent(topGroup, 'LabelSets')
+        labelSetDir = topGroup.create_group('LabelSets')
+
+        numImages = len(self.mainOperator.nonzeroSeedBlocks)
+        for imageIndex in range(numImages):
+            # Create a group for this image
+            labelGroupName = 'labels{:03d}'.format(imageIndex)
+            labelGroup = labelSetDir.create_group(labelGroupName)
+            
+            # Get a list of slicings that contain labels
+            nonZeroBlocks = self.mainOperator.nonzeroSeedBlocks[imageIndex].value
+            for blockIndex, slicing in enumerate(nonZeroBlocks):
+                # Read the block from the label output
+                block = self.mainOperator.seeds[imageIndex][slicing].wait()
+                
+                # Store the block as a new dataset
+                blockName = 'block{:04d}'.format(blockIndex)
+                labelGroup.create_dataset(blockName, data=block)
+                
+                # Add the slice this block came from as an attribute of the dataset
+                labelGroup[blockName].attrs['blockSlice'] = self.slicingToString(slicing)
             
 
     def deserializeFromHdf5(self, hdf5File, filePath):
@@ -72,8 +95,28 @@ class SeededWatershedSerializer(object):
         for index, (groupName, group) in enumerate( sorted(segDir.items()) ):
           mst = MSTSegmentor.loadH5G(group)
           self.mainOperator.initial_segmentor[index].setValue(mst)
+        
+        # Access the top group and all required datasets
+        #  If something is missing we simply return without adding any input to the operator.
+        try:
+            topGroup = hdf5File[self.TopGroupName]
+            labelSetGroup = topGroup['LabelSets']
+        except KeyError:
+            # There's no label data in the project.  Make sure the operator doesn't have any label data.
+            print "No seed data found.."
+            return
 
+        numImages = len(labelSetGroup)
+        self.mainOperator.seeds.resize(numImages)
 
+        # For each image in the file
+        for index, (groupName, labelGroup) in enumerate( sorted(labelSetGroup.items()) ):
+            # For each block of label data in the file
+            for blockData in labelGroup.values():
+                # The location of this label data block within the image is stored as an attribute
+                slicing = self.stringToSlicing( blockData.attrs['blockSlice'] )
+                # Slice in this data to the label input
+                self.mainOperator.writeSeeds[index][slicing] = blockData[...]
 
 
 

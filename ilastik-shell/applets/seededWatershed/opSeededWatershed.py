@@ -39,6 +39,8 @@ class OpSegmentor(Operator):
   loadObject = InputSlot(optional=True) 
   deleteObject = InputSlot(optional=True) 
 
+  slotsetDirty = InputSlot(optional=True, value = numpy.ndarray((1,)))
+
   update = InputSlot(value = False)
   eraser = InputSlot(value=100)
   algorithm = InputSlot(value="PrioMST")
@@ -62,6 +64,8 @@ class OpSegmentor(Operator):
   
   maxUncertainFG = OutputSlot()
   maxUncertainBG = OutputSlot()
+
+  nonzeroSeedBlocks = OutputSlot()
 
 
   def __init__(self,parent):
@@ -157,6 +161,9 @@ class OpSegmentor(Operator):
     self.opLabelArray.inputs["shape"].setValue( shape )
     self.opLabelArray.inputs["blockShape"].setValue((1, 32, 32, 32, 1))
     self.opLabelArray.inputs["eraser"].setValue(self._eraser)
+    
+    self.nonzeroSeedBlocks.connect(self.opLabelArray.nonzeroBlocks)
+
 
     print "####################################### segmentor setupOutputs ############################"
     
@@ -166,22 +173,26 @@ class OpSegmentor(Operator):
       self.segmentor.value
 
     print "  ========================= setInSlot"
+
+    if slot == self.slotsetDirty:
+      self._dirty = True
+
+
     if slot == self.writeSeeds:
       key, value = clipToShape(self._shape, key, value)
       okey = key
       key = key[1:-1]
       ovalue = value
-      print "  =========================== WriteSeeds", key, value
       value = numpy.where(value == self._eraser, 255, value[:])
 
       self.seg.seeds[key] = value
-      self._dirty = True
       self._seedNumbersDirty = True
-      self.seeds.setDirty(key)
 
       # also write to the label saving operator
       # (internal for display purposes)
       self.opLabelArray.Input[okey] = ovalue
+
+      self.seeds.setDirty(okey)
 
     elif slot == self.deleteSeed:
       label = value
@@ -194,6 +205,10 @@ class OpSegmentor(Operator):
         self.seg.seeds.lut[:] = lut
         self._dirty = True
       self._seedNumbersDirty = True
+      self.opLabelArray.inputs["deleteLabel"].setValue(-1)
+      self.opLabelArray.inputs["deleteLabel"].setValue(label)
+      self.seeds.setDirty(slice(None,None,None))
+
 
     elif slot == self.saveObject:
       name, seed = value
@@ -271,9 +286,9 @@ class OpSegmentor(Operator):
         res = self.seg.raw[key]
         result[0,:,:,:,0] = res[:]
     elif slot == self.seeds:
-      if self.seg is not None:
-        res = self.seg.seeds[key]
-        result[0,:,:,:,0] = res[:]
+      #if self.seg is not None:
+      #  res = self.seg.seeds[key]
+      #  result[0,:,:,:,0] = res[:]
 
       # get labeling frokm internal label saving operator
       # nicer for displaying
@@ -378,10 +393,7 @@ class OpSegmentor(Operator):
       self.lock.release()
 
       if slot == self.segmentation:
-        print " ========== getting segmentation"
         res = self.seg.segmentation[key]
-        for l in labelNumbers:
-          print "Label=%r, count = %r" % ( l, numpy.sum(numpy.where(res == l, 1, 0)))
       if slot == self.uncertainty:
         res = self.seg.uncertainty[key]
       result[0,:,:,:,0] = res[:]

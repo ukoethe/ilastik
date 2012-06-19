@@ -127,6 +127,7 @@ class IlastikShell( QMainWindow ):
             self.addApplet(applet)
 
         self.appletBar.expanded.connect(self.handleAppleBarItemExpanded)
+        self.appletBar.setVerticalScrollMode( QAbstractItemView.ScrollPerPixel )
         self.appletBar.clicked.connect(self.handleAppletBarClick)
         
         # By default, make the splitter control expose a reasonable width of the applet bar

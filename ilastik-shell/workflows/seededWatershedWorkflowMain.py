@@ -51,7 +51,7 @@ def test():
     from functools import partial
     
     # Open a test project
-    shell.openProjectFile('/home/cstraehl/ilastik06-seg.ilp')
+    shell.openProjectFile('/home/cstraehl/ilastik06-seg-denk.ilp')
     
     # Select a drawer
     shell.setSelectedAppletDrawer( 3 )
@@ -62,6 +62,6 @@ def test():
 
 # Run a test
 #QTimer.singleShot(1, test )
-test()
+#test()
 
 app.exec_()
