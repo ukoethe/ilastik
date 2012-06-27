@@ -70,12 +70,11 @@ class OpSegmentor(Operator):
 
   def __init__(self,parent):
     Operator.__init__(self,parent)
-    self._dirty   = True
     self._fname = None
     self._algorithm = ""
     self._parameters = {}
     self.seg = None
-    self._dirty = True
+    self._dirty = False
     self.lock = Lock()
     self.initial_seg = None
     self._dirtySeg = True
@@ -179,6 +178,7 @@ class OpSegmentor(Operator):
 
 
     if slot == self.writeSeeds:
+      self._dirty = False
       key, value = clipToShape(self._shape, key, value)
       okey = key
       key = key[1:-1]
