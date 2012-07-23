@@ -2,7 +2,26 @@
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+import os , string
+#force QT4 toolkit for the enthought traits UI
+os.environ['ETS_TOOLKIT'] = 'qt4'
+
+hasTraits = False
+try:
+  from enthought.traits.api import Enum, Bool, Float, Int, String, on_trait_change,  Button, String, List
+  from enthought.traits.ui.api import Item, View, Group, Action, EnumEditor
+  from enthought.traits.api import HasTraits
+  hasTraits = True
+except:
+  from traits.api import Enum, Bool, Float, Int, String, on_trait_change, Button, String, List
+  from traitsui.api import Item, View, Group, Action, EnumEditor 
+  from traits.api import HasTraits
+  hasTraits = True
+
 from PyQt4.QtGui import QApplication, QSplashScreen, QPixmap
+from PyQt4 import QtCore
+
+QtCore.QString = str
 
 from ilastikshell.ilastikShell import IlastikShell
 
@@ -56,7 +75,7 @@ def test():
     # Select a drawer
     shell.setSelectedAppletDrawer( 3 )
     
-    # Check the 'interactive mode' checkbox.
+    # Check the 'interactive mode' checkbox.                               sip api 2 QStringList
     #QTimer.singleShot( 2000, partial(pcApplet.centralWidget._labelControlUi.checkInteractive.setChecked, True) )
 
 

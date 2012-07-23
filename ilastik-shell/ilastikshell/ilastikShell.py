@@ -299,7 +299,7 @@ class IlastikShell( QMainWindow ):
 
         # Add all of the applet bar's items to the toolbox widget
         for controlName, controlGuiItem in app.appletDrawers:
-            appletNameItem = QTreeWidgetItem( self.appletBar, QtCore.QStringList( controlName ) )
+            appletNameItem = QTreeWidgetItem( self.appletBar, [ controlName ] )
             appletNameItem.setFont( 0, QFont("Ubuntu", 14) )
             drawerItem = QTreeWidgetItem(appletNameItem)
             drawerItem.setSizeHint( 0, controlGuiItem.frameSize() )

@@ -622,10 +622,9 @@ class SeededWatershedGui(QMainWindow):
 
     @property
     def setupPreprocessSettingsAppletUi(self):
-        control = self.preprocessSettings.edit_traits('default',   kind='panel').control 
+        control = self.preprocessSettings.edit_traits('default',   kind='subpanel').control 
         tsize = control.frameSize()
-        control.close()
-        control = self.preprocessSettings.edit_traits('default',  parent = self, kind='panel').control 
+        control.setParent(self)
         control.resize(tsize)
 
         def fct(flag):
@@ -637,10 +636,9 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupAlgorithmSettingsAppletUi(self):
-        control = self.algorithmSettings.edit_traits('default',   kind='panel').control 
+        control = self.algorithmSettings.edit_traits('default',   kind='subpanel').control 
+        control.setParent(self)
         tsize = control.frameSize()
-        control.close()
-        control = self.algorithmSettings.edit_traits('default',  parent = self, kind='panel').control 
         control.resize(tsize)
 
         def fct(flag):
@@ -652,10 +650,9 @@ class SeededWatershedGui(QMainWindow):
     
     @property
     def setupObjectSavingAppletUi(self):
-        control = self.objectSavingApplet.edit_traits('default',  kind='panel').control 
+        control = self.objectSavingApplet.edit_traits('default',  kind='subpanel').control 
+        control.setParent(self)
         tsize = control.frameSize()
-        control.close()
-        control = self.objectSavingApplet.edit_traits('default',  parent = self, kind='panel').control 
         control.resize(tsize)
 
 
