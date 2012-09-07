@@ -90,7 +90,7 @@ class OpFeatureSelection(Operator):
 
     def propagateDirty(self, inputSlot, roi):
         # Output slots are directly connected to internal operators
-        pass
+        print "Propagate dirty called for slot: {}, roi: {}".format(inputSlot.name, roi)
 
 
 
