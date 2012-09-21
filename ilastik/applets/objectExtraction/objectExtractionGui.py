@@ -9,7 +9,7 @@ import os
 from volumina.api import LazyflowSource, GrayscaleLayer, RGBALayer, ConstantSource, \
                          AlphaModulatedLayer, LayerStackModel, VolumeEditor, VolumeEditorWidget, ColortableLayer
 import volumina.colortables as colortables
-
+from volumina.pixelpipeline.datasources import MipSource
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,26 +41,28 @@ class ObjectExtractionGui( QWidget ):
         self.curOp = mainOperator
 
         ct = colortables.create_default_8bit()
-        self.binaryimagesrc = LazyflowSource( mainOperator.BinaryImage )
-        layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
+        self.binaryimagesrc = MipSource(LazyflowSource( mainOperator.BinaryImage ))
+        layer = GrayscaleLayer( self.binaryimagesrc )#, range=(0,1), normalize=(0,1) )
         layer.name = "Binary Image"
         self.layerstack.append(layer)
 
-        ct = colortables.create_default_16bit()
-        self.objectssrc = LazyflowSource( mainOperator.LabelImage )
-        ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
-        layer = ColortableLayer( self.objectssrc, ct )
-        layer.name = "Label Image"
-        layer.opacity = 0.5
-        self.layerstack.append(layer)
+        # ct = colortables.create_default_16bit()
+        # self.objectssrc = LazyflowSource( mainOperator.LabelImage )
+        # ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
+        # layer = ColortableLayer( self.objectssrc, ct )
+        # layer.name = "Label Image"
+        # layer.opacity = 0.5
+        # self.layerstack.append(layer)
 
-        self.centerimagesrc = LazyflowSource( mainOperator.ObjectCenterImage )
-        layer = RGBALayer( red=ConstantSource(255), alpha=self.centerimagesrc )
-        layer.name = "Object Centers"
-        self.layerstack.append( layer )
+        # self.centerimagesrc = LazyflowSource( mainOperator.ObjectCenterImage )
+        # layer = RGBALayer( red=ConstantSource(255), alpha=self.centerimagesrc )
+        # layer.name = "Object Centers"
+        # self.layerstack.append( layer )
 
         if mainOperator.BinaryImage.meta.shape:
-            self.editor.dataShape = mainOperator.LabelImage.meta.shape
+            s = list(mainOperator.BinaryImage.meta.shape)
+            s[3] = 1
+            self.editor.dataShape = s
         mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )            
 
     def reset( self ):
@@ -93,7 +95,9 @@ class ObjectExtractionGui( QWidget ):
     def _onMetaChanged( self, slot ):
         if slot is self.curOp.BinaryImage:
             if slot.meta.shape:
-                self.editor.dataShape = slot.meta.shape
+                s = list(slot.meta.shape)
+                s[3] = 1
+                self.editor.dataShape = s
  
     def _initEditor(self):
         """
