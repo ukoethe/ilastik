@@ -13,8 +13,8 @@ from PyQt4.QtGui import *
 # HCI
 from lazyflow.tracer import traceLogged
 from volumina.api import LazyflowSinkSource, ColortableLayer
-from igms.labelListView import Label
-from igms.labelListModel import LabelListModel
+from ilastik.widgets.labelListView import Label
+from ilastik.widgets.labelListModel import LabelListModel
 
 # ilastik
 from ilastik.utility import bind
@@ -110,7 +110,7 @@ class LabelingGui(LayerViewerGui):
             self.labelsAllowed = None # labelsAllowed[image_index].value == True
 
     @traceLogged(traceLogger)
-    def __init__(self, labelingSlots, observedSlots, drawerUiPath=None, rawInputSlot=None ):
+    def __init__(self, labelingSlots, topLevelOperator, drawerUiPath=None, rawInputSlot=None ):
         """
         See LabelingSlots class (above) for expected type of labelingSlots parameter.
         
@@ -126,12 +126,9 @@ class LabelingGui(LayerViewerGui):
         self._maxLabelNumber = 99 #100 or 255 is reserved for eraser
 
         self._rawInputSlot = rawInputSlot
-        if rawInputSlot is not None:
-            observedSlots.append(rawInputSlot)
         
         # Init base class
-        observedSlots += [ labelingSlots.labelOutput, labelingSlots.labelsAllowed ]
-        super(LabelingGui, self).__init__( observedSlots )
+        super(LabelingGui, self).__init__( topLevelOperator )
 
         self._labelingSlots = labelingSlots
         self._labelingSlots.labelEraserValue.setValue(self.editor.brushingModel.erasingNumber)
@@ -140,7 +137,7 @@ class LabelingGui(LayerViewerGui):
         # Register for thunk events (easy UI calls from non-GUI threads)
         self.thunkEventHandler = ThunkEventHandler(self)
 
-        self._colorTable16 = self._createDefault16ColorColorTable()        
+        self._colorTable16 = self._createDefault16ColorColorTable()
         self._programmaticallyRemovingLabels = False
         
         if drawerUiPath is None:
@@ -276,7 +273,7 @@ class LabelingGui(LayerViewerGui):
 
         # If the user can't label this image, disable the button and say why its disabled
         labelsAllowed = False
-        if self.imageIndex != -1:
+        if 0 <= self.imageIndex < len(self._labelingSlots.labelsAllowed) :
             labelsAllowedSlot = self._labelingSlots.labelsAllowed[self.imageIndex]
             if labelsAllowedSlot.ready():
                 labelsAllowed = labelsAllowedSlot.value

@@ -57,12 +57,18 @@ class LayerViewerGui(QMainWindow):
     def reset(self):
         # Remove all layers
         self.layerstack.clear()
+    
+    ###########################################
+    ###########################################
 
-    ###########################################
-    ###########################################
+    def operatorForCurrentImage(self):
+        try:
+            return self.topLevelOperator[self.imageIndex]
+        except IndexError:
+            return None
 
     @traceLogged(traceLogger)
-    def __init__(self, observedSlots):
+    def __init__(self, topLevelOperator):
         """
         Args:
             observedSlots   - A list of slots that we'll listen for changes on.
@@ -73,8 +79,15 @@ class LayerViewerGui(QMainWindow):
 
         self.threadRouter = ThreadRouter(self) # For using @threadRouted
 
-        self.observedSlots = []
+        self.topLevelOperator = topLevelOperator
 
+        observedSlots = []
+
+        for slot in topLevelOperator.inputs.values() + topLevelOperator.outputs.values():
+            if slot.level == 1 or slot.level == 2:
+                observedSlots.append(slot)
+        
+        self.observedSlots = []        
         for slot in observedSlots:
             if slot.level == 1:
                 # The user gave us a slot that is indexed as slot[image]
@@ -123,14 +136,14 @@ class LayerViewerGui(QMainWindow):
 
     def setupLayers( self, currentImageIndex ):
         layers = []
-        for slotLevel2 in self.observedSlots:
-            for i, slotLevel1 in enumerate(slotLevel2):
-                for j, slot in enumerate(slotLevel1):
+        for multiImageSlot in self.observedSlots:
+            if 0 <= currentImageIndex < len(multiImageSlot):
+                multiLayerSlot = multiImageSlot[currentImageIndex]
+                for j, slot in enumerate(multiLayerSlot):
                     if slot.ready():
                         layer = self.createStandardLayerFromSlot(slot)
-                        layer.name = slotLevel2.name + " " + str(j)
-                        layers.append(layer)
-        
+                        layer.name = multiImageSlot.name + " " + str(j)
+                        layers.append(layer)        
         return layers
 
     @traceLogged(traceLogger)
@@ -159,8 +172,9 @@ class LayerViewerGui(QMainWindow):
         
         # Make sure we're notified if a layer is inserted in the future so we can subscribe to its ready notifications
         for provider in self.observedSlots:
-            provider[self.imageIndex].notifyInserted( bind(self.handleLayerInsertion) )
-            provider[self.imageIndex].notifyRemoved( bind(self.handleLayerRemoval) )
+            if self.imageIndex < len(provider):
+                provider[self.imageIndex].notifyInserted( bind(self.handleLayerInsertion) )
+                provider[self.imageIndex].notifyRemoved( bind(self.handleLayerRemoval) )
 
     def handleLayerInsertion(self, slot, slotIndex):
         """
@@ -258,6 +272,10 @@ class LayerViewerGui(QMainWindow):
 
     @traceLogged(traceLogger)
     def areProvidersInSync(self):
+        """
+        When an image is appended to the workflow, not all slots are resized simultaneously.
+        We should avoid calling setupLayers() until all the slots have been resized with the new image.
+        """
         try:
             numImages = len(self.observedSlots[0])
         except IndexError: # observedSlots is empty
@@ -354,16 +372,17 @@ class LayerViewerGui(QMainWindow):
 
         newDataShape = None
         for provider in self.observedSlots:
-            for i, slot in enumerate(provider[self.imageIndex]):
-                if newDataShape is None and slot.ready() and slot.meta.axistags is not None:
-                    # Use an Op5ifyer adapter to transpose the shape for us.
-                    op5 = Op5ifyer( graph=slot.graph )
-                    op5.input.connect( slot )
-                    newDataShape = op5.output.meta.shape
-
-                    # We just needed the operator to determine the transposed shape.
-                    # Disconnect it so it can be garbage collected.
-                    op5.input.disconnect()
+            if self.imageIndex < len(provider):
+                for i, slot in enumerate(provider[self.imageIndex]):
+                    if newDataShape is None and slot.ready() and slot.meta.axistags is not None:
+                        # Use an Op5ifyer adapter to transpose the shape for us.
+                        op5 = Op5ifyer( graph=slot.graph )
+                        op5.input.connect( slot )
+                        newDataShape = op5.output.meta.shape
+    
+                        # We just needed the operator to determine the transposed shape.
+                        # Disconnect it so it can be garbage collected.
+                        op5.input.disconnect()
 
         if newDataShape is not None:
             # For now, this base class combines multi-channel images into a single layer,

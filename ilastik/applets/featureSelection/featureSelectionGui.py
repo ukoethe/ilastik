@@ -1,8 +1,8 @@
 from PyQt4.QtGui import *
 from PyQt4 import uic
 
-from igms.featureTableWidget import FeatureEntry
-from igms.featureDlg import FeatureDlg
+from ilastik.widgets.featureTableWidget import FeatureEntry
+from ilastik.widgets.featureDlg import FeatureDlg
 
 import os
 import numpy
@@ -66,11 +66,11 @@ class FeatureSelectionGui(LayerViewerGui):
     def __init__(self, mainOperator):
         """
         """
-        super(FeatureSelectionGui, self).__init__([ mainOperator.FeatureLayers, mainOperator.InputImage ])
+        super(FeatureSelectionGui, self).__init__(mainOperator)
         self.mainOperator = mainOperator
 
         self.initFeatureDlg()
-        self.mainOperator.SelectionMatrix.notifyConnect( bind(self.onFeaturesSelectionsChanged) )
+        self.mainOperator.SelectionMatrix.notifyDirty( bind(self.onFeaturesSelectionsChanged) )
     
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
@@ -124,9 +124,11 @@ class FeatureSelectionGui(LayerViewerGui):
     @traceLogged(traceLogger)
     def setupLayers(self, currentImageIndex):
         layers = []
+        
+        opFeatureSelection = self.operatorForCurrentImage()
 
-        inputSlot = self.mainOperator.InputImage[currentImageIndex]
-        featureMultiSlot = self.mainOperator.FeatureLayers[currentImageIndex]
+        inputSlot = opFeatureSelection.InputImage
+        featureMultiSlot = opFeatureSelection.FeatureLayers
         if inputSlot.ready() and featureMultiSlot.ready():
             for featureIndex, featureSlot in enumerate(featureMultiSlot):
                 assert featureSlot.ready()
@@ -213,18 +215,20 @@ class FeatureSelectionGui(LayerViewerGui):
         self.featureDlg.show()
 
     def onNewFeaturesFromFeatureDlg(self):
-        # Re-initialize the scales and features
-        self.mainOperator.Scales.setValue( self.ScalesList )
-        self.mainOperator.FeatureIds.setValue(self.FeatureIds)
+        opFeatureSelection = self.operatorForCurrentImage()
+        if opFeatureSelection is not None:
+            # Re-initialize the scales and features
+            opFeatureSelection.Scales.setValue( self.ScalesList )
+            opFeatureSelection.FeatureIds.setValue(self.FeatureIds)
 
-        # Give the new features to the pipeline (if there are any)
-        featureMatrix = numpy.asarray(self.featureDlg.selectedFeatureBoolMatrix)
-        if featureMatrix.any():
-            self.mainOperator.SelectionMatrix.setValue( featureMatrix )
-        else:
-            # Not valid to give a matrix with no features selected.
-            # Disconnect.
-            self.mainOperator.SelectionMatrix.disconnect()
+            # Give the new features to the pipeline (if there are any)
+            featureMatrix = numpy.asarray(self.featureDlg.selectedFeatureBoolMatrix)
+            if featureMatrix.any():
+                opFeatureSelection.SelectionMatrix.setValue( featureMatrix )
+            else:
+                # Not valid to give a matrix with no features selected.
+                # Disconnect.
+                opFeatureSelection.SelectionMatrix.disconnect()
     
     def onFeaturesSelectionsChanged(self):
         """
