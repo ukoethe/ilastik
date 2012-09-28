@@ -2,6 +2,7 @@ from lazyflow.graph import Graph, Operator, OperatorWrapper
 
 from ilastik.workflow import Workflow
 
+from ilastik.applets.projectMetadata import ProjectMetadataApplet
 from ilastik.applets.dataSelection import DataSelectionApplet
 
 from ilastik.applets.objectFeatures import ObjectFeaturesApplet
@@ -24,6 +25,7 @@ class ObjectClassificationWorkflow( Workflow ):
         ######################
         
         ## Create applets 
+        self.projectMetadataApplet = ProjectMetadataApplet()
         self.dataSelectionApplet = DataSelectionApplet(graph, "Input Segmentation", "Input Segmentation", batchDataGui=False)
 
         self.objectFeaturesApplet = ObjectFeaturesApplet( graph )
@@ -34,6 +36,7 @@ class ObjectClassificationWorkflow( Workflow ):
         
         opObjFeatures.InputImage.connect(opData.Image)
         
+        self._applets.append(self.projectMetadataApplet)
         self._applets.append(self.dataSelectionApplet)
         self._applets.append(self.objectFeaturesApplet)
         

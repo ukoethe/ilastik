@@ -31,7 +31,7 @@ class ObjectFeaturesGui(LayerViewerGui):
     def __init__(self, mainOperator):
         """
         """
-        super(ObjectFeaturesGui, self).__init__([ mainOperator.BinaryImage, mainOperator.LabeledImage, mainOperator.InputImage ])
+        super(ObjectFeaturesGui, self).__init__( mainOperator )
         self.mainOperator = mainOperator
 
     
@@ -47,12 +47,41 @@ class ObjectFeaturesGui(LayerViewerGui):
         self.drawer.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
         
     @traceLogged(traceLogger)
+    def initViewerControlUi(self):
+        self._viewerControlWidget = uic.loadUi(os.path.split(__file__)[0] + "/viewerControls.ui")
+        layerListWidget = self._viewerControlWidget.listWidget
+
+        # Need to handle data changes because the layerstack model hasn't 
+        # updated his data yet by the time he calls the rowsInserted signal
+        def handleLayerStackDataChanged(startIndex, stopIndex):
+            row = startIndex.row()
+            layerListWidget.item(row).setText(self.layerstack[row].name)
+        self.layerstack.dataChanged.connect(handleLayerStackDataChanged)
+        
+        def handleInsertedLayers(parent, start, end):
+            for i in range(start, end+1):
+                layerListWidget.insertItem(i, self.layerstack[i].name)
+        self.layerstack.rowsInserted.connect( handleInsertedLayers )
+
+        def handleRemovedLayers(parent, start, end):
+            for i in range(start, end+1):
+                layerListWidget.takeItem(i)
+        self.layerstack.rowsRemoved.connect( handleRemovedLayers )
+        
+        def handleSelectionChanged(row):
+            # Only one layer is visible at a time
+            print "selection changed"
+            for i, layer in enumerate(self.layerstack):
+                layer.visible = (i == row)
+        layerListWidget.currentRowChanged.connect( handleSelectionChanged )
+    
+    @traceLogged(traceLogger)
     def setupLayers(self, currentImageIndex):
         
         layers = []
         
         inputSlot = self.mainOperator.InputImage[currentImageIndex]
-        binarySlot = self.mainOperator.BinaryImage[currentImageIndex]
+        #binarySlot = self.mainOperator.BinaryImage[currentImageIndex]
         labeledSlot = self.mainOperator.LabeledImage[currentImageIndex]
         
         if inputSlot.ready():
@@ -61,7 +90,7 @@ class ObjectFeaturesGui(LayerViewerGui):
             inputLayer.visible = True
             inputLayer.opacity = 1.0
             layers.append(inputLayer)
-        
+        '''
         if binarySlot.ready():
             ct = colortables.create_default_8bit()
             self.binaryimagesrc = LazyflowSource( self.mainOperator.BinaryImage )
@@ -71,13 +100,14 @@ class ObjectFeaturesGui(LayerViewerGui):
             layer.opacity = 1.0
             #self.layerstack.append(layer)
             layers.append(layer)
-
+        '''
+            
         if labeledSlot.ready():
             ct = colortables.create_default_16bit()
-            self.objectssrc = LazyflowSource( self.mainOperator.LabelImage )
+            self.objectssrc = LazyflowSource( labeledSlot )
             ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
             layer = ColortableLayer( self.objectssrc, ct )
-            layer.name = "Label Image"
+            layer.name = "Labeled Image"
             layer.opacity = 0.5
             layer.visible = True
             #self.layerstack.append(layer)
@@ -85,10 +115,9 @@ class ObjectFeaturesGui(LayerViewerGui):
             
         return layers
     
-    @traceLogged(traceLogger)
     def onLabelImageButtonClicked(self):
         print "clicked the label image button!"
+        self.mainOperator.inputs["OutputPath"].setValue("/home/akreshuk/data/3dcube_cc.h5/volume/data")
         
-    @traceLogged(traceLogger)
     def onExtractObjectsButtonClicked(self):
         print "clicked the extract objects button!"
