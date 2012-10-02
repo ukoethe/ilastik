@@ -94,6 +94,7 @@ class PixelClassificationGui(LabelingGui):
         # Base class provides the label layer.
         layers = super(PixelClassificationGui, self).setupLayers(currentImageIndex)
 
+        #This is just for colors
         labels = self.labelListData
 
         # Add each of the predictions

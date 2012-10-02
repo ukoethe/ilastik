@@ -8,7 +8,7 @@ from lazyflow.stype import Opaque
 from lazyflow.rtype import Everything, SubRegion, List
 from lazyflow.operators.ioOperators.opStreamingHdf5Reader import OpStreamingHdf5Reader
 
-import ctracking
+#import ctracking
 
 
 class OpLabelImage( Operator ):

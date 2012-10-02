@@ -4,8 +4,9 @@ from ilastik.workflow import Workflow
 
 from ilastik.applets.projectMetadata import ProjectMetadataApplet
 from ilastik.applets.dataSelection import DataSelectionApplet
+from ilastik.applets.objectExtraction import ObjectExtractionApplet
 
-from ilastik.applets.objectFeatures import ObjectFeaturesApplet
+from ilastik.applets.objectClassification import ObjectClassificationApplet
 
 from lazyflow.graph import Operator, InputSlot, OutputSlot
 from lazyflow.stype import Opaque
@@ -27,18 +28,26 @@ class ObjectClassificationWorkflow( Workflow ):
         ## Create applets 
         self.projectMetadataApplet = ProjectMetadataApplet()
         self.dataSelectionApplet = DataSelectionApplet(graph, "Input Segmentation", "Input Segmentation", batchDataGui=False)
-
-        self.objectFeaturesApplet = ObjectFeaturesApplet( graph )
+        self.objectExtractionApplet = ObjectExtractionApplet( graph )
+        self.objectClassificationApplet = ObjectClassificationApplet( graph )
         
         ## Access applet operators
         opData = self.dataSelectionApplet.topLevelOperator
-        opObjFeatures = self.objectFeaturesApplet.topLevelOperator
+        opObjExtraction = self.objectExtractionApplet.topLevelOperator
+        opObjClassification = self.objectClassificationApplet.topLevelOperator
         
-        opObjFeatures.InputImage.connect(opData.Image)
+        opObjExtraction.BinaryImage.connect( opData.Image )
+
+        opObjClassification.InputImages.connect( opObjExtraction.LabelImage )
+        opObjClassification.ObjectFeatures.connect( opObjExtraction.RegionFeatures )
+        
+        opObjClassification.InputImages.connect(opData.Image)
+        opObjClassification.LabelsAllowedFlags.connect( opData.AllowLabels )
         
         self._applets.append(self.projectMetadataApplet)
         self._applets.append(self.dataSelectionApplet)
-        self._applets.append(self.objectFeaturesApplet)
+        self._applets.append(self.objectExtractionApplet)
+        self._applets.append(self.objectClassificationApplet)
         
         # The shell needs a slot from which he can read the list of image names to switch between.
         # Use an OpAttributeSelector to create a slot containing just the filename from the OpDataSelection's DatasetInfo slot.

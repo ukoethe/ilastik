@@ -10,6 +10,7 @@ from volumina.api import LazyflowSource, GrayscaleLayer, RGBALayer, ConstantSour
                          AlphaModulatedLayer, LayerStackModel, VolumeEditor, VolumeEditorWidget, ColortableLayer
 import volumina.colortables as colortables
 
+from ilastik.applets.layerViewer import LayerViewerGui
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ traceLogger = logging.getLogger('TRACE.' + __name__)
 from lazyflow.tracer import Tracer
 
 
-class ObjectExtractionGui( QWidget ):
+class ObjectExtractionGui( LayerViewerGui ):
     """
     """
     
@@ -36,6 +37,41 @@ class ObjectExtractionGui( QWidget ):
     def viewerControlWidget( self ):
         return self._viewerControlWidget
 
+    def setupLayers(self, currentImageIndex):
+
+        layers = []
+        
+        #inputSlot = self.pipeline.InputImages[currentImageIndex]
+        binarySlot = self.pipeline.BinaryImage[currentImageIndex]
+        labeledSlot = self.pipeline.LabelImage[currentImageIndex]
+        centerSlot = self.pipeline.ObjectCenterImage[currentImageIndex]
+        
+        if binarySlot.ready():
+            ct = colortables.create_default_8bit()
+            self.binaryimagesrc = LazyflowSource( binarySlot )
+            layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
+            layer.name = "Binary Image"
+            layers.append(layer)
+            #self.layerstack.append(layer)
+        if labeledSlot.ready():
+            ct = colortables.create_default_16bit()
+            self.objectssrc = LazyflowSource( labeledSlot )
+            ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
+            layer = ColortableLayer( self.objectssrc, ct )
+            layer.name = "Label Image"
+            layer.opacity = 0.5
+            #self.layerstack.append(layer)
+            layers.append(layer)
+
+        if centerSlot.ready():
+            self.centerimagesrc = LazyflowSource( centerSlot )
+            layer = RGBALayer( red=ConstantSource(255), alpha=self.centerimagesrc )
+            layer.name = "Object Centers"
+            layers.append(layer)
+            #self.layerstack.append( layer )
+        return layers 
+
+    '''
     def setImageIndex( self, imageIndex ):
         mainOperator = self.mainOperator.innerOperators[imageIndex]
         self.curOp = mainOperator
@@ -62,7 +98,7 @@ class ObjectExtractionGui( QWidget ):
         if mainOperator.BinaryImage.meta.shape:
             self.editor.dataShape = mainOperator.LabelImage.meta.shape
         mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )            
-
+    '''
     def reset( self ):
         print "reset(): not implemented"
 

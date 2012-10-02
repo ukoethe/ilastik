@@ -1,19 +1,21 @@
 from ilastik.applets.base.applet import Applet
 
-from opObjectFeatures import OpObjectFeatures
-from objectFeaturesGui import ObjectFeaturesGui
+from opObjectClassification import OpObjectClassification
+from objectClassificationGui import ObjectClassificationGui
 #FIXME: do a serializer later
 #from objectExtractionSerializer import ObjectExtractionSerializer
 
 from lazyflow.graph import OperatorWrapper
 
-class ObjectFeaturesApplet( Applet ):
+class ObjectClassificationApplet( Applet ):
     def __init__( self, graph, guiName="Object Features", projectFileGroupName="ObjectFeatures" ):
         
-        super(ObjectFeaturesApplet, self).__init__( guiName )
-        self._topLevelOperator = OperatorWrapper(OpObjectFeatures, graph=graph)
+        super(ObjectClassificationApplet, self).__init__( guiName )
+        
+        #self._topLevelOperator = OperatorWrapper(OpObjectFeatures, graph=graph)
+        self._topLevelOperator = OpObjectClassification(graph = graph)
 
-        self._gui = ObjectFeaturesGui(self._topLevelOperator)
+        self._gui = ObjectClassificationGui(self._topLevelOperator, self.guiControlSignal, self.shellRequestSignal)
         
         #self._serializableItems = [ ObjectExtractionSerializer(self._topLevelOperator, projectFileGroupName) ]
         self._serializableItems = []

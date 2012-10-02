@@ -1,1 +1,0 @@
-from objectFeaturesApplet import ObjectFeaturesApplet
