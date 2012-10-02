@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 traceLogger = logging.getLogger('TRACE.' + __name__)
 from lazyflow.tracer import Tracer
 
+import vigra
 
 class ObjectExtractionGui( LayerViewerGui ):
     """
@@ -40,11 +41,13 @@ class ObjectExtractionGui( LayerViewerGui ):
     def setupLayers(self, currentImageIndex):
 
         layers = []
+        mainOperator = self.operatorForCurrentImage()
         
         #inputSlot = self.pipeline.InputImages[currentImageIndex]
-        binarySlot = self.pipeline.BinaryImage[currentImageIndex]
-        labeledSlot = self.pipeline.LabelImage[currentImageIndex]
-        centerSlot = self.pipeline.ObjectCenterImage[currentImageIndex]
+        binarySlot = mainOperator.BinaryImage
+        labeledSlot = mainOperator.LabelImage
+        centerSlot = mainOperator.ObjectCenterImage
+        
         
         if binarySlot.ready():
             ct = colortables.create_default_8bit()
@@ -108,16 +111,18 @@ class ObjectExtractionGui( LayerViewerGui ):
     def __init__(self, mainOperator):
         """
         """
-        super(ObjectExtractionGui, self).__init__()
+        super(ObjectExtractionGui, self).__init__(mainOperator)
         self.mainOperator = mainOperator
-        self.curOp = None
-        self.layerstack = LayerStackModel()
+        #self.curOp = None
+        #self.layerstack = LayerStackModel()
 
         #self.rawsrc = LazyflowSource( self.mainOperator.RawData )
         #layerraw = GrayscaleLayer( self.rawsrc )
         #layerraw.name = "Raw"
         #self.layerstack.append( layerraw )
 
+        #Comment this stuff out, it's called by the parent
+        '''
         self._viewerControlWidget = None
         self._initViewerControlUi()
 
@@ -125,7 +130,9 @@ class ObjectExtractionGui( LayerViewerGui ):
         self._initEditor()
 
         self._initAppletDrawerUi()
-
+        '''
+        
+    '''
     def _onMetaChanged( self, slot ):
         if slot is self.curOp.BinaryImage:
             if slot.meta.shape:
@@ -157,8 +164,8 @@ class ObjectExtractionGui( LayerViewerGui ):
 
         self.editor._lastImageViewFocus = 0
 
-            
-    def _initAppletDrawerUi(self):
+    '''        
+    def initAppletDrawerUi(self):
         # Load the ui file (find it in our own directory)
         localDir = os.path.split(__file__)[0]
         self._drawer = uic.loadUi(localDir+"/drawer.ui")
@@ -166,49 +173,67 @@ class ObjectExtractionGui( LayerViewerGui ):
         self._drawer.labelImageButton.pressed.connect(self._onLabelImageButtonPressed)
         self._drawer.extractObjectsButton.pressed.connect(self._onExtractObjectsButtonPressed)
 
-    def _initViewerControlUi( self ):
+    def initViewerControlUi( self ):
         p = os.path.split(__file__)[0]+'/'
         if p == "/": p = "."+p
         self._viewerControlWidget = uic.loadUi(p+"viewerControls.ui")
 
     def _onLabelImageButtonPressed( self ):
-        m = self.curOp.LabelImage.meta
-        maxt = m.shape[0]
-        progress = QProgressDialog("Labelling Binary Image...", "Stop", 0, maxt)
-        progress.setWindowModality(Qt.ApplicationModal)
-        progress.setMinimumDuration(0)
-        progress.setCancelButtonText(QString())
-        progress.forceShow()
-
-        for t in range(maxt):
-            progress.setValue(t)
-            if progress.wasCanceled():
-                break
-            else:
-                self.curOp.updateLabelImageAt( t )
-        progress.setValue(maxt)                
-        roi = SubRegion(self.curOp.LabelImage, start=5*(0,), stop=m.shape)
-        self.curOp.LabelImage.setDirty(roi)
+        
+        oper = self.operatorForCurrentImage()
+        m = oper.LabelImage.meta
+        
+        if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
+            maxt = m.shape[m.axistags.index('t')]
+            progress = QProgressDialog("Labelling Binary Image...", "Stop", 0, maxt)
+            progress.setWindowModality(Qt.ApplicationModal)
+            progress.setMinimumDuration(0)
+            progress.setCancelButtonText(QString())
+            progress.forceShow()
+            for t in range(maxt):
+                progress.setValue(t)
+                if progress.wasCanceled():
+                    break
+                else:
+                    oper.updateLabelImageAt( t )
+            progress.setValue(maxt)   
+        else:
+            oper.updateLabelImage()
+        
+        
+        print "Label image call ended"
+        print "result of type:", oper.LabelImage.meta
+        roi = SubRegion(oper.LabelImage, start=len(m.shape)*(0,), stop=m.shape)
+        oper.LabelImage.setDirty(roi)
 
     def _onExtractObjectsButtonPressed( self ):
-        maxt = self.curOp.LabelImage.meta.shape[0]
-        progress = QProgressDialog("Extracting objects...", "Stop", 0, maxt)
-        progress.setWindowModality(Qt.ApplicationModal)
-        progress.setMinimumDuration(0)
-        progress.setCancelButtonText(QString())
-
-        reqs = []
-        self.curOp._opRegFeats.fixed = False
-        for t in range(maxt):
-            reqs.append(self.curOp.RegionFeatures([t]))
-            reqs[-1].submit()
-        for i, req in enumerate(reqs):
-            progress.setValue(i)
-            if progress.wasCanceled():
-                req.cancel()
-            else:
-                req.wait()
-                
-        self.curOp._opRegFeats.fixed = True 
-        progress.setValue(maxt)
-        self.curOp.ObjectCenterImage.setDirty( SubRegion(self.curOp.ObjectCenterImage))
+        
+        oper = self.operatorForCurrentImage()
+        m = oper.LabelImage.meta
+        if m.axistags.axisTypeCount(vigra.AxisType.Time) >0:
+            maxt = oper.LabelImage.meta.shape[0]
+            progress = QProgressDialog("Extracting objects...", "Stop", 0, maxt)
+            progress.setWindowModality(Qt.ApplicationModal)
+            progress.setMinimumDuration(0)
+            progress.setCancelButtonText(QString())
+    
+            reqs = []
+            oper._opRegFeats.fixed = False
+            for t in range(maxt):
+                reqs.append(oper.RegionFeatures([t]))
+                reqs[-1].submit()
+            for i, req in enumerate(reqs):
+                progress.setValue(i)
+                if progress.wasCanceled():
+                    req.cancel()
+                else:
+                    req.wait()
+                    
+            oper._opRegFeats.fixed = True 
+            progress.setValue(maxt)
+        else:
+            oper._opRegFeats.fixed = False
+            oper.RegionFeatures([0]).wait()
+            oper._opRegFeats.fixed = True
+            
+        oper.ObjectCenterImage.setDirty( SubRegion(oper.ObjectCenterImage))

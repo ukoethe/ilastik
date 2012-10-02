@@ -156,7 +156,9 @@ class ObjectClassificationGui(LabelingGui):
         #labeledSlot = self.pipeline.ConnCompImages[currentImageIndex]
         
         if inputSlot.ready():
+            print "setting up layers in objectClass gui"
             ct = colortables.create_default_16bit()
+            print "Input slot type:", inputSlot.meta
             self.objectssrc = LazyflowSource( inputSlot )
             ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
             layer = ColortableLayer( self.objectssrc, ct )

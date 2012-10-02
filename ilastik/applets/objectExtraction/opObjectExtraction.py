@@ -50,6 +50,7 @@ class OpRegionFeatures( Operator ):
                 return feats
                 centers = numpy.asarray(feats['RegionCenter'], dtype=numpy.uint16)
                 centers = centers[1:,:]
+                print centers.shape
                 return centers
                 
             feats = {}
@@ -60,16 +61,28 @@ class OpRegionFeatures( Operator ):
                 elif self.fixed:
                     feats_at = { 'RegionCenter': numpy.asarray([]), 'Count': numpy.asarray([]) }
                 else:
-                    troi = SubRegion( self.LabelImage, start = [t,] + (len(self.LabelImage.meta.shape) - 1) * [0,], stop = [t+1,] + list(self.LabelImage.meta.shape[1:]))
+                    m = self.LabelImage.meta
+                    hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
+                    troi = None
+                    if hasTime:
+                        troi = SubRegion( self.LabelImage, start = [t,] + (len(self.LabelImage.meta.shape) - 1) * [0,], stop = [t+1,] + list(self.LabelImage.meta.shape[1:]))
+                    else:
+                        troi = SubRegion( self.LabelImage, start = len(self.LabelImage.meta.shape)*[0,], stop = list(self.LabelImage.meta.shape))
                     a = self.LabelImage.get(troi).wait()
-                    a = a[0,...,0] # assumes t,x,y,z,c
+                    
+                    print "a.shape", a.shape
+                    if hasTime > 0:
+                        a = a[0,...,0] # assumes t,x,y,z,c
+                    else:
+                        a = a.squeeze()
+                    print a.shape, a.dtype
                     feats_at = extract(a)
                     self._cache[t] = feats_at
                 feats[t] = feats_at
-
+            print feats
             return feats
         
-    def propagateDirty(self, slot, roi):
+    def propagateDirty(self, slot, subindex, roi):
         if slot is self.LabelImage:
             self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0]))) 
 
@@ -117,7 +130,7 @@ class OpRegionCenters( Operator ):
 
             return centers
         
-    def propagateDirty(self, slot, roi):
+    def propagateDirty(self, slot, subindex, roi):
         if slot is self.LabelImage:
             self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0]))) 
 
@@ -154,6 +167,7 @@ class OpObjectExtraction( Operator ):
 
     def setupOutputs(self):
         self.LabelImage.meta.assignFrom(self.BinaryImage.meta)
+        self.LabelImage.meta.dtype = numpy.uint32
         m = self.LabelImage.meta
         self._mem_h5.create_dataset( 'LabelImage', shape=m.shape, dtype=numpy.uint32, compression=1 )
 
@@ -174,20 +188,32 @@ class OpObjectExtraction( Operator ):
             res = self._opRegFeats.Output.get( roi ).wait()
             return res
 
-    def propagateDirty(self, inputSlot, roi):
+    def propagateDirty(self, inputSlot, subindex, roi):
         raise NotImplementedError
 
     def updateLabelImage( self ):
         m = self.LabelImage.meta
-        for t in range(m.shape[0]):
-            print "Calculating LabelImage at", t
-            start = [t,] + (len(m.shape) - 1) * [0,]
-            stop = [t+1,] + list(m.shape[1:])
+        if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
+            for t in range(m.shape[0]):
+                print "Calculating LabelImage at", t
+                #self.updateLabelImageAt(t)
+                start = [t,] + (len(m.shape) - 1) * [0,]
+                stop = [t+1,] + list(m.shape[1:])
+                a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
+                a = a[0,...,0]
+                self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground( a )
+                roi = SubRegion(self.LabelImage, start=5*(0,), stop=m.shape)
+                self.LabelImage.setDirty(roi)
+        else:
+            start = len(m.shape)*[0,]
+            stop = list(m.shape)
             a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
-            a = a[0,...,0]
-            self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground( a )
-        roi = SubRegion(self.LabelImage, start=5*(0,), stop=m.shape)
-        self.LabelImage.setDirty(roi)
+            a = a.squeeze()
+            if len(a.shape)>2:
+                self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelVolumeWithBackground( a )
+            else:
+                self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelImageWithBackground( a )
+            
 
     def updateLabelImageAt( self, t ):
         m = self.LabelImage.meta
@@ -196,6 +222,7 @@ class OpObjectExtraction( Operator ):
         stop = [t+1,] + list(m.shape[1:])
         a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
         a = a[0,...,0]
+        print a.shape, a.dtype
         self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground( a )
 
     def __contained_in_subregion( self, roi, coords ):
