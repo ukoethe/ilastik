@@ -304,7 +304,10 @@ class LayerViewerGui(QMainWindow):
             
         newNames = set(l.name for l in newGuiLayers)
         if len(newNames) != len(newGuiLayers):
-            raise RuntimeError("All layers must have unique names.")
+            msg = "All layers must have unique names.\n"
+            msg += "You're attempting to use these layer names:\n"
+            msg += [l.name for l in newGuiLayers]
+            raise RuntimeError()
 
         # Copy the old visibilities and opacities
         if self.imageIndex != self.lastUpdateImageIndex:
@@ -332,6 +335,13 @@ class LayerViewerGui(QMainWindow):
             
             # Start in the center of the volume
             self.editor.posModel.slicingPos = midpos3d
+            
+            # If one of the xyz dimensions is 1, the data is 2d.
+            singletonDims = filter( lambda (i,dim): dim == 1, enumerate(newDataShape[1:4]) )
+            if len(singletonDims) == 1:
+                # Maximize the slicing view for this axis
+                axis = singletonDims[0][0]
+                self.volumeEditorWidget.quadview.ensureMaximized(axis)
 
         # Old layers are deleted if
         # (1) They are not in the new set or
