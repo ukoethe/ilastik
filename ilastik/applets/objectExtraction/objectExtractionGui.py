@@ -176,7 +176,32 @@ class ObjectExtractionGui( LayerViewerGui ):
     def initViewerControlUi( self ):
         p = os.path.split(__file__)[0]+'/'
         if p == "/": p = "."+p
-        self._viewerControlWidget = uic.loadUi(p+"viewerControls.ui")
+        #self._viewerControlWidget = uic.loadUi(p+"viewerControls.ui")
+        self._viewerControlWidget = uic.loadUi("/home/akreshuk/applet-workflows/ilastik/applets/featureSelection/viewerControls.ui")
+        layerListWidget = self._viewerControlWidget.listWidget
+
+        # Need to handle data changes because the layerstack model hasn't 
+        # updated his data yet by the time he calls the rowsInserted signal
+        def handleLayerStackDataChanged(startIndex, stopIndex):
+            row = startIndex.row()
+            layerListWidget.item(row).setText(self.layerstack[row].name)
+        self.layerstack.dataChanged.connect(handleLayerStackDataChanged)
+        
+        def handleInsertedLayers(parent, start, end):
+            for i in range(start, end+1):
+                layerListWidget.insertItem(i, self.layerstack[i].name)
+        self.layerstack.rowsInserted.connect( handleInsertedLayers )
+
+        def handleRemovedLayers(parent, start, end):
+            for i in reversed(range(start, end+1)):
+                layerListWidget.takeItem(i)
+        self.layerstack.rowsRemoved.connect( handleRemovedLayers )
+        
+        def handleSelectionChanged(row):
+            # Only one layer is visible at a time
+            for i, layer in enumerate(self.layerstack):
+                layer.visible = (i == row)
+        layerListWidget.currentRowChanged.connect( handleSelectionChanged )
 
     def _onLabelImageButtonPressed( self ):
         
@@ -185,7 +210,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             maxt = m.shape[m.axistags.index('t')]
-            progress = QProgressDialog("Labelling Binary Image...", "Stop", 0, maxt)
+            progress = QProgressDialog("Labeling Binary Image...", "Stop", 0, maxt)
             progress.setWindowModality(Qt.ApplicationModal)
             progress.setMinimumDuration(0)
             progress.setCancelButtonText(QString())

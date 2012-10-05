@@ -19,7 +19,7 @@ from ilastik.applets.layerViewer import LayerViewerGui
 from ilastik.applets.labeling import LabelingGui
 
 import volumina.colortables as colortables
-from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer
+from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer
 
 from pickingControler import PickingInterpreter, PickingControler
 from pickingModel import PickingModel
@@ -88,7 +88,7 @@ class ObjectClassificationGui(LabelingGui):
         
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
 
-    
+    '''
     @traceLogged(traceLogger)
     def initEditor(self):
         super(ObjectClassificationGui, self).initEditor()
@@ -99,10 +99,10 @@ class ObjectClassificationGui(LabelingGui):
         self.pickingInterpreter = PickingInterpreter(self.editor.navCtrl, self.pickingControler)
         
         
-        self.editor.brushingControler = self.pickingControler
-        self.editor.brushingInterpreter = self.pickingInterpreter
-        self.editor.brushingModel = self.pickingModel
-    
+        #self.editor.brushingControler = self.pickingControler
+        #self.editor.brushingInterpreter = self.pickingInterpreter
+        #self.editor.brushingModel = self.pickingModel
+    '''
     
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
@@ -115,41 +115,15 @@ class ObjectClassificationGui(LabelingGui):
         #self.drawer.labelImageButton.clicked.connect(self.onLabelImageButtonClicked)
         #self.drawer.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
         
-    '''
-    @traceLogged(traceLogger)
-    def initViewerControlUi(self):
-        self._viewerControlWidget = uic.loadUi(os.path.split(__file__)[0] + "/viewerControls.ui")
-        layerListWidget = self._viewerControlWidget.listWidget
-
-        # Need to handle data changes because the layerstack model hasn't 
-        # updated his data yet by the time he calls the rowsInserted signal
-        def handleLayerStackDataChanged(startIndex, stopIndex):
-            row = startIndex.row()
-            layerListWidget.item(row).setText(self.layerstack[row].name)
-        self.layerstack.dataChanged.connect(handleLayerStackDataChanged)
-        
-        def handleInsertedLayers(parent, start, end):
-            for i in range(start, end+1):
-                layerListWidget.insertItem(i, self.layerstack[i].name)
-        self.layerstack.rowsInserted.connect( handleInsertedLayers )
-
-        def handleRemovedLayers(parent, start, end):
-            for i in range(start, end+1):
-                layerListWidget.takeItem(i)
-        self.layerstack.rowsRemoved.connect( handleRemovedLayers )
-        
-        def handleSelectionChanged(row):
-            # Only one layer is visible at a time
-            print "selection changed"
-            for i, layer in enumerate(self.layerstack):
-                layer.visible = (i == row)
-        layerListWidget.currentRowChanged.connect( handleSelectionChanged )
-    '''
     @traceLogged(traceLogger)
     def setupLayers(self, currentImageIndex):
         
         # Base class provides the label layer.
+        print "AAAAAAAAAAAAAAAAAAAa, setupLayers of the objectClassificationGui"
         layers = super(ObjectClassificationGui, self).setupLayers(currentImageIndex)
+        #print "AAAAAAAAAAAAAAAAAAAa, setupLayers of the objectClassificationGui"
+        #This is just for colors
+        labels = self.labelListData
         
         inputSlot = self.pipeline.InputImages[currentImageIndex]
         #binarySlot = self.mainOperator.BinaryImage[currentImageIndex]
@@ -167,55 +141,52 @@ class ObjectClassificationGui(LabelingGui):
             layer.visible = True
             #self.layerstack.append(layer)
             layers.append(layer)
-            
         '''
+        # Add each of the predictions
+        for channel, predictionSlot in enumerate(self.pipeline.PredictionProbabilityChannels[currentImageIndex]):
+            if predictionSlot.ready() and channel < len(labels):
+                ref_label = labels[channel]
+                predictsrc = LazyflowSource(predictionSlot)
+                predictLayer = AlphaModulatedLayer( predictsrc,
+                                                    tintColor=ref_label.color,
+                                                    range=(0.0, 1.0),
+                                                    normalize=(0.0, 1.0) )
+                predictLayer.opacity = 0.25
+                predictLayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
+                predictLayer.visibleChanged.connect(self.updateShowPredictionCheckbox)
+
+                def setLayerColor(c):
+                    predictLayer.tintColor = c
+                def setLayerName(n):
+                    newName = "Prediction for %s" % ref_label.name
+                    predictLayer.name = newName
+                setLayerName(ref_label.name)
+
+                ref_label.colorChanged.connect(setLayerColor)
+                ref_label.nameChanged.connect(setLayerName)
+                layers.append(predictLayer)
+            
+        
             inputLayer = self.createStandardLayerFromSlot( inputSlot )
             inputLayer.name = "Input Data"
             inputLayer.visible = True
             inputLayer.opacity = 1.0
             layers.append(inputLayer)
-        
-        if binarySlot.ready():
-            ct = colortables.create_default_8bit()
-            self.binaryimagesrc = LazyflowSource( self.mainOperator.BinaryImage )
-            layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
-            layer.name = "Binary Image"
-            layer.visible = True
-            layer.opacity = 1.0
-            #self.layerstack.append(layer)
-            layers.append(layer)
-        
-            
-        if labeledSlot.ready():
-            ct = colortables.create_default_16bit()
-            self.objectssrc = LazyflowSource( labeledSlot )
-            ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
-            layer = ColortableLayer( self.objectssrc, ct )
-            layer.name = "Connected Components"
-            layer.opacity = 0.5
-            layer.visible = True
-            #self.layerstack.append(layer)
-            layers.append(layer)
-        else:
-            print "conn comp slot not ready"
         '''
         return layers
     
-    
-    '''
-    def onLabelImageButtonClicked(self):
-        print "clicked the label image button!"
-        #self.pipeline.inputs["OutputPath"].setValue("/home/akreshuk/data/3dcube_cc.h5/volume/data")
-        #self.updateAllLayers()
-        
-    def onExtractObjectsButtonClicked(self):
-        print "clicked the extract objects button!"
-   ''' 
     @pyqtSlot()
     @traceLogged(traceLogger)
     def handleLabelSelectionChange(self):
-        #insert something here, someday
-        print "Label changed"
+        enabled = False
+        if self.pipeline.MaxLabelValue.ready():
+            enabled = True
+            enabled &= self.pipeline.MaxLabelValue.value >= 2
+            #enabled &= numpy.prod(self.pipeline.CachedFeatureImages[self.imageIndex].meta.shape) > 0
+        
+        self.labelingDrawerUi.savePredictionsButton.setEnabled(enabled)
+        self.labelingDrawerUi.checkInteractive.setEnabled(enabled)
+        self.labelingDrawerUi.checkShowPredictions.setEnabled(enabled)
         
     def toggleInteractive(self, checked):
         print "Interactive mode toggled to", checked

@@ -39,9 +39,7 @@ class ObjectClassificationWorkflow( Workflow ):
         opObjExtraction.BinaryImage.connect( opData.Image )
 
         opObjClassification.InputImages.connect( opObjExtraction.LabelImage )
-        opObjClassification.ObjectFeatures.connect( opObjExtraction.RegionFeatures )
-        
-        opObjClassification.InputImages.connect(opData.Image)
+        opObjClassification.ObjectFeatures.connect( opObjExtraction.RegionFeatures )        
         opObjClassification.LabelsAllowedFlags.connect( opData.AllowLabels )
         
         self._applets.append(self.projectMetadataApplet)

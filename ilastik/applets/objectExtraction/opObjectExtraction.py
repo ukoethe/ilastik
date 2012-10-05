@@ -55,7 +55,7 @@ class OpRegionFeatures( Operator ):
                 
             feats = {}
             for t in roi:
-                print "RegionFeatures at", t
+                #print "RegionFeatures at", t
                 if t in self._cache:
                     feats_at = self._cache[t]
                 elif self.fixed:
@@ -70,7 +70,7 @@ class OpRegionFeatures( Operator ):
                         troi = SubRegion( self.LabelImage, start = len(self.LabelImage.meta.shape)*[0,], stop = list(self.LabelImage.meta.shape))
                     a = self.LabelImage.get(troi).wait()
                     
-                    print "a.shape", a.shape
+                    #print "a.shape", a.shape
                     if hasTime > 0:
                         a = a[0,...,0] # assumes t,x,y,z,c
                     else:
@@ -79,7 +79,7 @@ class OpRegionFeatures( Operator ):
                     feats_at = extract(a)
                     self._cache[t] = feats_at
                 feats[t] = feats_at
-            print feats
+            #print feats
             return feats
         
     def propagateDirty(self, slot, subindex, roi):
@@ -143,6 +143,7 @@ class OpObjectExtraction( Operator ):
 
     LabelImage = OutputSlot()
     ObjectCenterImage = OutputSlot()
+    
     RegionCenters = OutputSlot( stype=Opaque, rtype=List )
     RegionFeatures = OutputSlot( stype=Opaque, rtype=List )
 
@@ -232,17 +233,54 @@ class OpObjectExtraction( Operator ):
         return b
 
     def __make_key( self, roi, coords ):
-        return (coords[0] - roi.start[0],
-                coords[1] - roi.start[1],
-                coords[2] - roi.start[2],
-                coords[3] - roi.start[3],
-                coords[4] - roi.start[4],)
+        
+        key = [coords[i]-roi.start[i] for i in range(len(roi.start))]
+        return tuple(key)
+        
                 
     
     def _execute_ObjectCenterImage( self, roi, result ):
         result[:] = 0
-        for t in range(roi.start[0], roi.stop[0]):
-            centers = self.RegionFeatures( [t] ).wait()[t]['RegionCenter']
+        m = self.LabelImage.meta
+        hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
+        if hasTime:
+            for t in range(roi.start[0], roi.stop[0]):
+                centers = self.RegionFeatures( [t] ).wait()[t]['RegionCenter']
+                centers = numpy.asarray( centers, dtype=numpy.uint32)
+                if centers.size:
+                    centers = centers[1:,:]
+                for row in range(0,centers.shape[0]):
+                    x = centers[row,0]
+                    y = centers[row,1]
+                    z = centers[row,2]
+                    
+                    # mark center
+                    c =  (t,x,y,z,0)
+                    if self.__contained_in_subregion( roi, c ): 
+                        result[self.__make_key(roi,c)] = 255
+    
+                    # make the point into a cross
+                    c =  (t,x-1,y,z,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+                    c =  (t,x,y-1,z,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+                    c =  (t,x,y,z-1,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+    
+                    c =  (t,x+1,y,z,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+                    c =  (t,x,y+1,z,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+                    c =  (t,x,y,z+1,0)
+                    if self.__contained_in_subregion( roi, c ):
+                        result[self.__make_key(roi, c)] = 255
+        else:
+            centers = self.RegionFeatures([0]).wait()[0]['RegionCenter']
             centers = numpy.asarray( centers, dtype=numpy.uint32)
             if centers.size:
                 centers = centers[1:,:]
@@ -252,28 +290,29 @@ class OpObjectExtraction( Operator ):
                 z = centers[row,2]
                 
                 # mark center
-                c =  (t,x,y,z,0)
+                c =  (x,y,z,0)
                 if self.__contained_in_subregion( roi, c ): 
                     result[self.__make_key(roi,c)] = 255
-
+                    
                 # make the point into a cross
-                c =  (t,x-1,y,z,0)
+                c =  (x-1,y,z,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
-                c =  (t,x,y-1,z,0)
+                c =  (x,y-1,z,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
-                c =  (t,x,y,z-1,0)
+                c =  (x,y,z-1,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
 
-                c =  (t,x+1,y,z,0)
+                c =  (x+1,y,z,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
-                c =  (t,x,y+1,z,0)
+                c =  (x,y+1,z,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
-                c =  (t,x,y,z+1,0)
+                c =  (x,y,z+1,0)
                 if self.__contained_in_subregion( roi, c ):
                     result[self.__make_key(roi, c)] = 255
+                
         return result
