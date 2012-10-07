@@ -1,6 +1,5 @@
 from PyQt4 import uic
-from PyQt4 import Qt
-from PyQt4.QtCore import pyqtSignal, QObject, QEvent
+from PyQt4.QtCore import pyqtSignal, QObject, QEvent, Qt
 from PyQt4.QtGui import QMainWindow, QWidget, QHBoxLayout, QMenu, \
                         QMenuBar, QFrame, QLabel, QStackedLayout, \
                         QStackedWidget, qApp, QFileDialog, QKeySequence, QMessageBox, \
@@ -15,7 +14,7 @@ from functools import partial
 
 from ilastik.versionManager import VersionManager
 from ilastik.utility import bind
-from ilastik.utility.gui import ThunkEvent, ThunkEventHandler
+from ilastik.utility.gui import ThunkEvent, ThunkEventHandler, ShortcutManagerDlg
 
 import sys
 import logging
@@ -140,13 +139,17 @@ class IlastikShell( QMainWindow ):
         self._applets = []
         self.appletBarMapping = {}
 
+        self.setAttribute(Qt.WA_AlwaysShowToolTips)
+        
         if 'Ubuntu' in platform.platform():
             # Native menus are prettier, but aren't working on Ubuntu at this time (Qt 4.7, Ubuntu 11)
             self.menuBar().setNativeMenuBar(False)
 
         (self._projectMenu, self._shellActions) = self._createProjectMenu()
-        self.menuBar().addMenu(self._projectMenu)
-
+        self._settingsMenu = self._createSettingsMenu()
+        self.menuBar().addMenu( self._projectMenu )
+        self.menuBar().addMenu( self._settingsMenu )
+        
         self.progressDisplayManager = ProgressDisplayManager(self.statusBar)
 
         for applet in workflow:
@@ -174,20 +177,23 @@ class IlastikShell( QMainWindow ):
         
     def _createProjectMenu(self):
         # Create a menu for "General" (non-applet) actions
-        menu = QMenu("Project", self)
+        menu = QMenu("&Project", self)
 
         shellActions = ShellActions()
 
         # Menu item: New Project
         shellActions.newProjectAction = menu.addAction("&New Project...")
+        shellActions.newProjectAction.setShortcuts( QKeySequence.New )
         shellActions.newProjectAction.triggered.connect(self.onNewProjectActionTriggered)
 
         # Menu item: Open Project 
         shellActions.openProjectAction = menu.addAction("&Open Project...")
+        shellActions.openProjectAction.setShortcuts( QKeySequence.Open )
         shellActions.openProjectAction.triggered.connect(self.onOpenProjectActionTriggered)
 
         # Menu item: Save Project
         shellActions.saveProjectAction = menu.addAction("&Save Project...")
+        shellActions.openProjectAction.setShortcuts( QKeySequence.Save )
         shellActions.saveProjectAction.triggered.connect(self.onSaveProjectActionTriggered)
         # Can't save until a project is loaded for the first time
         shellActions.saveProjectAction.setEnabled(False)
@@ -204,10 +210,22 @@ class IlastikShell( QMainWindow ):
 
         # Menu item: Quit
         shellActions.quitAction = menu.addAction("&Quit")
+        shellActions.quitAction.setShortcuts( QKeySequence.Quit )
         shellActions.quitAction.triggered.connect(self.onQuitActionTriggered)
         shellActions.quitAction.setShortcut( QKeySequence.Quit )
         
         return (menu, shellActions)
+    
+    def _createSettingsMenu(self):
+        menu = QMenu("&Settings", self)
+        # Menu item: Keyboard Shortcuts
+
+        def editShortcuts():
+            mgrDlg = ShortcutManagerDlg(self)
+        shortcutsAction = menu.addAction("&Keyboard Shortcuts")
+        shortcutsAction.triggered.connect(editShortcuts)
+        
+        return menu
     
     def show(self):
         """
@@ -302,6 +320,7 @@ class IlastikShell( QMainWindow ):
                 self.viewerControlStack.setCurrentIndex(applet_index)
                 self.menuBar().clear()
                 self.menuBar().addMenu(self._projectMenu)
+                self.menuBar().addMenu(self._settingsMenu)
                 for m in self._applets[applet_index].gui.menus():
                     self.menuBar().addMenu(m)
                 
@@ -633,28 +652,49 @@ class IlastikShell( QMainWindow ):
         if snapshotPath is not None:
             self.projectManager.saveProjectSnapshot(snapshotPath)
 
-    def onQuitActionTriggered(self, force=False):
+    def closeEvent(self, closeEvent):
+        """
+        Reimplemented from QWidget.  Ignore the close event if the user has unsaved data and changes his mind.
+        """
+        if self.confirmQuit():
+            self.closeAndQuit()
+        else:
+            closeEvent.ignore()
+    
+    def onQuitActionTriggered(self, force=False, quitApp=True):
         """
         The user wants to quit the application.
         Check his project for unsaved data and ask if he really means it.
+        Args:
+            force - Don't check the project for unsaved data.
+            quitApp - For testing purposes, set this to False if you just want to close the main window without quitting the app.
         """
         logger.info("Quit Action Triggered")
         
-        if not force and self.projectManager.isProjectDataDirty():
+        if force or self.confirmQuit():
+            self.closeAndQuit(quitApp)
+        
+    def confirmQuit(self):
+        if self.projectManager.isProjectDataDirty():
             message = "Your project has unsaved data.  Are you sure you want to discard your changes and quit?"
             buttons = QMessageBox.Discard | QMessageBox.Cancel
             response = QMessageBox.warning(self, "Discard unsaved changes?", message, buttons, defaultButton=QMessageBox.Cancel)
             if response == QMessageBox.Cancel:
-                return
+                return False
+        return True
 
+    def closeAndQuit(self, quitApp=True):
         self.projectManager.closeCurrentProject()
 
         # Stop the thread that checks for log config changes.
         ilastik.ilastik_logging.stopUpdates()
+        
+        if quitApp:
+            qApp.quit()
+        else:
+            # Just close the window
+            self.close()        
 
-        qApp.quit()
-
-    
     def updateAppletControlStates(self):
         """
         Enable or disable all controls of all applets according to their disable count.

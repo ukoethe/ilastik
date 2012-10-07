@@ -19,9 +19,11 @@ class ExportFormat():
         self.name = name
         self.extension = extension    
 
-SupportedFormats = { ExportFormat.H5   : ExportFormat("Hdf5", '.h5'),
-                     ExportFormat.Npy  : ExportFormat("Numpy", '.npy'),
-                     ExportFormat.Tiff : ExportFormat("Tiff", '.tiff') }
+SupportedFormats = { ExportFormat.H5   : ExportFormat("Hdf5", '.h5') }
+
+#SupportedFormats = { ExportFormat.H5   : ExportFormat("Hdf5", '.h5'),
+#                     ExportFormat.Npy  : ExportFormat("Numpy", '.npy'),
+#                     ExportFormat.Tiff : ExportFormat("Tiff", '.tiff') }
 
 class OpBatchIo(Operator):
     """
@@ -138,7 +140,7 @@ class OpBatchIo(Operator):
                     return
                 
                 # Set up the write operator
-                opH5Writer = OpH5WriterBigDataset(graph=self.graph)
+                opH5Writer = OpH5WriterBigDataset(parent=self, graph=self.graph)
                 opH5Writer.hdf5File.setValue( hdf5File )
                 opH5Writer.hdf5Path.setValue( pathComp.internalPath )
                 opH5Writer.Image.connect( self.ImageToExport )
@@ -150,10 +152,14 @@ class OpBatchIo(Operator):
                 self.Dirty.setValue( not opH5Writer.WriteImage.value )
                 hdf5File.close()
 
-            elif exportFormat == ExportFormat.Npy:
-                assert False # TODO
-            elif exportFormat == ExportFormat.Npy:
-                assert False # TODO
+                opH5Writer.cleanUp()
+
+#            elif exportFormat == ExportFormat.Npy:
+#                assert False # TODO
+#            elif exportFormat == ExportFormat.Npy:
+#                assert False # TODO
+            else:
+                assert False, "Unknown export format"
 
             result[0] = not self.Dirty.value
 
