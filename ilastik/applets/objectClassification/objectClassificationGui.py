@@ -49,12 +49,14 @@ class ObjectClassificationGui(LabelingGui):
         # Tell our base class which slots to monitor
         labelSlots = LabelingGui.LabelingSlots()
         labelSlots.labelInput = pipeline.LabelInputs
-        labelSlots.labelOutput = pipeline.LabelImages
-        labelSlots.labelEraserValue = pipeline.opLabelArray.eraser
-        labelSlots.labelDelete = pipeline.opLabelArray.deleteLabel
+        labelSlots.labelOutput = pipeline.LabelOutputs  
+        #labelSlots.labelEraserValue = pipeline.opLabelArray.eraser
+        #labelSlots.labelDelete = pipeline.opLabelArray.deleteLabel
         labelSlots.maxLabelValue = pipeline.MaxLabelValue
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
-
+        labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
+        labelSlots.labelEraserValue.setValue(100)
+        labelSlots.labelDelete.setValue(-1)
         # We provide our own UI file (which adds an extra control for interactive mode)
         # This UI file is copied from pixelClassification pipeline
         # 
@@ -87,6 +89,9 @@ class ObjectClassificationGui(LabelingGui):
         #self.labelingDrawerUi.checkShowPredictions.nextCheckState = nextCheckState
         
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
+        
+        self.clickedObjects = dict() #maps from object to the label that is used for it
+        self.usedLabels = set()
 
     '''
     @traceLogged(traceLogger)
@@ -114,7 +119,35 @@ class ObjectClassificationGui(LabelingGui):
         self.drawer = uic.loadUi(localDir+"/drawer.ui")
         #self.drawer.labelImageButton.clicked.connect(self.onLabelImageButtonClicked)
         #self.drawer.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
+    
+    @traceLogged(traceLogger)
+    def createLabelLayer():
+        self, currentImageIndex, direct=False):
+        """
+        Return a colortable layer that displays the label slot data, along with its associated label source.
+        direct: whether this layer is drawn synchronously by volumina
+        """
+        labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
+        if not labelOutput.ready():
+            return (None, None)
+        else:
+            traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
+            # Add the layer to draw the labels, but don't add any labels
+            labelsrc = RelabelingLazyflowSinkSource( self._labelingSlots.labelOutput[currentImageIndex],
+                                           self._labelingSlots.labelInput[currentImageIndex])
         
+           
+            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=a.dtype), colortable=colortable, direct=direct)
+            labellayer = ClickableColortableLayer(self.editor, self.onClick, source=labelsrc, colortable=self._colorTable16, \
+                                             relabeling=relabeling, direct=direct)
+       
+            #labellayer = ColortableLayer(labelsrc, colorTable = self._colorTable16, direct=direct )
+            labellayer.name = "Labels"
+            labellayer.ref_object = None
+            
+            return labellayer, labelsrc
+    
+    
     @traceLogged(traceLogger)
     def setupLayers(self, currentImageIndex):
         
@@ -190,4 +223,29 @@ class ObjectClassificationGui(LabelingGui):
         
     def toggleInteractive(self, checked):
         print "Interactive mode toggled to", checked
+        
+    def onClick(layer, pos5D, pos):
+        #FIXME: this should label in the selected label color
+        obj = layer.data.originalData[pos5D]
+        if obj in self.clickedObjects:
+            layer._datasources[0].setRelabelingEntry(obj, 0)
+            usedLabels.remove( self.clickedObjects[obj] )
+            del clickedObjects[obj]
+        else:
+            labels = sorted(list(self.usedLabels))
+            
+            #find first free entry
+            if labels:
+                for l in range(1, labels[-1]+2):
+                    if l not in labels:
+                        break
+                assert l not in self.usedLabels
+            else:
+                l = 1
+            
+            num = self.editor.brushingModel.drawnNumber
+            self.usedLabels.add(l) 
+            self.clickedObjects[obj] = l
+            layer._datasources[0].setRelabelingEntry(obj, num)
+        
         
