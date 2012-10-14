@@ -3,22 +3,24 @@ import os
 import re
 import logging
 import itertools
+from functools import partial
 
 # Third-party
 import numpy
 from PyQt4 import uic
 from PyQt4.QtCore import QRectF, Qt
-from PyQt4.QtGui import *
+from PyQt4.QtGui import QIcon, QColor, QShortcut, QKeySequence
 
 # HCI
 from lazyflow.tracer import traceLogged
 from volumina.api import LazyflowSinkSource, ColortableLayer
-from igms.labelListView import Label
-from igms.labelListModel import LabelListModel
+from ilastik.widgets.labelListView import Label
+from ilastik.widgets.labelListModel import LabelListModel
 
 # ilastik
-from ilastik.utility import bind
-from ilastik.utility.gui import ThunkEventHandler
+from ilastik.utility import bind, PreferencesManager
+from ilastik.utility.gui import ShortcutManager
+from ilastik.utility.gui import ThunkEventHandler, threadRouted
 from ilastik.applets.layerViewer import LayerViewerGui
 
 # Loggers    
@@ -110,7 +112,7 @@ class LabelingGui(LayerViewerGui):
             self.labelsAllowed = None # labelsAllowed[image_index].value == True
 
     @traceLogged(traceLogger)
-    def __init__(self, labelingSlots, observedSlots, drawerUiPath=None, rawInputSlot=None ):
+    def __init__(self, labelingSlots, topLevelOperator, drawerUiPath=None, rawInputSlot=None ):
         """
         See LabelingSlots class (above) for expected type of labelingSlots parameter.
         
@@ -126,12 +128,9 @@ class LabelingGui(LayerViewerGui):
         self._maxLabelNumber = 99 #100 or 255 is reserved for eraser
 
         self._rawInputSlot = rawInputSlot
-        if rawInputSlot is not None:
-            observedSlots.append(rawInputSlot)
         
         # Init base class
-        observedSlots += [ labelingSlots.labelOutput, labelingSlots.labelsAllowed ]
-        super(LabelingGui, self).__init__( observedSlots )
+        super(LabelingGui, self).__init__( topLevelOperator )
 
         self._labelingSlots = labelingSlots
         self._labelingSlots.labelEraserValue.setValue(self.editor.brushingModel.erasingNumber)
@@ -140,7 +139,7 @@ class LabelingGui(LayerViewerGui):
         # Register for thunk events (easy UI calls from non-GUI threads)
         self.thunkEventHandler = ThunkEventHandler(self)
 
-        self._colorTable16 = self._createDefault16ColorColorTable()        
+        self._colorTable16 = self._createDefault16ColorColorTable()
         self._programmaticallyRemovingLabels = False
         
         if drawerUiPath is None:
@@ -149,6 +148,8 @@ class LabelingGui(LayerViewerGui):
         self.initLabelUic(drawerUiPath)
         
         self.changeInteractionMode(Tool.Navigation)
+        
+        self.__initShortcuts()
 
     @traceLogged(traceLogger)
     def initLabelUic(self, drawerUiPath):
@@ -232,9 +233,76 @@ class LabelingGui(LayerViewerGui):
             _labelControlUi.brushSizeComboBox.addItem( str(size) + " " + name )
         
         _labelControlUi.brushSizeComboBox.currentIndexChanged.connect(self.onBrushSizeChange)
-        self.paintBrushSizeIndex = 0
-        self.eraserSizeIndex = 4
+
+        self.paintBrushSizeIndex = PreferencesManager().get( 'labeling', 'paint brush size', default=0 )
+        self.eraserSizeIndex = PreferencesManager().get( 'labeling', 'eraser brush size', default=4 )
         
+    def __initShortcuts(self):
+        mgr = ShortcutManager()
+        shortcutGroupName = "Labeling"
+
+        addLabel = QShortcut( QKeySequence("a"), self, member=self.labelingDrawerUi.AddLabelButton.click )
+        mgr.register( shortcutGroupName,
+                      "Add New Label Class",
+                      addLabel,
+                      self.labelingDrawerUi.AddLabelButton )
+
+        navMode = QShortcut( QKeySequence("n"), self, member=self.labelingDrawerUi.arrowToolButton.click )
+        mgr.register( shortcutGroupName,
+                      "Navigation Cursor",
+                      navMode,
+                      self.labelingDrawerUi.arrowToolButton )
+
+        brushMode = QShortcut( QKeySequence("b"), self, member=self.labelingDrawerUi.paintToolButton.click )
+        mgr.register( shortcutGroupName,
+                      "Brush Cursor",
+                      brushMode,
+                      self.labelingDrawerUi.paintToolButton )
+
+        eraserMode = QShortcut( QKeySequence("e"), self, member=self.labelingDrawerUi.eraserToolButton.click )
+        mgr.register( shortcutGroupName,
+                      "Eraser Cursor",
+                      eraserMode,
+                      self.labelingDrawerUi.eraserToolButton )
+
+        changeBrushSize = QShortcut( QKeySequence("c"), self, member=self.labelingDrawerUi.brushSizeComboBox.showPopup )
+        mgr.register( shortcutGroupName,
+                      "Change Brush Size",
+                      changeBrushSize,
+                      self.labelingDrawerUi.brushSizeComboBox )
+
+
+        self._labelShortcuts = []
+
+    def _updateLabelShortcuts(self):
+        numShortcuts = len(self._labelShortcuts)
+        numRows = len(self._labelControlUi.labelListModel)
+
+        # Add any shortcuts we don't have yet.
+        for i in range(numShortcuts,numRows):
+            shortcut = QShortcut( QKeySequence(str(i+1)),
+                                  self,
+                                  member=partial(self._labelControlUi.labelListView.selectRow, i) )
+            self._labelShortcuts.append(shortcut)
+            toolTipObject = LabelListModel.EntryToolTipAdapter(self._labelControlUi.labelListModel, i)
+            ShortcutManager().register("Labeling", "", shortcut, toolTipObject)
+
+        # Make sure that all shortcuts have an appropriate description
+        for i in range(numRows):
+            shortcut = self._labelShortcuts[i]
+            description = "Select " + self._labelControlUi.labelListModel[i].name
+            ShortcutManager().setDescription(shortcut, description)
+
+    def hideEvent(self, event):
+        """
+        The user has selected another applet or is closing the whole app.
+        Save all preferences.
+        """
+        with PreferencesManager() as prefsMgr:
+            prefsMgr.set('labeling', 'paint brush size', self.paintBrushSizeIndex)
+            prefsMgr.set('labeling', 'eraser brush size', self.eraserSizeIndex)
+        super(LabelingGui, self).hideEvent(event)
+
     @traceLogged(traceLogger)
     def handleToolButtonClicked(self, checked, toolId):
         """
@@ -248,6 +316,7 @@ class LabelingGui(LayerViewerGui):
             # If the user is checking a new button
             self.changeInteractionMode( toolId )
 
+    @threadRouted
     @traceLogged(traceLogger)
     def changeInteractionMode( self, toolId ):
         """
@@ -276,7 +345,7 @@ class LabelingGui(LayerViewerGui):
 
         # If the user can't label this image, disable the button and say why its disabled
         labelsAllowed = False
-        if self.imageIndex != -1:
+        if 0 <= self.imageIndex < len(self._labelingSlots.labelsAllowed) :
             labelsAllowedSlot = self._labelingSlots.labelsAllowed[self.imageIndex]
             if labelsAllowedSlot.ready():
                 labelsAllowed = labelsAllowedSlot.value
@@ -409,13 +478,16 @@ class LabelingGui(LayerViewerGui):
         color = QColor()
         color.setRgba(self._colorTable16[numLabels+1]) # First entry is transparent (for zero label)
 
-        self._labelControlUi.labelListModel.insertRow(self._labelControlUi.labelListModel.rowCount(),
-                                                      Label(self.getNextLabelName(), color))
+        label = Label(self.getNextLabelName(), color)
+        label.nameChanged.connect(self._updateLabelShortcuts)
+        self._labelControlUi.labelListModel.insertRow( self._labelControlUi.labelListModel.rowCount(), label )
         nlabels = self._labelControlUi.labelListModel.rowCount()
 
         # Make the new label selected
         selectedRow = nlabels-1
         self._labelControlUi.labelListModel.select(selectedRow)
+        
+        self._updateLabelShortcuts()
 
     def getNextLabelName(self):
         maxNum = 0
@@ -434,6 +506,7 @@ class LabelingGui(LayerViewerGui):
         numRows = self._labelControlUi.labelListModel.rowCount()
         # This will trigger the signal that calls onLabelRemoved()
         self._labelControlUi.labelListModel.removeRow(numRows-1)
+        self._updateLabelShortcuts()
     
         self._programmaticallyRemovingLabels = False
     
@@ -563,7 +636,6 @@ class LabelingGui(LayerViewerGui):
         colors.append( QColor( Qt.lightGray ) )
 
         # Additional colors
-        colors.append( QColor( Qt.cyan ) )
         colors.append( QColor(255, 105, 180) ) #hot pink
         colors.append( QColor(102, 205, 170) ) #dark aquamarine
         colors.append( QColor(165,  42,  42) ) #brown        
@@ -571,10 +643,11 @@ class LabelingGui(LayerViewerGui):
         colors.append( QColor(255, 165, 0) )   #orange
         colors.append( QColor(173, 255,  47) ) #green-yellow
         colors.append( QColor(128,0, 128) )    #purple
+        colors.append( QColor(240, 230, 140) ) #khaki
 
 #        colors.append( QColor(192, 192, 192) ) #silver
-#        colors.append( QColor(240, 230, 140) ) #khaki
 #        colors.append( QColor(69, 69, 69) )    # dark grey
+#        colors.append( QColor( Qt.cyan ) )
 
         assert len(colors) == 16
 

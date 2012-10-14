@@ -9,7 +9,7 @@ class PixelClassificationApplet( Applet ):
     def __init__( self, graph, projectFileGroupName ):
         Applet.__init__( self, "Pixel Classification" )
 
-        self._topLevelOperator = OpPixelClassification( graph )
+        self._topLevelOperator = OpPixelClassification( graph=graph )
 
         # We provide two independent serializing objects:
         #  one for the current scheme and one for importing old projects.
@@ -40,5 +40,5 @@ class PixelClassificationApplet( Applet ):
     def gui(self):
         if self._gui is None:
             from pixelClassificationGui import PixelClassificationGui
-            self._gui = PixelClassificationGui( self._topLevelOperator, self.guiControlSignal, self.shellRequestSignal, self.predictionSerializer )        
+            self._gui = PixelClassificationGui( self._topLevelOperator, self.shellRequestSignal, self.guiControlSignal, self.predictionSerializer )        
         return self._gui

@@ -18,7 +18,7 @@ class DataSelectionApplet( Applet ):
         # Our top-level operator is wrapped to enable multi-image support.
         # All inputs are common to all inputs except for the 'Dataset' input, which is unique for each image.
         # Hence, 'Dataset' is the only 'promoted' slot.
-        self._topLevelOperator = OperatorWrapper( OpDataSelection(graph=graph), promotedSlotNames=set(['Dataset']) )
+        self._topLevelOperator = OperatorWrapper( OpDataSelection, graph=graph, promotedSlotNames=set(['Dataset']) )
 
         self._serializableItems = [ DataSelectionSerializer(self._topLevelOperator, projectFileGroupName) ]
         if supportIlastik05Import:
@@ -34,7 +34,7 @@ class DataSelectionApplet( Applet ):
         if self._gui is None:
             from dataSelectionGui import DataSelectionGui, GuiMode
             guiMode = { True: GuiMode.Batch, False: GuiMode.Normal }[self.batchDataGui]
-            self._gui = DataSelectionGui( self._topLevelOperator, self._serializableItems[0], guiMode )
+            self._gui = DataSelectionGui( self._topLevelOperator, self._serializableItems[0], self.guiControlSignal, guiMode )
         return self._gui
 
     @property

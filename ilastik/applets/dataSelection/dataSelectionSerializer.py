@@ -5,6 +5,7 @@ from lazyflow.operators import OpH5WriterBigDataset
 import os
 import copy
 from ilastik.utility import bind, PathComponents
+import ilastik.utility.globals
 
 from ilastik.applets.base.appletSerializer import AppletSerializer
 
@@ -28,6 +29,8 @@ class DataSelectionSerializer( AppletSerializer ):
         super( DataSelectionSerializer, self ).__init__( projectFileGroupName, self.SerializerVersion )
         self.mainOperator = mainOperator
         self._dirty = False
+        
+        self._projectFilePath = None
         
         def handleDirty():
             self._dirty = True
@@ -83,9 +86,12 @@ class DataSelectionSerializer( AppletSerializer ):
                     del localDataGroup[datasetName]
     
             if wroteInternalData:
-                # Force the operator to setupOutputs() again so it gets data from the project, not external files
-                firstInfo = self.mainOperator.Dataset[0].value
-                self.mainOperator.Dataset[0].setValue(firstInfo, False)
+                # We can only re-configure the operator if we're not saving a snapshot
+                # We know we're saving a snapshot if the project file isn't the one we deserialized with.
+                if self._projectFilePath is None or self._projectFilePath == projectFilePath:
+                    # Force the operator to setupOutputs() again so it gets data from the project, not external files
+                    firstInfo = self.mainOperator.Dataset[0].value
+                    self.mainOperator.Dataset[0].setValue(firstInfo, False)
 
             # Access the info group
             infoDir = self.getOrCreateGroup(topGroup, 'infos')
@@ -103,6 +109,8 @@ class DataSelectionSerializer( AppletSerializer ):
                 infoGroup.create_dataset('filePath', data=datasetInfo.filePath)
                 infoGroup.create_dataset('datasetId', data=datasetInfo.datasetId)
                 infoGroup.create_dataset('allowLabels', data=datasetInfo.allowLabels)
+                if datasetInfo.axisorder is not None:
+                    infoGroup.create_dataset('axisorder', data=datasetInfo.axisorder)
             
             self._dirty = False
 
@@ -112,23 +120,32 @@ class DataSelectionSerializer( AppletSerializer ):
         Create a datainfo and append it to our operator.
         """
         with Tracer(traceLogger):
-            projectFileHdf5 = self.mainOperator.ProjectFile.value
-            topGroup = self.getOrCreateGroup(projectFileHdf5, self.topGroupName)
-            localDataGroup = self.getOrCreateGroup(topGroup, 'local_data')
 
-            globstring = info.filePath
-            info.location = DatasetInfo.Location.ProjectInternal
-            
-            opWriter = OpStackToH5Writer(graph=self.mainOperator.graph)
-            opWriter.hdf5Group.setValue(localDataGroup)
-            opWriter.hdf5Path.setValue(info.datasetId)
-            opWriter.GlobString.setValue(globstring)
-            
-            success = opWriter.WriteImage.value
-            
-            numDatasets = len(self.mainOperator.Dataset)
-            self.mainOperator.Dataset.resize( numDatasets + 1 )
-            self.mainOperator.Dataset[numDatasets].setValue(info)
+            try:
+                self.progressSignal.emit(0)
+                
+                projectFileHdf5 = self.mainOperator.ProjectFile.value
+                topGroup = self.getOrCreateGroup(projectFileHdf5, self.topGroupName)
+                localDataGroup = self.getOrCreateGroup(topGroup, 'local_data')
+    
+                globstring = info.filePath
+                info.location = DatasetInfo.Location.ProjectInternal
+                
+                opWriter = OpStackToH5Writer(graph=self.mainOperator.graph)
+                opWriter.hdf5Group.setValue(localDataGroup)
+                opWriter.hdf5Path.setValue(info.datasetId)
+                opWriter.GlobString.setValue(globstring)
+
+                # Forward progress from the writer directly to our applet                
+                opWriter.progressSignal.subscribe( self.progressSignal.emit )
+                
+                success = opWriter.WriteImage.value
+                
+                numDatasets = len(self.mainOperator.Dataset)
+                self.mainOperator.Dataset.resize( numDatasets + 1 )
+                self.mainOperator.Dataset[numDatasets].setValue(info)
+            finally:
+                self.progressSignal.emit(100)
 
             return success
 
@@ -145,6 +162,7 @@ class DataSelectionSerializer( AppletSerializer ):
 
     def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
         with Tracer(traceLogger):
+            self._projectFilePath = projectFilePath
             self.initWithoutTopGroup(hdf5File, projectFilePath)
 
             infoDir = topGroup['infos']
@@ -166,6 +184,13 @@ class DataSelectionSerializer( AppletSerializer ):
                     datasetInfo.allowLabels = infoGroup['allowLabels'].value
                 except KeyError:
                     pass
+
+                # Deserialize the axisorder (if present)
+                try:
+                    datasetInfo.axisorder = infoGroup['axisorder'].value
+                except KeyError:
+                    if ilastik.utility.globals.ImportOptions.default_axis_order is not None:
+                        datasetInfo.axisorder = ilastik.utility.globals.ImportOptions.default_axis_order
                 
                 # If the data is supposed to be in the project,
                 #  check for it now.
@@ -175,7 +200,7 @@ class DataSelectionSerializer( AppletSerializer ):
     
                 # If the data is supposed to exist outside the project, make sure it really does.
                 if datasetInfo.location == DatasetInfo.Location.FileSystem:
-                    filePath = PathComponents(datasetInfo.filePath).externalPath
+                    filePath = PathComponents( datasetInfo.filePath, os.path.split(projectFilePath)[0] ).externalPath
                     if not os.path.exists(filePath):
                         raise RuntimeError("Could not find external data: " + filePath)
     
@@ -248,6 +273,12 @@ class Ilastik05DataSelectionDeserializer(AppletSerializer):
                 # Since we are importing from a 0.5 file, all datasets will be external 
                 #  to the project (pulled in from the old file as hdf5 datasets)
                 datasetInfo.location = DatasetInfo.Location.FileSystem
+                
+                # Some older versions of ilastik 0.5 stored the data in tzyxc order.
+                # Some power-users can enable a command-line flag that tells us to 
+                #  transpose the data back to txyzc order when we import the old project. 
+                if ilastik.utility.globals.ImportOptions.default_axis_order is not None:
+                    datasetInfo.axisorder = ilastik.utility.globals.ImportOptions.default_axis_order
                 
                 # Write to the 'private' members to avoid resetting the dataset id
                 totalDatasetPath = projectFilePath + '/DataSets/' + datasetDirName + '/data'

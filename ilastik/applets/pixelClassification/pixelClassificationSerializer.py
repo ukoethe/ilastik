@@ -143,10 +143,9 @@ class PixelClassificationSerializer(AppletSerializer):
                 forest.writeHDF5( cachePath, 'ClassifierForests/Forest{:04d}'.format(i) )
             
             # Open the temp file and copy to our project group
-            cacheFile = h5py.File(cachePath, 'r')
-            topGroup.copy(cacheFile['ClassifierForests'], 'ClassifierForests')
+            with h5py.File(cachePath, 'r') as cacheFile:
+                topGroup.copy(cacheFile['ClassifierForests'], 'ClassifierForests')
             
-            cacheFile.close()
             os.remove(cachePath)
             os.removedirs(tmpDir)
 
@@ -187,7 +186,7 @@ class PixelClassificationSerializer(AppletSerializer):
                             progress = [startProgress]
         
                             # Use a big dataset writer to do this in chunks
-                            opWriter = OpH5WriterBigDataset(self.mainOperator.graph)
+                            opWriter = OpH5WriterBigDataset(graph=self.mainOperator.graph)
                             opWriter.hdf5File.setValue( predictionDir )
                             opWriter.hdf5Path.setValue( datasetName )
                             opWriter.Image.connect( self.mainOperator.PredictionProbabilities[imageIndex] )
@@ -275,9 +274,8 @@ class PixelClassificationSerializer(AppletSerializer):
                 # Instead, we'll copy the classfier data to a temporary file and give it to vigra.
                 tmpDir = tempfile.mkdtemp()
                 cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
-                cacheFile = h5py.File(cachePath, 'w')
-                cacheFile.copy(classifierGroup, 'ClassifierForests')
-                cacheFile.close()
+                with h5py.File(cachePath, 'w') as cacheFile:
+                    cacheFile.copy(classifierGroup, 'ClassifierForests')
         
                 forests = []
                 for name, forestGroup in sorted( classifierGroup.items() ):
@@ -402,7 +400,8 @@ class Ilastik05ImportDeserializer(AppletSerializer):
                     # That's allowed, so we simply continue.
                     pass
                 else:
-                    self.mainOperator.LabelInputs[index][...] = dataset.value[...]
+                    slicing = [slice(0,s) for s in dataset.shape]
+                    self.mainOperator.LabelInputs[index][slicing] = dataset[...]
 
     def importClassifier(self, hdf5File):
         """
