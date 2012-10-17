@@ -566,8 +566,10 @@ class LabelingGui(LayerViewerGui):
         Return a colortable layer that displays the label slot data, along with its associated label source.
         direct: whether this layer is drawn synchronously by volumina
         """
+        print "BBBBBBBBBBBBBBBBBBBBBBBBBBBBb, creating the label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
         if not labelOutput.ready():
+            print "BBBBBBBBBBBBBBBBBBBBBBBBBBBb not ready"
             return (None, None)
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )

@@ -673,6 +673,8 @@ class CarvingSerializer( AppletSerializer ):
     def unload(self): 
         pass
 
+#/////////////////////////////////////////////////////////////////////
+
 class CarvingGui(LabelingGui):
     def __init__(self, labelingSlots, observedSlots, drawerUiPath=None, rawInputSlot=None,
                  carvingApplet=None):
@@ -851,6 +853,8 @@ class CarvingGui(LabelingGui):
         return [ ("Carving", self._labelControlUi) ]
 
     def setupLayers( self, currentImageIndex ):
+        
+        print "AAAAAAAAAAAAAAAAAAAAAAAAAA setupLayers called"
         layers = []
        
         def onButtonsEnabled(slot, roi):
@@ -871,6 +875,8 @@ class CarvingGui(LabelingGui):
         # Labels
         labellayer, labelsrc = self.createLabelLayer(currentImageIndex, direct=True)
         if labellayer is not None:
+            print "AAAAAAAAAAAAAAAAAAAAAAAA labellayer created!"
+            
             layers.append(labellayer)
             # Tell the editor where to draw label data
             self.editor.setLabelSink(labelsrc)
@@ -881,6 +887,7 @@ class CarvingGui(LabelingGui):
         #seg = self._carvingApplet.topLevelOperator.opCarving[0]._mst.segmentation
         #temp = self._done_lut[self._mst.regionVol[sl[1:4]]]
         if seg.ready(): 
+            print "setting up segmentation layer"
             #source = RelabelingArraySource(seg)
             #source.setRelabeling(numpy.arange(256, dtype=numpy.uint8))
             colortable = [QColor(0,0,0,0).rgba(), QColor(0,0,0,0).rgba(), QColor(0,255,0).rgba()]
@@ -894,10 +901,13 @@ class CarvingGui(LabelingGui):
             layer.visible = True
             layer.opacity = 0.3
             layers.append(layer)
+        else:
+            print "segmentation not ready"
         
         #done 
         done = self._carvingApplet.topLevelOperator.opCarving.DoneObjects[currentImageIndex]
         if done.ready(): 
+            print "setting up done layer"
             colortable = [QColor(0,0,0,0).rgba(), QColor(0,0,255).rgba()]
             for i in range(254-len(colortable)):
                 r,g,b = numpy.random.randint(0,255), numpy.random.randint(0,255), numpy.random.randint(0,255)
@@ -912,6 +922,7 @@ class CarvingGui(LabelingGui):
             
         doneSeg = self._carvingApplet.topLevelOperator.opCarving.DoneSegmentation[currentImageIndex]
         if doneSeg.ready(): 
+            print "setting up doneseg layer"
             layer = ColortableLayer(LazyflowSource(doneSeg), self._doneSegmentationColortable, direct=True)
             layer.name = "done seg"
             layer.visible = False
@@ -922,6 +933,7 @@ class CarvingGui(LabelingGui):
         #supervoxel
         sv = self._carvingApplet.topLevelOperator.opCarving.Supervoxels[currentImageIndex]
         if sv.ready():
+            print "setting up supervoxel layer"
             for i in range(256):
                 r,g,b = numpy.random.randint(0,255), numpy.random.randint(0,255), numpy.random.randint(0,255)
                 colortable.append(QColor(r,g,b).rgba())
@@ -952,7 +964,9 @@ class CarvingGui(LabelingGui):
         layer.opacity = 1.0
         #layers.insert(1, layer)
         layers.append(layer)
-            
+        
+        print "returning ", len(layers), "layers"
+        
         return layers
 
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
