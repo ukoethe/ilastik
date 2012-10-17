@@ -21,9 +21,12 @@ class OpObjectTrain(Operator):
     description = "Train a random forest on multiple images"
     category = "Learning"
 
-    inputSlots = [InputSlot("Features", level=1, stype=Opaque, rtype=List ),\
-                    InputSlot("Labels", level=1, rtype=List ), InputSlot("fixClassifier", stype="bool")]
-    outputSlots = [OutputSlot("Classifier")]
+    Features = InputSlot(level=2, stype=Opaque, rtype=List) # it's level 2, because for each dataset it's
+                                                            # a list on time steps
+    Labels = InputSlot(level=1, rtype=List) # a list of object labels, non-labeled objects have zero at their index
+    FixClassifier = InputSlot(stype="bool")
+    
+    Classifier = OutputSlot()
 
     def __init__(self, *args, **kwargs):
         super(OpObjectTrain, self).__init__(*args, **kwargs)
@@ -33,7 +36,7 @@ class OpObjectTrain(Operator):
         self._tree_count = 10
 
     def setupOutputs(self):
-        if self.inputs["fixClassifier"].value == False:
+        if self.inputs["FixClassifier"].value == False:
             self.outputs["Classifier"].meta.dtype = object
             self.outputs["Classifier"].meta.shape = (self._forest_count,)
             self.outputs["Classifier"].meta.axistags  = None
@@ -43,92 +46,13 @@ class OpObjectTrain(Operator):
 
         numImages = len(self.Features)
 
-        key = roi.toSlice()
-        featMatrix=[]
-        labelsMatrix=[]
-        imageMatrix = []
-        self.objectIndices = set()
-        allFeatures = self.ObjectFeatures( [0] ).wait()
-        for i,labels in enumerate(self.inputs["Labels"]):
-            if labels.meta.shape is not None:
-                #labels=labels[:].allocate().wait()
-                blocks = self.inputs["nonzeroLabelBlocks"][i][0].allocate().wait()
-
-                reqlistlabels = []
-                reqlistfeat = []
-                print "Sending requests for {} non-zero blocks (labels and data)".format( len(blocks[0])) 
-                #traceLogger.debug("Sending requests for {} non-zero blocks (labels and data)".format( len(blocks[0])) )
-                for b in blocks[0]:
-
-                    request = labels[b].allocate()
-                    featurekey = list(b)
-                    featurekey[-1] = slice(None, None, None)
-                    request2 = self.inputs["Images"][i][featurekey].allocate()
-
-                    reqlistlabels.append(request)
-                    reqlistfeat.append(request2)
-
-                #traceLogger.debug("Requests prepared")
-                print "requests prepared"
-
-                numLabelBlocks = len(reqlistlabels)
-                
-                for ir, req in enumerate(reqlistlabels):
-                    print "Waiting for a label block"
-                    #traceLogger.debug("Waiting for a label block...")
-                    labblock = req.wait()
-
-                    #traceLogger.debug("Waiting for an image block...")
-                    image = reqlistfeat[ir].wait()
-
-                    indexes=numpy.nonzero(labblock[...,0].view(numpy.ndarray))
-                    newObjectIndices = set(image[indexes])
-                    self.objectIndices = self.objecIndices.union(newObjectIndices)
-                    
-                    imageValues=image[indexes]
-                    labbla=labblock[indexes]
-
-                    imageMatrix.append(imageValues)
-                    labelsMatrix.append(labbla)
-
-
-        if len(imageMatrix) == 0 or len(labelsMatrix) == 0:
-            # If there was no actual data for the random forest to train with, we return None
-            result[:] = None
-        else:
-            print labelsMatrix
-            print imageMatrix
-            
-            '''
-            featMatrix=numpy.concatenate(featMatrix,axis=0)
-            labelsMatrix=numpy.concatenate(labelsMatrix,axis=0)
-
-            try:
-                # train and store self._forest_count forests in parallel
-                pool = Pool()
-
-                for i in range(self._forest_count):
-                    def train_and_store(number):
-                        result[number] = vigra.learning.RandomForest(self._tree_count) 
-                        result[number].learnRF(featMatrix.astype(numpy.float32),labelsMatrix.astype(numpy.uint32))
-                    req = pool.request(partial(train_and_store, i))
-
-                pool.wait()
-                pool.clean()
-
-            except:
-#                logger.error( "ERROR: could not learn classifier" )
-#                logger.error( "featMatrix shape={}, max={}, dtype={}".format(featMatrix.shape, featMatrix.max(), featMatrix.dtype) )
-#                logger.error( "labelsMatrix shape={}, max={}, dtype={}".format(labelsMatrix.shape, labelsMatrix.max(), labelsMatrix.dtype ) )
-                print "somethin gone wrong in training"
-                raise
-            #finally:
-            #    self.progressSignal(100)
-            '''
-        return result
+        labels = self.inputs["Labels"].allocate().wait()
+        print "I'm the execute function of the new training operator!"
+        print "here are my labels:"
+        print labels
 
     def propagateDirty(self, slot, subindex, roi):
-        if slot is not self.fixClassifier and self.inputs["fixClassifier"].value == False:
+        if slot is not self.FixClassifier and self.inputs["FixClassifier"].value == False:
             self.outputs["Classifier"].setDirty((slice(0,1,None),))
 
 
