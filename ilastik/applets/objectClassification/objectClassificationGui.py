@@ -19,7 +19,8 @@ from ilastik.applets.layerViewer import LayerViewerGui
 from ilastik.applets.labeling import LabelingGui
 
 import volumina.colortables as colortables
-from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer
+from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
+                         RelabelingLazyflowSinkSource, ClickableColortableLayer
 
 from pickingControler import PickingInterpreter, PickingControler
 from pickingModel import PickingModel
@@ -44,19 +45,29 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkInteractive.setChecked(False)
         self.labelingDrawerUi.checkShowPredictions.setChecked(False)
         
+        
+
+            
     @traceLogged(traceLogger)
     def __init__(self, pipeline, guiControlSignal, shellRequestSignal ):
         # Tell our base class which slots to monitor
         labelSlots = LabelingGui.LabelingSlots()
         labelSlots.labelInput = pipeline.LabelInputs
-        labelSlots.labelOutput = pipeline.LabelOutputs  
-        #labelSlots.labelEraserValue = pipeline.opLabelArray.eraser
-        #labelSlots.labelDelete = pipeline.opLabelArray.deleteLabel
+        labelSlots.labelOutput = pipeline.LabelOutputs
+        #FIXME: it's not yet clear what to do with these 2 slots
+        #in principle, the operator does not need to connect to them,
+        #everything should be done by the model, operator just gets the list
+        #connect to dummy slots for now 
+        labelSlots.labelEraserValue = pipeline.Eraser
+        labelSlots.labelDelete = pipeline.DeleteLabel
+        
         labelSlots.maxLabelValue = pipeline.MaxLabelValue
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
         labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
-        labelSlots.labelEraserValue.setValue(100)
-        labelSlots.labelDelete.setValue(-1)
+        
+        #labelSlots.labelEraserValue.setValue(100)
+        #labelSlots.labelDelete.setValue(-1)
+        
         # We provide our own UI file (which adds an extra control for interactive mode)
         # This UI file is copied from pixelClassification pipeline
         # 
@@ -121,8 +132,7 @@ class ObjectClassificationGui(LabelingGui):
         #self.drawer.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
     
     @traceLogged(traceLogger)
-    def createLabelLayer():
-        self, currentImageIndex, direct=False):
+    def createLabelLayer(self, currentImageIndex, direct=False):
         """
         Return a colortable layer that displays the label slot data, along with its associated label source.
         direct: whether this layer is drawn synchronously by volumina
@@ -137,7 +147,7 @@ class ObjectClassificationGui(LabelingGui):
                                            self._labelingSlots.labelInput[currentImageIndex])
         
            
-            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=a.dtype), colortable=colortable, direct=direct)
+            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
             labellayer = ClickableColortableLayer(self.editor, self.onClick, source=labelsrc, colortable=self._colorTable16, \
                                              relabeling=relabeling, direct=direct)
        

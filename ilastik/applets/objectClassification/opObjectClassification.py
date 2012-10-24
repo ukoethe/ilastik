@@ -102,11 +102,16 @@ class OpObjectClassification(Operator):
     
     
     MaxLabelValue = OutputSlot()
+    #FIXME: we should get that from vigra connected component operator, or from the object features
     MaxObjectNumber = OutputSlot()
     
     LabelOutputs = OutputSlot(level=1) # Labels from the user. We just give the connected components overlay again
     
+    #FIXME: these are temporary, not needed for functionality, but for the labeling gui inteface
+    Eraser = OutputSlot()
+    DeleteLabel = OutputSlot()
     
+    #FIXME: we'll need that when we are really predicting
     #PredictionProbabilities = OutputSlot(level=1) # Classification predictions
 
     #PredictionProbabilityChannels = OutputSlot(level=2) # Classification predictions, enumerated by channel
@@ -137,7 +142,7 @@ class OpObjectClassification(Operator):
         # Set up other label cache inputs
         
         
-        self.opLabelList = opValueCache(graph=self.graph)
+        self.opLabelList = OperatorWrapper( OpValueCache, parent = self, graph=self.graph)
         self.opLabelList.Input.connect(self.LabelInputs)
         
         #self.opLabelArray.inputs["Input"].connect( self.LabelInputs )
@@ -158,7 +163,7 @@ class OpObjectClassification(Operator):
         #self.opTrain.inputs["Images"].connect(self.InputImages)
         self.opTrain.inputs['Labels'].connect(self.opLabelList.Output)
         #self.opTrain.inputs["nonzeroLabelBlocks"].connect(self.opLabelArray.outputs["nonzeroBlocks"])
-        self.opTrain.inputs['fixClassifier'].setValue(False)
+        self.opTrain.inputs['FixClassifier'].setValue(False)
         
         #self.predict = OperatorWrapper( OpObjectsPredict, graph=self.graph)
         
@@ -202,6 +207,9 @@ class OpObjectClassification(Operator):
         
         
         #Connect the outputs
+        self.Eraser.setValue(100)
+        self.DeleteLabel.setValue(-1)
+        self.MaxObjectNumber.setValue(19)
         self.LabelOutputs.connect( self.InputImages )
         self.MaxLabelValue.connect( self.opMaxLabel.Output )
         #self.NonzeroLabelBlocks.connect(self.opLabelArray.nonzeroBlocks)
