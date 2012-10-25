@@ -146,6 +146,7 @@ class OpObjectExtraction( Operator ):
     
     RegionCenters = OutputSlot( stype=Opaque, rtype=List )
     RegionFeatures = OutputSlot( stype=Opaque, rtype=List )
+    RegionCount = OutputSlot( stype=Opaque ) #total number of regions
 
     def __init__( self, parent = None, graph = None ):
         super(OpObjectExtraction, self).__init__(parent=parent,graph=graph)
@@ -161,6 +162,10 @@ class OpObjectExtraction( Operator ):
 
         self._opRegFeats = OpRegionFeatures( graph = graph )
         self._opRegFeats.LabelImage.connect( self.LabelImage )
+        
+        self.RegionCount.meta.shape = (1,)
+        self.RegionCount.meta.dtype = object
+        self.RegionCount.setValue([0])
 
     
     def __del__( self ):
@@ -175,6 +180,8 @@ class OpObjectExtraction( Operator ):
         self._reg_cents = dict.fromkeys(xrange(m.shape[0]), numpy.asarray([], dtype=numpy.uint16))
         
         self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
+        #self.RegionCount.setValue(0)
+        
     
     def execute(self, slot, subindex, roi, result):
         if slot is self.ObjectCenterImage:
@@ -188,6 +195,16 @@ class OpObjectExtraction( Operator ):
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get( roi ).wait()
             return res
+        if slot is self.RegionCount:
+            res = self._opRegCent.Output.get( roi ).wait()
+            #FIXME: there has to be some magic here, to extract not only from the first time slice
+            feats = res[0]
+            nobjects = feats[feats.activeNames()[0]].shape[0]            
+            self.RegionCount.setValue([nobjects])
+            result[0]=nobjects
+            return result
+            
+            
 
     def propagateDirty(self, inputSlot, subindex, roi):
         raise NotImplementedError

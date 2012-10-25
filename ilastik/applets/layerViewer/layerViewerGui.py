@@ -279,10 +279,10 @@ class LayerViewerGui(QMainWindow):
         try:
             numImages = len(self.observedSlots[0])
         except IndexError: # observedSlots is empty
-            print "IndexError"
             pass
 
         inSync = True
+        
         for slot in self.observedSlots:
             # Check each slot for out-of-sync status except:
             # - slots that are optional and unconnected
@@ -290,12 +290,10 @@ class LayerViewerGui(QMainWindow):
             if not (slot._optional and slot.partner is None):
                 if len(slot) == 0:
                     inSync = False
-                    print "slot with len=0", slot.name
                     break
-                elif len(slot[0]) > 0 and slot[0][0].meta.axistags is not 'classifier':
+                elif len(slot[0]) > 0 and slot[0][0].meta.axistags is not None:
                     inSync &= (len(slot) == numImages)
             
-        print "returning from check, inSync:", inSync
         return inSync
 
     @traceLogged(traceLogger)
@@ -304,7 +302,6 @@ class LayerViewerGui(QMainWindow):
         # Check to make sure all layers are in sync
         # (During image insertions, outputs are resized one at a time.)
         if not self.areProvidersInSync():
-            print "something not in sync"
             return
 
         if self.imageIndex >= 0:        

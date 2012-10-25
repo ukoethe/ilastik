@@ -89,21 +89,23 @@ class OpObjectClassification(Operator):
     
     InputImages = InputSlot(level = 1)
     ObjectFeatures = InputSlot( level = 1, stype=Opaque, rtype=List )
-    
     LabelsAllowedFlags = InputSlot(stype='bool', level=1) # Specifies which images are permitted to be labeled 
-    LabelInputs = InputSlot(optional = True, level=1, rtype = List) # Input for providing label data from an external source
+    
+    LabelInputs = InputSlot(stype= Opaque, optional = True, level=1) # Input for providing label data from an external source
                                                                     # Labels come in the form of a list, as long as the number
                                                                     # of objects (see also relabeling property of the 
                                                                     # RelabelingLazyflowSourceSink in volumina
     
     FreezePredictions = InputSlot(stype='bool')
 
-    PredictionsFromDisk = InputSlot(optional=True, level=1)
+    MaxObjectNumber = InputSlot(level=1, stype = Opaque)
+
+    #PredictionsFromDisk = InputSlot(optional=True, level=1)
     
     
     MaxLabelValue = OutputSlot()
     #FIXME: we should get that from vigra connected component operator, or from the object features
-    MaxObjectNumber = OutputSlot()
+    #MaxObjectNumber = OutputSlot()
     
     LabelOutputs = OutputSlot(level=1) # Labels from the user. We just give the connected components overlay again
     
@@ -122,31 +124,15 @@ class OpObjectClassification(Operator):
         self.opInputShapeReader = OperatorWrapper( OpShapeReader, parent=self, graph=self.graph )
         self.opInputShapeReader.Input.connect( self.InputImages )
         
-        
-        #self.opLabelArray = OperatorWrapper( OpBlockedSparseLabelArray, parent=self, graph=self.graph )
-        #self.opLabelArray.inputs["shape"].connect( self.opInputShapeReader.OutputShape )
-        
-        
-        self.opMaxLabel = OpMaxValue(graph=self.graph)
-        
-        
-        #self.predict = OperatorWrapper( OpObjectsPredict, parent=self, graph=self.graph )
-        #self.prediction_cache = OperatorWrapper( OpSlicedBlockedArrayCache, parent=self, graph=self.graph )
-        #assert len(self.prediction_cache.Input) == 0
-        #self.prediction_cache_gui = OperatorWrapper( OpSlicedBlockedArrayCache, parent=self, graph=self.graph )
-        #assert len(self.prediction_cache_gui.Input) == 0
-        #self.precomputed_predictions = OperatorWrapper( OpPrecomputedInput, parent=self, graph=self.graph )
-        #self.precomputed_predictions_gui = OperatorWrapper( OpPrecomputedInput, parent=self, graph=self.graph )
-
+        self.opMaxLabel = OpMaxListValue(graph=self.graph)
         
         # Set up other label cache inputs
         
+        #self.LabelInputs.connect(self.ObjectFeatures)
+        #self.LabelInputs.setValue([])
+        #self.opLabelList = OperatorWrapper( OpValueCache, parent = self, graph=self.graph)
+        #self.opLabelList.Input.connect(self.LabelInputs)
         
-        self.opLabelList = OperatorWrapper( OpValueCache, parent = self, graph=self.graph)
-        self.opLabelList.Input.connect(self.LabelInputs)
-        
-        #self.opLabelArray.inputs["Input"].connect( self.LabelInputs )
-        #self.opLabelArray.inputs["eraser"].setValue(100)
                 
         # Initialize the delete input to -1, which means "no label".
         # Now changing this input to a positive value will cause label deletions.
@@ -160,56 +146,13 @@ class OpObjectClassification(Operator):
         
         self.opTrain = OpObjectTrain(graph = self.graph)
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
-        #self.opTrain.inputs["Images"].connect(self.InputImages)
-        self.opTrain.inputs['Labels'].connect(self.opLabelList.Output)
-        #self.opTrain.inputs["nonzeroLabelBlocks"].connect(self.opLabelArray.outputs["nonzeroBlocks"])
+        self.opTrain.inputs['Labels'].connect(self.LabelInputs)
         self.opTrain.inputs['FixClassifier'].setValue(False)
-        
-        #self.predict = OperatorWrapper( OpObjectsPredict, graph=self.graph)
-        
-        # The classifier is cached here to allow serializers to force in a pre-calculated classifier...
-        #self.classifier_cache = OpValueCache( graph=self.graph )
-        #self.classifier_cache.inputs["Input"].connect(self.opTrain.outputs['Classifier'])
-
-        ##
-        # 
-        ##
-        #self.predict.inputs['Classifier'].connect(self.classifier_cache.outputs['Output']) 
-        #self.predict.inputs['Image'].connect(self.InputImages)
-        #self.predict.inputs['LabelsCount'].connect(self.opMaxLabel.Output)
-        
-        # prediction cache for downstream operators (if they want it)
-        #self.prediction_cache.name = "PredictionCache"
-        #self.prediction_cache.inputs["fixAtCurrent"].setValue(False)
-        #self.prediction_cache.inputs["Input"].connect( self.predict.PMaps )
-
-        # The serializer uses these operators to provide prediction data directly from the project file
-        # if the predictions haven't become dirty since the project file was opened.
-        #self.precomputed_predictions.SlowInput.connect( self.prediction_cache.Output )
-        #self.precomputed_predictions.PrecomputedInput.connect( self.PredictionsFromDisk )
-
-        # Prediction cache for the GUI
-        #self.prediction_cache_gui.name = "PredictionCache"
-        #self.prediction_cache_gui.inputs["fixAtCurrent"].connect( self.FreezePredictions )
-        #self.prediction_cache_gui.inputs["Input"].connect( self.predict.PMaps )
-
-        #self.precomputed_predictions_gui.SlowInput.connect( self.prediction_cache_gui.Output )
-        #self.precomputed_predictions_gui.PrecomputedInput.connect( self.PredictionsFromDisk )
-
-        
-        
-        # Also provide each prediction channel as a separate layer (for the GUI)
-        #self.opPredictionSlicer = OperatorWrapper( OpMultiArraySlicer2, parent=self, graph=self.graph )
-        #self.opPredictionSlicer.Input.connect( self.precomputed_predictions_gui.Output )
-        #self.opPredictionSlicer.AxisFlag.setValue('c')
-        #self.PredictionProbabilityChannels.connect( self.opPredictionSlicer.Slices )
-        #self.PredictionProbabilities.connect(self.predict.outputs["PMaps"])
-        
         
         #Connect the outputs
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
-        self.MaxObjectNumber.setValue(19)
+        #self.MaxObjectNumber.setValue(19)
         self.LabelOutputs.connect( self.InputImages )
         self.MaxLabelValue.connect( self.opMaxLabel.Output )
         #self.NonzeroLabelBlocks.connect(self.opLabelArray.nonzeroBlocks)
@@ -225,8 +168,8 @@ class OpObjectClassification(Operator):
         
         def handleNewInputImage( multislot, index, *args ):
             def handleInputReady(slot):
-                #self.setupCaches( multislot.index(slot) )
-                self.LabelInputs.value.append([])
+                self.setupCaches( multislot.index(slot) )
+                #self.LabelInputs.value.append([])
             multislot[index].notifyReady(handleInputReady)
                 
         self.InputImages.notifyInserted( handleNewInputImage )
@@ -234,35 +177,30 @@ class OpObjectClassification(Operator):
     
     def setupCaches(self, imageIndex):
         #Setup the label input to correct dimensions
-        print "calling setup caches"
+        print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! calling setup caches"
+        
         numImages = len(self.InputImages)
-        inputSlot = self.InputImages[imageIndex]
-        #self.LabelImages.resize(numImages)
+        
         self.LabelInputs.resize(numImages)
 
-        # Special case: We have to set up the shape of our label *input* according to our image input shape
-        shapeList = list(self.InputImages[imageIndex].meta.shape)
-        try:
-            channelIndex = self.InputImages[imageIndex].meta.axistags.index('c')
-            shapeList[channelIndex] = 1
-        except:
-            pass
-        self.LabelInputs[imageIndex].meta.shape = tuple(shapeList)
-        self.LabelInputs[imageIndex].meta.axistags = inputSlot.meta.axistags
+        self.LabelInputs[imageIndex].meta.shape = (1,)
+        self.LabelInputs[imageIndex].meta.dtype = object
+        if self.MaxObjectNumber[imageIndex].ready():
+            #FIXME: we set it to a list of arrays, because otherwise value only returns the first element
+            self.LabelInputs[imageIndex].setValue([numpy.zeros((self.MaxObjectNumber[imageIndex].value+1))])
+            print "set up label inputs", self.MaxObjectNumber[imageIndex].value, self.LabelInputs[imageIndex].value
+        else:
+            self.LabelInputs[imageIndex].setValue([])
         
-        # Set the blockshapes for each input image separately, depending on which axistags it has.
-        axisOrder = [ tag.key for tag in inputSlot.meta.axistags ]
-        
-        ## Label Array blocks
-        blockDims = { 't' : 1, 'x' : 64, 'y' : 64, 'z' : 64, 'c' : 1 }
-        blockShape = tuple( blockDims[k] for k in axisOrder )
-        self.opLabelArray.blockShape.setValue( blockShape )
                 
     def setupOutputs(self):
+        pass
+        '''
         if self.Features.ready():
             feats = self.Features[0]
             nobjects = feats[feats.activeNames()[0]].shape[0]
             self.maxObjectNumber.setValue(nobjects)
+        '''
     
     def setInSlot(self, slot, subindex, roi, value):
         # Nothing to do here: All inputs that support __setitem__
@@ -273,4 +211,45 @@ class OpObjectClassification(Operator):
         # Output slots are directly connected to internal operators
         pass 
     
+class OpMaxListValue(Operator):
+    #For each image, the input is a relabeling vector
+    Inputs = InputSlot(level=1) # A list of lists of values
+    Output = OutputSlot()
+    
+    def __init__(self, *args, **kwargs):
+        super(OpMaxListValue, self).__init__(*args, **kwargs)
+        self.Output.meta.shape = (1,)
+        self.Output.meta.dtype = object
+        self._output = 0
+        
+    def setupOutputs(self):
+        self.updateOutput()
+        self.Output.setValue(self._output)
+
+    def execute(self, slot, subindex, roi, result):
+        result[0] = self._output
+        return result
+
+    def propagateDirty(self, inputSlot, subindex, roi):
+        self.updateOutput()
+        self.Output.setValue(self._output)
+
+    def updateOutput(self):
+        # Return the max value of all our inputs
+        maxValue = None
+        for i, inputSubSlot in enumerate(self.Inputs):
+            # Only use inputs that are actually configured
+            if inputSubSlot.ready():
+                if len(inputSubSlot.value)>0:
+                    curMax = numpy.max(inputSubSlot.value)
+                    if maxValue is None:
+                        maxValue = curMax
+                    else:
+                        maxValue = max(maxValue, curMax)
+        
+        if maxValue is None:
+            self._output = 0
+        else:
+            self._output = maxValue
+
 

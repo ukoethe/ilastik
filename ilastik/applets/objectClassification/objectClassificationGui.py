@@ -102,7 +102,7 @@ class ObjectClassificationGui(LabelingGui):
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
         
         self.clickedObjects = dict() #maps from object to the label that is used for it
-        self.usedLabels = set()
+        #self.usedLabels = set()
 
     '''
     @traceLogged(traceLogger)
@@ -137,8 +137,12 @@ class ObjectClassificationGui(LabelingGui):
         Return a colortable layer that displays the label slot data, along with its associated label source.
         direct: whether this layer is drawn synchronously by volumina
         """
+        print "!!!!!!!!!!!!!!!!! creating label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
-        if not labelOutput.ready():
+        maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
+        
+        if not labelOutput.ready() or not maxObjectNumber.ready():
+            print "nothing ready yet"
             return (None, None)
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
@@ -147,9 +151,10 @@ class ObjectClassificationGui(LabelingGui):
                                            self._labelingSlots.labelInput[currentImageIndex])
         
            
-            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
-            labellayer = ClickableColortableLayer(self.editor, self.onClick, source=labelsrc, colortable=self._colorTable16, \
-                                             relabeling=relabeling, direct=direct)
+            relabeling=numpy.zeros(maxObjectNumber.value+1, dtype=numpy.uint32)
+            labelsrc.setRelabeling(relabeling)
+            labellayer = ClickableColortableLayer(self.editor, self.onClick, datasource=labelsrc, \
+                                                  colorTable=self._colorTable16, direct=direct)
        
             #labellayer = ColortableLayer(labelsrc, colorTable = self._colorTable16, direct=direct )
             labellayer.name = "Labels"
@@ -162,9 +167,7 @@ class ObjectClassificationGui(LabelingGui):
     def setupLayers(self, currentImageIndex):
         
         # Base class provides the label layer.
-        print "AAAAAAAAAAAAAAAAAAAa, setupLayers of the objectClassificationGui"
         layers = super(ObjectClassificationGui, self).setupLayers(currentImageIndex)
-        #print "AAAAAAAAAAAAAAAAAAAa, setupLayers of the objectClassificationGui"
         #This is just for colors
         labels = self.labelListData
         
@@ -234,13 +237,13 @@ class ObjectClassificationGui(LabelingGui):
     def toggleInteractive(self, checked):
         print "Interactive mode toggled to", checked
         
-    def onClick(layer, pos5D, pos):
+    def onClick(self, layer, pos5D, pos):
         #FIXME: this should label in the selected label color
         obj = layer.data.originalData[pos5D]
         if obj in self.clickedObjects:
             layer._datasources[0].setRelabelingEntry(obj, 0)
-            usedLabels.remove( self.clickedObjects[obj] )
-            del clickedObjects[obj]
+            #usedLabels.remove( self.clickedObjects[obj] )
+            del self.clickedObjects[obj]
         else:
             labels = sorted(list(self.usedLabels))
             
