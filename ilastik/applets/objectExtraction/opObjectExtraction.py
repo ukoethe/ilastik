@@ -165,6 +165,7 @@ class OpObjectExtraction( Operator ):
         
         self.RegionCount.meta.shape = (1,)
         self.RegionCount.meta.dtype = object
+        self.RegionCount.meta.axistags = None
         self.RegionCount.setValue([0])
 
     
@@ -184,9 +185,11 @@ class OpObjectExtraction( Operator ):
         
     
     def execute(self, slot, subindex, roi, result):
+        
         if slot is self.ObjectCenterImage:
             return self._execute_ObjectCenterImage( roi, result )
         if slot is self.LabelImage:
+            #print "pulling from label image, roi:", roi, "subindex:", subindex
             result = self._mem_h5['LabelImage'][roi.toSlice()]
             return result
         if slot is self.RegionCenters:
@@ -196,8 +199,10 @@ class OpObjectExtraction( Operator ):
             res = self._opRegFeats.Output.get( roi ).wait()
             return res
         if slot is self.RegionCount:
+            print "AAAAAAAAAAAAAAAAAAAAAAAa, retrieving object count"
             res = self._opRegCent.Output.get( roi ).wait()
             #FIXME: there has to be some magic here, to extract not only from the first time slice
+        
             feats = res[0]
             nobjects = feats[feats.activeNames()[0]].shape[0]            
             self.RegionCount.setValue([nobjects])
@@ -231,6 +236,9 @@ class OpObjectExtraction( Operator ):
                 self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelVolumeWithBackground( a )
             else:
                 self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelImageWithBackground( a )
+            oldshape = self.BinaryImage.meta.shape
+            roi = SubRegion(self.LabelImage, start=len(oldshape)*(0,), stop=oldshape)
+            self.LabelImage.setDirty(roi)
             
 
     def updateLabelImageAt( self, t ):

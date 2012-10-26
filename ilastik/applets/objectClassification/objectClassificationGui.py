@@ -63,7 +63,7 @@ class ObjectClassificationGui(LabelingGui):
         
         labelSlots.maxLabelValue = pipeline.MaxLabelValue
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
-        labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
+        #labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
         
         #labelSlots.labelEraserValue.setValue(100)
         #labelSlots.labelDelete.setValue(-1)
@@ -139,19 +139,23 @@ class ObjectClassificationGui(LabelingGui):
         """
         print "!!!!!!!!!!!!!!!!! creating label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
-        maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
+        #maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
+        maxObjectNumber = 19
         
-        if not labelOutput.ready() or not maxObjectNumber.ready():
+        #if not labelOutput.ready() or not maxObjectNumber.ready():
+        if not labelOutput.ready():
             print "nothing ready yet"
             return (None, None)
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
             # Add the layer to draw the labels, but don't add any labels
-            labelsrc = RelabelingLazyflowSinkSource( self._labelingSlots.labelOutput[currentImageIndex],
+            print "!!!!!!!!!!!!!!!!!!!!!1", labelOutput.meta.shape
+            labelsrc = RelabelingLazyflowSinkSource( labelOutput,
                                            self._labelingSlots.labelInput[currentImageIndex])
         
            
-            relabeling=numpy.zeros(maxObjectNumber.value+1, dtype=numpy.uint32)
+            #relabeling=numpy.zeros(maxObjectNumber.value+1, dtype=numpy.uint32)
+            relabeling=numpy.zeros(maxObjectNumber+1, dtype=numpy.uint32)
             labelsrc.setRelabeling(relabeling)
             labellayer = ClickableColortableLayer(self.editor, self.onClick, datasource=labelsrc, \
                                                   colorTable=self._colorTable16, direct=direct)
@@ -176,9 +180,9 @@ class ObjectClassificationGui(LabelingGui):
         #labeledSlot = self.pipeline.ConnCompImages[currentImageIndex]
         
         if inputSlot.ready():
-            print "setting up layers in objectClass gui"
+            #print "setting up layers in objectClass gui"
             ct = colortables.create_default_16bit()
-            print "Input slot type:", inputSlot.meta
+            print "Input slot type:", inputSlot.meta.shape
             self.objectssrc = LazyflowSource( inputSlot )
             ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
             layer = ColortableLayer( self.objectssrc, ct )
@@ -239,6 +243,8 @@ class ObjectClassificationGui(LabelingGui):
         
     def onClick(self, layer, pos5D, pos):
         #FIXME: this should label in the selected label color
+        print "click-click"
+        
         obj = layer.data.originalData[pos5D]
         if obj in self.clickedObjects:
             layer._datasources[0].setRelabelingEntry(obj, 0)

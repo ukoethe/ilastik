@@ -98,14 +98,9 @@ class OpObjectClassification(Operator):
     
     FreezePredictions = InputSlot(stype='bool')
 
-    MaxObjectNumber = InputSlot(level=1, stype = Opaque)
+    #MaxObjectNumber = InputSlot(level=1, stype = Opaque)
 
-    #PredictionsFromDisk = InputSlot(optional=True, level=1)
-    
-    
     MaxLabelValue = OutputSlot()
-    #FIXME: we should get that from vigra connected component operator, or from the object features
-    #MaxObjectNumber = OutputSlot()
     
     LabelOutputs = OutputSlot(level=1) # Labels from the user. We just give the connected components overlay again
     
@@ -124,15 +119,9 @@ class OpObjectClassification(Operator):
         self.opInputShapeReader = OperatorWrapper( OpShapeReader, parent=self, graph=self.graph )
         self.opInputShapeReader.Input.connect( self.InputImages )
         
-        self.opMaxLabel = OpMaxListValue(graph=self.graph)
+        #self.opMaxLabel = OpMaxListValue(graph=self.graph)
         
         # Set up other label cache inputs
-        
-        #self.LabelInputs.connect(self.ObjectFeatures)
-        #self.LabelInputs.setValue([])
-        #self.opLabelList = OperatorWrapper( OpValueCache, parent = self, graph=self.graph)
-        #self.opLabelList.Input.connect(self.LabelInputs)
-        
                 
         # Initialize the delete input to -1, which means "no label".
         # Now changing this input to a positive value will cause label deletions.
@@ -142,7 +131,7 @@ class OpObjectClassification(Operator):
         # Find the highest label in all the label images
         #self.opMaxLabel.Inputs.connect( self.opLabelArray.outputs['maxLabel'] )
     
-        self.opMaxLabel.Inputs.connect(self.LabelInputs)
+        #self.opMaxLabel.Inputs.connect(self.LabelInputs)
         
         self.opTrain = OpObjectTrain(graph = self.graph)
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
@@ -154,22 +143,23 @@ class OpObjectClassification(Operator):
         self.DeleteLabel.setValue(-1)
         #self.MaxObjectNumber.setValue(19)
         self.LabelOutputs.connect( self.InputImages )
-        self.MaxLabelValue.connect( self.opMaxLabel.Output )
-        #self.NonzeroLabelBlocks.connect(self.opLabelArray.nonzeroBlocks)
-        
-        def inputResizeHandler( slot, oldsize, newsize ):
-            if ( newsize == 0 ):
-                self.LabelImages.resize(0)
-                self.NonzeroLabelBlocks.resize(0)
-                self.PredictionProbabilities.resize(0)
-                self.CachedPredictionProbabilities.resize(0)
-        self.InputImages.notifyResized( inputResizeHandler )
+        #self.MaxLabelValue.connect( self.opMaxLabel.Output )
+        self.MaxLabelValue.setValue(2)
         
         
         def handleNewInputImage( multislot, index, *args ):
             def handleInputReady(slot):
                 self.setupCaches( multislot.index(slot) )
+                '''
+                print "meta info of operator slots:"
+                print self.LabelInputs.meta.axistags
+                print self.LabelOutputs.meta.axistags
+                print self.LabelsAllowedFlags.meta.axistags
+                print self.MaxObjectNumber.meta.axistags
+                print self.InputImages.meta.axistags
+                print self.ObjectFeatures.meta.axistags
                 #self.LabelInputs.value.append([])
+                '''
             multislot[index].notifyReady(handleInputReady)
                 
         self.InputImages.notifyInserted( handleNewInputImage )
@@ -185,13 +175,16 @@ class OpObjectClassification(Operator):
 
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
+        self.LabelInputs[imageIndex].meta.axistags = None
+        '''
         if self.MaxObjectNumber[imageIndex].ready():
             #FIXME: we set it to a list of arrays, because otherwise value only returns the first element
             self.LabelInputs[imageIndex].setValue([numpy.zeros((self.MaxObjectNumber[imageIndex].value+1))])
             print "set up label inputs", self.MaxObjectNumber[imageIndex].value, self.LabelInputs[imageIndex].value
         else:
             self.LabelInputs[imageIndex].setValue([])
-        
+        '''
+        self.LabelInputs[imageIndex].setValue([numpy.zeros((20,))])
                 
     def setupOutputs(self):
         pass
