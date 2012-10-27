@@ -53,12 +53,12 @@ cdef _put(np.ndarray src, np.ndarray dest):
         for l in lRange:
             dest[k][l] = src[k][l]
 
-def median(np.ndarray lf, int size):
+def median(np.ndarray lf, int channel, int size):
   
     return filter(lf,filters.median_filter,{"size" : size})
  
 
-def gauss(np.ndarray lf, float radius):
+def gauss(np.ndarray lf, int channel, float radius):
 
     return filter(lf,filters.gaussian_filter,{"sigma" : radius})  
 
@@ -103,7 +103,7 @@ cdef filter(np.ndarray lf, filter, kwargs = None):
     
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def contrast(np.ndarray lf, float brightness, float contrast):
+def contrast(np.ndarray lf, int channel, float brightness, float contrast):
     cdef np.ndarray[int_t, ndim = 1] table = np.zeros(shape = 255, dtype = np.uint8)
   
     for i in range(255):
@@ -117,9 +117,9 @@ def contrast(np.ndarray lf, float brightness, float contrast):
     else:
         table[i] = 255 * value
        
-    filterLf(lf,table,table,table)
+    filterLf(lf,channel,table,table,table)
     
-def channel(np.ndarray lf, float red, float green, float blue):
+def channel(np.ndarray lf, int channel, float red, float green, float blue):
   
     cdef np.ndarray[int_t, ndim = 1] rTable = np.zeros(shape = 255, dtype = np.uint8)
     cdef np.ndarray[int_t, ndim = 1] gTable = rTable.copy()
@@ -138,7 +138,7 @@ def channel(np.ndarray lf, float red, float green, float blue):
     else:
         _channel(bTable,blue)
       
-    filterLf(lf,rTable,gTable,bTable)
+    filterLf(lf,channel,rTable,gTable,bTable)
     
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -150,7 +150,7 @@ cdef _channel(np.ndarray[int_t, ndim = 1] table, float weight):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def gamma(np.ndarray lf, float gamma):
+def gamma(np.ndarray lf,int channel, float gamma):
     cdef np.ndarray[int_t,ndim = 1] table = np.zeros(shape = 255,dtype = np.uint8)
     
     for i in range(255):
@@ -159,33 +159,32 @@ def gamma(np.ndarray lf, float gamma):
             value = 255
         table[i] = value
    
-    filterLf(lf,table,table,table)
+    filterLf(lf,channel,table,table,table)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef filterLf(np.ndarray lf,
+              int channel,
               np.ndarray[int_t, ndim = 1] rTable, 
               np.ndarray[int_t, ndim = 1] gTable,
               np.ndarray[int_t, ndim = 1] bTable):
 
     cdef int ndim = lf.ndim
     
-    cdef int vRes,hRes,channel
+    cdef int vRes,hRes
     vRes = lf.shape[0]
     hRes = lf.shape[1]
-    channel = lf.shape[4]
+    
+    if channel == 0:
+        selectedTable = rTable
+    elif channel == 1:
+        selectedTable = gTable
+    else:
+        selectedTable = bTable
   
     for i in range(vRes):
         for j in range(hRes):
-                for k in range(channel):
-                    if k == 0:
-                        selectedTable = rTable
-                    elif k == 1:
-                        selectedTable = gTable
-                    else:
-                        selectedTable = bTable
-                         
-                    _filter(lf[i,j,:,:,k],selectedTable)
+            _filter(lf[i,j,:,:,0],selectedTable)
                         
     
     
