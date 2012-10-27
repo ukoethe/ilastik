@@ -26,11 +26,13 @@ class LightfieldOperator(Operator):
     def execute(self, slot, subindex, roi, result):
         key = roi.toSlice()
         raw = self.InputImage[key].wait()
+        #get the channel we are supposed to work on
+        channel = key[-1].start
         
         worker = self.Operation.value
         args = self.Options.value
         
-        self.dispatch(worker,args,raw,key)
+        self.dispatch(worker,args,raw,channel)
         result[...] = raw
     
     def propagateDirty(self, slot, subindex, roi):
@@ -41,11 +43,11 @@ class LightfieldOperator(Operator):
         else:
             self.logger.error("Unknown slot name %s." % slot.name)            
         
-    def dispatch(self,operation,args,raw,key):
+    def dispatch(self,operation,args,raw,channel):
         operation = operation.lower()
         if not hasattr(operations, operation):
             raise RuntimeError, "Can not dispatch to %s. No such function." % operation
-        self.logger.info("Dispatching to %s with %s" % (operation,args))
+        self.logger.info("Dispatching to %s with %s on channel %d" % (operation,args,channel))
         op = getattr(operations,operation)
-        op(raw,**args)
+        op(raw,channel,**args)
         
