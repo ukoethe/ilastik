@@ -242,29 +242,22 @@ class ObjectClassificationGui(LabelingGui):
         print "Interactive mode toggled to", checked
         
     def onClick(self, layer, pos5D, pos):
-        #FIXME: this should label in the selected label color
+        
         print "click-click"
         
-        obj = layer.data.originalData[pos5D]
-        if obj in self.clickedObjects:
+        slicing = (slice(pos5D[0], pos5D[0]+1), slice(pos5D[1],pos5D[1]), slice(pos5D[2],pos5D[2]+1), slice(pos5D[3],pos5D[3]+1), slice(pos5D[4],pos5D[4]+1))
+        arr = layer._datasources[0].request(slicing, original=True).wait()
+    
+        obj= arr[0][0][0][0][0]
+        
+        if obj==0:
+            return
+        oldlabel = layer._datasources[0].getRelabelingEntry(obj)
+        if oldlabel!=0:
             layer._datasources[0].setRelabelingEntry(obj, 0)
-            #usedLabels.remove( self.clickedObjects[obj] )
-            del self.clickedObjects[obj]
         else:
-            labels = sorted(list(self.usedLabels))
-            
-            #find first free entry
-            if labels:
-                for l in range(1, labels[-1]+2):
-                    if l not in labels:
-                        break
-                assert l not in self.usedLabels
-            else:
-                l = 1
-            
             num = self.editor.brushingModel.drawnNumber
-            self.usedLabels.add(l) 
-            self.clickedObjects[obj] = l
             layer._datasources[0].setRelabelingEntry(obj, num)
+            print "labeled object", obj, "as", num
         
         

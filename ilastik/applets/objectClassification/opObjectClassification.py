@@ -21,9 +21,12 @@ class OpObjectTrain(Operator):
     description = "Train a random forest on multiple images"
     category = "Learning"
 
-    Features = InputSlot(level=2, stype=Opaque, rtype=List) # it's level 2, because for each dataset it's
+    #FIXME: both of these should have rtype List. It's not used now, because
+    #you can't call setValue on it (because it then calls setDirty with an empty slice and fails)
+    
+    Features = InputSlot(level=1, stype=Opaque) # it's level 2, because for each dataset it's
                                                             # a list on time steps
-    Labels = InputSlot(level=1, rtype=List) # a list of object labels, non-labeled objects have zero at their index
+    Labels = InputSlot(level=1) # a list of object labels, non-labeled objects have zero at their index
     FixClassifier = InputSlot(stype="bool")
     
     Classifier = OutputSlot()
@@ -31,9 +34,10 @@ class OpObjectTrain(Operator):
     def __init__(self, *args, **kwargs):
         super(OpObjectTrain, self).__init__(*args, **kwargs)
         #self.progressSignal = OrderedSignal()
-        self._forest_count = 10
+        self._forest_count = 1
         # TODO: Make treecount configurable via an InputSlot
-        self._tree_count = 10
+        self._tree_count = 100
+        self.FixClassifier.setValue(False)
 
     def setupOutputs(self):
         if self.inputs["FixClassifier"].value == False:
@@ -44,12 +48,59 @@ class OpObjectTrain(Operator):
     #@traceLogged(logger, level=logging.INFO, msg="OpTrainRandomForestBlocked: Training Classifier")
     def execute(self, slot, subindex, roi, result):
 
-        numImages = len(self.Features)
-
-        labels = self.inputs["Labels"].allocate().wait()
+        #numImages = len(self.Features)
         print "I'm the execute function of the new training operator!"
-        print "here are my labels:"
-        print labels
+        featMatrix = []
+        labelsMatrix = []
+        for i, labels in enumerate(self.Labels):
+            lab = labels[:].wait()
+            feats = self.Features[i][:].wait()
+            print "here are my labels for i=:", i
+            print lab
+            print "here are my features for i=:", i
+            print feats
+            index = numpy.nonzero(lab)
+            newlabels = lab[index]
+            newfeats = feats[index]
+            featMatrix.append(newfeats)
+            labelsMatrix.append(newlabels)
+            
+        if len(featMatrix)==0 or len(labelsMatrix)==0:
+            print "No labels,no features, can't do anything"
+            result[:]=None
+        else:
+            featMatrix=numpy.concatenate(featMatrix,axis=0)
+            labelsMatrix=numpy.concatenate(labelsMatrix,axis=0)
+            print "shape featMatrix:", featMatrix.shape, "label matrix:", labelsMatrix.shape
+            if len(featMatrix.shape)==1:
+                featMatrix.resize(featMatrix.shape+(1,))
+            if len(labelsMatrix.shape)==1:
+                labelsMatrix.resize(labelsMatrix.shape+(1,))
+            try:
+                #logger.debug("Learning with Vigra...")
+                # train and store self._forest_count forests in parallel
+                pool = Pool()
+
+                for i in range(self._forest_count):
+                    def train_and_store(number):
+                        result[number] = vigra.learning.RandomForest(self._tree_count) 
+                        result[number].learnRF(featMatrix.astype(numpy.float32),labelsMatrix.astype(numpy.uint32))
+                    req = pool.request(partial(train_and_store, i))
+
+                pool.wait()
+                pool.clean()
+
+                #logger.debug("Vigra finished")
+            except:
+                #logger.error( "ERROR: could not learn classifier" )
+                #logger.error( "featMatrix shape={}, max={}, dtype={}".format(featMatrix.shape, featMatrix.max(), featMatrix.dtype) )
+                #logger.error( "labelsMatrix shape={}, max={}, dtype={}".format(labelsMatrix.shape, labelsMatrix.max(), labelsMatrix.dtype ) )
+                print "couldn't learn classifier"
+                raise
+        
+        return result
+        
+            
 
     def propagateDirty(self, slot, subindex, roi):
         if slot is not self.FixClassifier and self.inputs["FixClassifier"].value == False:
@@ -58,8 +109,6 @@ class OpObjectTrain(Operator):
 
 class OpObjectsPredict(Operator):
     name = "OpObjectsPredict"
-    inputSlots = [InputSlot("Image"),InputSlot("Classifier"),InputSlot("LabelsCount",stype='integer')]
-    outputSlots = [OutputSlot("PMaps")]
     
     inputSlots = [InputSlot("Image"),InputSlot("Classifier"),InputSlot("LabelsCount",stype='integer')]
     outputSlots = [OutputSlot("PMaps")]
