@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 traceLogger = logging.getLogger('TRACE.' + __name__)
 from lazyflow.tracer import Tracer
 
+
 class Column():
     """ Enum for table column positions """
     Name = 0

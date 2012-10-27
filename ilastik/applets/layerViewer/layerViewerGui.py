@@ -553,6 +553,7 @@ class LayerViewerGui(QMainWindow):
 
         self.editor.newImageView2DFocus.connect(self.setIconToViewMenu)
         self.editor.setInteractionMode( 'navigation' )
+        # init Volume editor
         self.volumeEditorWidget.init(self.editor)
         
         # The editor's layerstack is in charge of which layer movement buttons are enabled
@@ -612,10 +613,12 @@ class LayerViewerGui(QMainWindow):
 
     def handleEditorRightClick(self, currentImageIndex, position5d, globalWindowCoordinate):
         # Override me
+        logger.info("handleEditorRightClick()")
         pass
 
     def handleEditorLeftClick(self, currentImageIndex, position5d, globalWindowCoordiante):
         # Override me
+        logger.info("handleEditorLeftClick()")
         pass
 
 
