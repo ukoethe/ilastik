@@ -1,27 +1,22 @@
-'''
-Created on Oct 11, 2012
-
-@author: fredo
-'''
-
 from ilastik.workflow import Workflow
-from ilastik.applets.dataSelection import DataSelectionApplet
-from ilastik.applets.layerViewer.layerViewerApplet import LayerViewerApplet
+
 from lazyflow.graph import Graph
 
+from ilastik.applets.dataSelection import DataSelectionApplet
+from ilastik.applets.lightfield.lighfieldApplet import LightfieldApplet
+
 class LightfieldWorkflow(Workflow):
-    
     def __init__(self):
         super(LightfieldWorkflow, self).__init__()
         self._applets = []
-    
+
         # Create a graph to be shared by all operators
         graph = Graph()
-    
+
         # Create applets 
         self.dataSelectionApplet = DataSelectionApplet(graph, "Input Data", "Input Data", supportIlastik05Import=True, batchDataGui=False)
-        self.viewerApplet = LayerViewerApplet(graph)
-    
+        self.viewerApplet = LightfieldApplet(graph)
+
         self._applets.append( self.dataSelectionApplet )
         self._applets.append( self.viewerApplet )
         
