@@ -536,6 +536,7 @@ class LayerViewerGui(QMainWindow):
 
         self.editor.newImageView2DFocus.connect(self._setIconToViewMenu)
         self.editor.setInteractionMode( 'navigation' )
+        # init Volume editor
         self.volumeEditorWidget.init(self.editor)
 
         self.editor._lastImageViewFocus = 0
@@ -585,8 +586,10 @@ class LayerViewerGui(QMainWindow):
 
     def handleEditorRightClick(self, position5d, globalWindowCoordinate):
         # Override me
+        logger.info("handleEditorRightClick()")
         pass
 
     def handleEditorLeftClick(self, position5d, globalWindowCoordiante):
         # Override me
+        logger.info("handleEditorLeftClick()")
         pass

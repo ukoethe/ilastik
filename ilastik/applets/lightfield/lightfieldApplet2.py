@@ -11,6 +11,7 @@ from lightfieldGui2 import LightfieldGui2
 class LightfieldApplet2(Applet):
     
     def __init__(self,graph):
+        super(LightfieldApplet2, self).__init__("lightfield panel")
         self._topLevelOperator = None
 #        self._topLevelOperator = OperatorWrapper( OpLayerViewer, graph=graph, promotedSlotNames=set(['RawInput']) )
         self._preferencesManager = None

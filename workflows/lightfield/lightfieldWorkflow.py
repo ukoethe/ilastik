@@ -22,7 +22,7 @@ class LightfieldWorkflow(Workflow):
 
         self._applets.append( self.dataSelectionApplet )
         self._applets.append( self.viewerApplet )
-        self._applets.append( self.lightfieldApplet )
+#        self._applets.append( self.lightfieldApplet )
         
         # Connect top-level operators
         self.viewerApplet.topLevelOperator.RawInput.connect( self.dataSelectionApplet.topLevelOperator.Image )
