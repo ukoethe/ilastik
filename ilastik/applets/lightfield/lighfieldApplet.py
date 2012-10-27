@@ -5,7 +5,7 @@ Created on Oct 14, 2012
 '''
 from lazyflow.graph import OperatorWrapper
 from ilastik.applets.base.applet import Applet
-from ilastik.applets.layerViewer.opLayerViewer import OpLayerViewer
+from operators import LightfieldOperator
 
 class LightfieldApplet( Applet ):
     """
@@ -14,7 +14,7 @@ class LightfieldApplet( Applet ):
     def __init__( self, graph ):
         super(LightfieldApplet, self).__init__("layer Viewer")
 
-        self._topLevelOperator = OperatorWrapper( OpLayerViewer, graph=graph, promotedSlotNames=set(['RawInput']) )
+        self._topLevelOperator = OperatorWrapper( LightfieldOperator, graph=graph, promotedSlotNames=set(['InputImage']) )
         self._preferencesManager = None
         self._serializableItems = []
         self._gui = None

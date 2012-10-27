@@ -51,13 +51,90 @@ class LightfieldGui(LayerViewerGui):
         
         self._drawers.editChannelSubmit.clicked.connect(self.editChannel)
         self._drawers.editGaussSubmit.clicked.connect(self.editGauss)
+        self._drawers.editContrastSubmit.clicked.connect(self.editContrast)
+        self._drawers.editGammaSubmit.clicked.connect(self.editGamma)
+        self._drawers.editMedianSubmit.clicked.connect(self.editMedian)
         
     def appletDrawers(self):
         return [("Lightfield View", self._drawers )]
     
     def editGauss(self):
         self.logger.info("Edit Gauss has been clicked.")
-    
+        radius = self._drawers.editGaussRadius.value()
+        self.operation = "Gauss"
+        self.options = {"radius":radius}
+        
+        
     def editChannel(self):
         self.logger.info("Edit channel has been clicked")
+        r = self._drawers.editChannelR.value()
+        b = self._drawers.editChannelB.value()
+        g = self._drawers.editChannelG.value()
+        self.operation = "Channel"
+        self.options = {"red": r,"green": g,"blue":b}
+        
+    def editContrast(self):
+        contrast = self._drawers.editContrast.value()
+        brightness = self._drawers.editBrightness.value()
+        self.operation="Contrast"
+        self.options = {"brightness" : brightness, "contrast" : contrast}
+        
+    def editGamma(self):
+        gamma = self._drawers.editGamma.value()
+        self.operation="Gamma"
+        self.options = {"gamma" : gamma}
+        
+    def editMedian(self):
+        size = self._drawers.editMedianSize.value()
+        self.operation = "Median"
+        self.options = {"size": size}
+        
+    @property
+    def operation(self):
+        pass
+    
+    @operation.setter
+    def operation(self,value):
+        self.topLevelOperator.Operation.setValue(value)
+    
+    @property
+    def options(self):
+        pass
+    
+    @options.setter
+    def options(self,value):
+        self.topLevelOperator.Options.setValue(value)
+        
+    def setupLayers(self, currentImageIndex):
+        layers = []
+
+        # Show the thresholded data
+        outputImageSlot = self.topLevelOperator.Output[ currentImageIndex ]
+        if outputImageSlot.ready():
+            outputLayer = self.createStandardLayerFromSlot( outputImageSlot )
+            outputLayer.name = "min <= x <= max"
+            outputLayer.visible = True
+            outputLayer.opacity = 0.75
+            layers.append(outputLayer)
+        
+#        # Show the  data
+#        invertedOutputSlot = self.topLevelOperator.InvertedOutput[ currentImageIndex ]
+#        if invertedOutputSlot.ready():
+#            invertedLayer = self.createStandardLayerFromSlot( invertedOutputSlot )
+#            invertedLayer.name = "(x < min) U (x > max)"
+#            invertedLayer.visible = True
+#            invertedLayer.opacity = 0.25
+#            layers.append(invertedLayer)
+        
+        # Show the raw input data
+        inputImageSlot = self.topLevelOperator.InputImage[ currentImageIndex ]
+        if inputImageSlot.ready():
+            inputLayer = self.createStandardLayerFromSlot( inputImageSlot )
+            inputLayer.name = "Raw Input"
+            inputLayer.visible = True
+            inputLayer.opacity = 1.0
+            layers.append(inputLayer)
+
+        return layers
+    
         

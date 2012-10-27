@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>402</width>
-    <height>253</height>
+    <width>386</width>
+    <height>349</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,24 +15,24 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
-    <widget class="QToolBox" name="toolBox">
+    <widget class="QToolBox" name="editGammaPage">
      <property name="autoFillBackground">
       <bool>false</bool>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>4</number>
      </property>
      <widget class="QWidget" name="editChannelPage">
       <property name="geometry">
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>384</width>
-        <height>173</height>
+        <width>368</width>
+        <height>176</height>
        </rect>
       </property>
       <attribute name="label">
-       <string>Edit Channels</string>
+       <string>Adjust Colour Channels</string>
       </attribute>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
@@ -49,6 +49,9 @@
          </item>
          <item row="0" column="1">
           <widget class="QDoubleSpinBox" name="editChannelR">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
            <property name="value">
             <double>1.000000000000000</double>
            </property>
@@ -63,29 +66,35 @@
          </item>
          <item row="1" column="1">
           <widget class="QDoubleSpinBox" name="editChannelG">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
            <property name="value">
             <double>1.000000000000000</double>
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="editChannelB">
+           <property name="autoFillBackground">
+            <bool>false</bool>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
           <widget class="QLabel" name="label_6">
            <property name="text">
             <string>B</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
-          <widget class="QDoubleSpinBox" name="editChannelB">
-           <property name="autoFillBackground">
-            <bool>false</bool>
-           </property>
-           <property name="value">
-            <double>1.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="1">
+         <item row="3" column="1">
           <widget class="QPushButton" name="editChannelSubmit">
            <property name="text">
             <string>Submit</string>
@@ -101,12 +110,12 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>384</width>
-        <height>173</height>
+        <width>368</width>
+        <height>176</height>
        </rect>
       </property>
       <attribute name="label">
-       <string>Gauss</string>
+       <string>Gaussian Blur</string>
       </attribute>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
@@ -119,7 +128,11 @@
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QDoubleSpinBox" name="editGaussRadius"/>
+          <widget class="QDoubleSpinBox" name="editGaussRadius">
+           <property name="singleStep">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
          </item>
          <item row="1" column="1">
           <widget class="QPushButton" name="editGaussSubmit">
@@ -127,6 +140,124 @@
             <string>Submit</string>
            </property>
           </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="editContrastPage">
+      <attribute name="label">
+       <string>Contrast and Brighness</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <layout class="QFormLayout" name="formLayout_2">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Contrast</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="editContrast">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Brightness</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="editBrightness">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QPushButton" name="editContrastSubmit">
+           <property name="text">
+            <string>Submit</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="page">
+      <attribute name="label">
+       <string>Gamma</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <layout class="QFormLayout" name="formLayout_3">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Gamma</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="editGamma">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QPushButton" name="editGammaSubmit">
+           <property name="text">
+            <string>Submit</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="page_2">
+      <attribute name="label">
+       <string>Median</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <layout class="QFormLayout" name="formLayout_4">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>Size</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QPushButton" name="editMedianSubmit">
+           <property name="text">
+            <string>Submit</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="editMedianSize"/>
          </item>
         </layout>
        </item>
