@@ -1,7 +1,7 @@
 import vigra
 import numpy
 import h5py
-from ilastik.applets.objectClassification.opObjectClassification import OpObjectTrain
+from ilastik.applets.objectClassification.opObjectClassification import OpObjectTrain, OpObjectPredict
 from lazyflow.request import Request, Pool
 from lazyflow.graph import Graph
 
@@ -92,12 +92,23 @@ def operatorTest():
     opTrain.FixClassifier.setValue(False)
     
     print "features:", opTrain.Features[0].value
-    print "are we ready?", opTrain.Labels.ready(), opTrain.Features.ready(), opTrain.FixClassifier.ready(), opTrain.Classifier.ready()
+    print "are we ready to train?", opTrain.Labels.ready(), opTrain.Features.ready(), opTrain.FixClassifier.ready(), opTrain.Classifier.ready()
     
     cl = opTrain.Classifier[:].wait()
     print cl
     
 
+    opPredict = OpObjectPredict(graph=graph)
+    #opPredict.Features.resize(1)
+    opPredict.Features.setValue(counts)
+    opPredict.LabelsCount.setValue(2)
+    opPredict.Classifier.setValue(cl)
+    
+    print "are we ready to predict?", opPredict.Features.ready(), opPredict.LabelsCount.ready(), opPredict.Classifier.ready(), opPredict.Predictions.ready()
+   
+    
+    preds = opPredict.Predictions[:].wait()
+    print preds
 
     
     

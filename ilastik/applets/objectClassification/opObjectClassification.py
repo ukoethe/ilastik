@@ -107,28 +107,95 @@ class OpObjectTrain(Operator):
             self.outputs["Classifier"].setDirty((slice(0,1,None),))
 
 
-class OpObjectsPredict(Operator):
-    name = "OpObjectsPredict"
+class OpObjectPredict(Operator):
+    name = "OpObjectPredict"
     
-    inputSlots = [InputSlot("Image"),InputSlot("Classifier"),InputSlot("LabelsCount",stype='integer')]
-    outputSlots = [OutputSlot("PMaps")]
+    Features = InputSlot(stype=Opaque)
+    LabelsCount = InputSlot(stype='integer')
+    Classifier = InputSlot()
+    
+    Predictions = OutputSlot(stype=Opaque)
 
     def setupOutputs(self):
-        #FIXME: this will be a list of relabel tables
-        nlabels=self.inputs["LabelsCount"].value
-        self.PMaps.meta.dtype = numpy.float32
-        self.PMaps.meta.axistags = copy.copy(self.Image.meta.axistags)
-        self.PMaps.meta.shape = self.Image.meta.shape[:-1]+(nlabels,) # FIXME: This assumes that channel is the last axis
-        self.PMaps.meta.drange = (0.0, 1.0)
+        
+        self.Predictions.meta.shape=(1,)
+        self.Predictions.meta.dtype = object
+        self.Predictions.meta.axistags = None
+        '''
+        nimages = len(self.Features)
+        self.Predictions.resize(nimages)
+        for i in range(nimages):
+            self.Predictions[i].meta.shape = (1,)
+            self.Predictions[i].meta.dtype = object
+            self.Predictions[i].meta.axistags = None
+        '''
 
 
     def execute(self, slot, subindex, roi, result):
-        #randshape = result.shape
-        result = numpy.random.random_sample(result.shape)
-        return result
+        
+        forests=self.inputs["Classifier"][:].wait()
+
+        if forests is None:
+            # Training operator may return 'None' if there was no data to train with
+            return numpy.zeros(numpy.subtract(roi.stop, roi.start), dtype=numpy.float32)[...]
+
+        #traceLogger.debug("OpPredictRandomForest: Got classifier")        
+        #assert RF.labelCount() == nlabels, "ERROR: OpPredictRandomForest, labelCount differs from true labelCount! %r vs. %r" % (RF.labelCount(), nlabels)
+
+        #FIXME FIXME
+        #over here, we should really select only the objects in the roi. However, roi of list type doesn't work with setValue, so for now
+        #we compute everything.
+        features = self.Features[:].wait()
+        if len(features.shape)==1:
+            features.resize(features.shape+(1,))
+        
+        
+        predictions = [0]*len(forests)
+        
+        def predict_forest(number):
+            predictions[number] = forests[number].predictProbabilities(features.astype(numpy.float32))
+        
+        #t2 = time.time()
+
+        # predict the data with all the forests in parallel
+        pool = Pool()
+
+        for i,f in enumerate(forests):
+            req = pool.request(partial(predict_forest, i))
+
+        pool.wait()
+        pool.clean()
+
+        
+        #FIXME we return from here for now, but afterwards we should really average the pool results
+        return predictions
+        
+        
+        print len(predictions), predictions[0].shape
+        prediction=numpy.dstack(predictions)
+        prediction = numpy.average(prediction, axis=2)
+        #prediction.shape =  shape[:-1] + (forests[0].labelCount(),)
+        print prediction
+        return prediction
+        
+        #prediction = prediction.reshape(*(shape[:-1] + (forests[0].labelCount(),)))
+
+        # If our LabelsCount is higher than the number of labels in the training set,
+        # then our results aren't really valid.
+        # Duplicate the last label's predictions
+        chanslice = slice(min(key[-1].start, forests[0].labelCount()-1), min(key[-1].stop, forests[0].labelCount()))
+
+        t3 = time.time()
+
+        # logger.info("Predict took %fseconds, actual RF time was %fs, feature time was %fs" % (t3-t1, t3-t2, t2-t1))
+        return prediction[...,chanslice] # FIXME: This assumes that channel is the last axis
+
     
     def propagateDirty(self, slot, subindex, roi):
-        self.outputs["PMaps"].setDirty(slice(None,None,None))
+        
+        #self.Predictions.setDirty(List(self.Predictions, range(roi.start[0], roi.stop[0]))) 
+        self.Predictions.setDirty(roi)
+
     
 
 class OpObjectClassification(Operator):
