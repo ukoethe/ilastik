@@ -625,7 +625,7 @@ class LabelingGui(LayerViewerGui):
 
         # Transparent for the zero label
         colors.append(QColor(0,0,0,0))
-
+        #colors.append( QColor( Qt.red ) )
         # ilastik v0.5 colors
         colors.append( QColor( Qt.red ) )
         colors.append( QColor( Qt.green ) )

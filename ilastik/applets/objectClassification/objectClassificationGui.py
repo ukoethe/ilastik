@@ -22,8 +22,7 @@ import volumina.colortables as colortables
 from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
                          RelabelingLazyflowSinkSource, ClickableColortableLayer
 
-from pickingControler import PickingInterpreter, PickingControler
-from pickingModel import PickingModel
+from volumina.brushingcontroler import ClickInterpreter2
 
 class ObjectClassificationGui(LabelingGui):
     
@@ -65,6 +64,8 @@ class ObjectClassificationGui(LabelingGui):
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
         #labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
         
+        self.maxObjectNumber = 19
+        
         #labelSlots.labelEraserValue.setValue(100)
         #labelSlots.labelDelete.setValue(-1)
         
@@ -101,24 +102,7 @@ class ObjectClassificationGui(LabelingGui):
         
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
         
-        self.clickedObjects = dict() #maps from object to the label that is used for it
-        #self.usedLabels = set()
-
-    '''
-    @traceLogged(traceLogger)
-    def initEditor(self):
-        super(ObjectClassificationGui, self).initEditor()
         
-        #Change brushing for picking
-        self.pickingModel = PickingModel()
-        self.pickingControler = PickingControler(self.pickingModel, self.editor.posModel, None)
-        self.pickingInterpreter = PickingInterpreter(self.editor.navCtrl, self.pickingControler)
-        
-        
-        #self.editor.brushingControler = self.pickingControler
-        #self.editor.brushingInterpreter = self.pickingInterpreter
-        #self.editor.brushingModel = self.pickingModel
-    '''
     
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
@@ -140,7 +124,6 @@ class ObjectClassificationGui(LabelingGui):
         print "!!!!!!!!!!!!!!!!! creating label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
         #maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
-        maxObjectNumber = 19
         
         #if not labelOutput.ready() or not maxObjectNumber.ready():
         if not labelOutput.ready():
@@ -155,14 +138,21 @@ class ObjectClassificationGui(LabelingGui):
         
            
             #relabeling=numpy.zeros(maxObjectNumber.value+1, dtype=numpy.uint32)
-            relabeling=numpy.zeros(maxObjectNumber+1, dtype=numpy.uint32)
+            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
             labelsrc.setRelabeling(relabeling)
             labellayer = ClickableColortableLayer(self.editor, self.onClick, datasource=labelsrc, \
                                                   colorTable=self._colorTable16, direct=direct)
-       
+            #labellayer = ColortableLayer(datasource=labelsrc, \
+            #                                      colorTable=self._colorTable16, direct=direct)
             #labellayer = ColortableLayer(labelsrc, colorTable = self._colorTable16, direct=direct )
             labellayer.name = "Labels"
             labellayer.ref_object = None
+            labellayer.zeroIsTransparent  = False
+            labellayer.colortableIsRandom = True
+            
+            #FIXME = maybe it shouldn't be done here...
+            clickInt = ClickInterpreter2(self.editor, labellayer, self.onClick)
+            self.editor.brushingInterpreter = clickInt
             
             return labellayer, labelsrc
     
@@ -175,12 +165,17 @@ class ObjectClassificationGui(LabelingGui):
         #This is just for colors
         labels = self.labelListData
         
-        inputSlot = self.pipeline.InputImages[currentImageIndex]
-        #binarySlot = self.mainOperator.BinaryImage[currentImageIndex]
-        #labeledSlot = self.pipeline.ConnCompImages[currentImageIndex]
+        #inputSlot = self.pipeline.InputImages[currentImageIndex]
+        binarySlot = self.pipeline.BinaryImages[currentImageIndex]
         
-        if inputSlot.ready():
+        if binarySlot.ready():
             #print "setting up layers in objectClass gui"
+            ct = colortables.create_default_8bit()
+            self.binaryimagesrc = LazyflowSource( binarySlot )
+            layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
+            layer.name = "Binary Image"
+            layers.append(layer)
+            '''
             ct = colortables.create_default_16bit()
             print "Input slot type:", inputSlot.meta.shape
             self.objectssrc = LazyflowSource( inputSlot )
@@ -191,6 +186,7 @@ class ObjectClassificationGui(LabelingGui):
             layer.visible = True
             #self.layerstack.append(layer)
             layers.append(layer)
+            '''
         '''
         # Add each of the predictions
         for channel, predictionSlot in enumerate(self.pipeline.PredictionProbabilityChannels[currentImageIndex]):
@@ -238,8 +234,62 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkInteractive.setEnabled(enabled)
         self.labelingDrawerUi.checkShowPredictions.setEnabled(enabled)
         
+    @traceLogged(traceLogger)
     def toggleInteractive(self, checked):
-        print "Interactive mode toggled to", checked
+        logger.debug("toggling interactive mode to '%r'" % checked)
+        print "toggling interactive mode to '%r'" % checked
+        if checked==True:
+            if len(self.pipeline.ObjectFeatures) == 0:
+                self.labelingDrawerUi.checkInteractive.setChecked(False)
+                mexBox=QMessageBox()
+                mexBox.setText("There are no features selected ")
+                mexBox.exec_()
+                return
+
+        self.labelingDrawerUi.savePredictionsButton.setEnabled(not checked)
+        self.pipeline.FreezePredictions.setValue( not checked )
+
+        # Auto-set the "show predictions" state according to what the user just clicked.
+        if checked:
+            self.labelingDrawerUi.checkShowPredictions.setChecked( True )
+            self.handleShowPredictionsClicked()
+
+        #FIXME FIXME
+        #force in the labels
+        labels = numpy.zeros((self.MaxObjectNumber+1,), dtype=numpy.uint32)
+        labels[0] = 1
+        labels[1] = 1
+        labels[2]= 2
+        labels[-1] = 2
+        self.pipeline.LabelInputs[0].setValue(labels)
+
+
+        # If we're changing modes, enable/disable our controls and other applets accordingly
+        if self.interactiveModeActive != checked:
+            if checked:
+                self.labelingDrawerUi.labelListView.allowDelete = False
+                self.labelingDrawerUi.AddLabelButton.setEnabled( False )
+            else:
+                self.labelingDrawerUi.labelListView.allowDelete = True
+                self.labelingDrawerUi.AddLabelButton.setEnabled( True )
+        self.interactiveModeActive = checked    
+
+    @pyqtSlot()
+    @traceLogged(traceLogger)
+    def handleShowPredictionsClicked(self):
+        checked = self.labelingDrawerUi.checkShowPredictions.isChecked()
+        for layer in self.layerstack:
+            if "Prediction" in layer.name:
+                layer.visible = checked
+        
+        # If we're being turned off, turn off live prediction mode, too.
+        if not checked and self.labelingDrawerUi.checkInteractive.isChecked():
+            self.labelingDrawerUi.checkInteractive.setChecked(False)
+            # And hide all segmentation layers
+            for layer in self.layerstack:
+                if "Segmentation" in layer.name:
+                    layer.visible = False
+        
         
     def onClick(self, layer, pos5D, pos):
         

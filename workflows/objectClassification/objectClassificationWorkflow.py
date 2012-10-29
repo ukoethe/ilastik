@@ -38,6 +38,7 @@ class ObjectClassificationWorkflow( Workflow ):
         
         opObjExtraction.BinaryImage.connect( opData.Image )
 
+        opObjClassification.BinaryImages.connect( opData.Image )
         opObjClassification.InputImages.connect( opObjExtraction.LabelImage )
         opObjClassification.ObjectFeatures.connect( opObjExtraction.RegionFeatures )        
         opObjClassification.LabelsAllowedFlags.connect( opData.AllowLabels )

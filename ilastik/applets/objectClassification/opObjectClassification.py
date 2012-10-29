@@ -203,6 +203,7 @@ class OpObjectClassification(Operator):
     name = "OpObjectClassification"
     category = "Top-level"
     
+    BinaryImages = InputSlot(level = 1) #Just for display
     InputImages = InputSlot(level = 1)
     ObjectFeatures = InputSlot( level = 1, stype=Opaque, rtype=List )
     LabelsAllowedFlags = InputSlot(stype='bool', level=1) # Specifies which images are permitted to be labeled 

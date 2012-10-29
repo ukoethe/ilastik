@@ -6,7 +6,7 @@ from lazyflow.request import Request, Pool
 from lazyflow.graph import Graph
 
 def simpleTest():
-    ccfile = h5py.File("/home/mschiegg/data/circles3d_cc.h5")
+    ccfile = h5py.File("/home/akreshuk/data/circles3d_cc.h5")
     cc = ccfile["/volume/data"]
 
     maxobject = numpy.max(cc)
@@ -59,7 +59,7 @@ def operatorTest():
     
     graph = Graph()
     
-    ccfile = h5py.File("/home/mschiegg/data/circles3d_cc.h5")
+    ccfile = h5py.File("/home/akreshuk/data/circles3d_cc.h5")
     cc = ccfile["/volume/data"]
     cc =numpy.squeeze(cc)
     cc = numpy.asarray(cc, dtype=numpy.uint32)

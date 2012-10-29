@@ -199,7 +199,6 @@ class OpObjectExtraction( Operator ):
             res = self._opRegFeats.Output.get( roi ).wait()
             return res
         if slot is self.RegionCount:
-            print "AAAAAAAAAAAAAAAAAAAAAAAa, retrieving object count"
             res = self._opRegCent.Output.get( roi ).wait()
             #FIXME: there has to be some magic here, to extract not only from the first time slice
         
