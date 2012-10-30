@@ -20,7 +20,7 @@ from ilastik.applets.labeling import LabelingGui
 
 import volumina.colortables as colortables
 from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
-                         RelabelingLazyflowSinkSource, ClickableColortableLayer
+                         RelabelingLazyflowSinkSource, ClickableColortableLayer, RelabelingLazyflowSource
 
 from volumina.brushingcontroler import ClickInterpreter2
 
@@ -165,7 +165,7 @@ class ObjectClassificationGui(LabelingGui):
         #This is just for colors
         labels = self.labelListData
         
-        #inputSlot = self.pipeline.InputImages[currentImageIndex]
+        labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
         binarySlot = self.pipeline.BinaryImages[currentImageIndex]
         
         if binarySlot.ready():
@@ -187,6 +187,22 @@ class ObjectClassificationGui(LabelingGui):
             #self.layerstack.append(layer)
             layers.append(layer)
             '''
+        
+        nchannels = self.pipeline.MaxLabelValue.value
+        if self.pipeline.PredictionLabels.ready() and labelOutput.ready():
+            
+            self.predictsrc = RelabelingLazyflowSource(labelOutput)
+            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
+            self.predictsrc.setRelabeling(relabeling)
+            self.predictlayer = ClickableColortableLayer(self.editor, self.onClick, datasource = self.predictsrc, colorTable=self._colorTable16)
+            self.predictlayer.name = "Prediction"
+            self.predictlayer.ref_object = None
+            self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
+            layers.append(self.predictlayer)
+                
+            
+        
+        
         '''
         # Add each of the predictions
         for channel, predictionSlot in enumerate(self.pipeline.PredictionProbabilityChannels[currentImageIndex]):
@@ -255,14 +271,9 @@ class ObjectClassificationGui(LabelingGui):
             self.handleShowPredictionsClicked()
 
         #FIXME FIXME
-        #force in the labels
-        labels = numpy.zeros((self.MaxObjectNumber+1,), dtype=numpy.uint32)
-        labels[0] = 1
-        labels[1] = 1
-        labels[2]= 2
-        labels[-1] = 2
-        self.pipeline.LabelInputs[0].setValue(labels)
-
+        if checked:
+            self.forceTrainAndPredict()
+       
 
         # If we're changing modes, enable/disable our controls and other applets accordingly
         if self.interactiveModeActive != checked:
@@ -274,6 +285,35 @@ class ObjectClassificationGui(LabelingGui):
                 self.labelingDrawerUi.AddLabelButton.setEnabled( True )
         self.interactiveModeActive = checked    
 
+    def forceTrainAndPredict(self):
+        
+        #print "labels set so far:"
+        #print self.pipeline.LabelInputs[0].value
+        '''
+        labels = numpy.zeros((self.maxObjectNumber,), dtype=numpy.uint32)
+        labels[0] = 1
+        labels[1] = 1
+        labels[2]= 2
+        labels[-1] = 2
+        self.pipeline.LabelInputs[0].setValue(labels)
+        '''
+        #feats = self.pipeline.ObjectFeatures[0][0].wait()
+        #print feats
+        #classifier = self.pipeline.Classifier[:].wait()
+        #print "classifier returned"
+        #print classifier
+        predictions = self.pipeline.PredictionLabels[0][:].wait()
+        print predictions
+        predictions = predictions[0].squeeze()
+        print predictions.shape
+        relabeling = list(predictions)
+        relabeling[0]=0
+        self.predictsrc.setRelabeling(relabeling)
+        self.predictlayer.visible = True
+        
+        
+        
+        
     @pyqtSlot()
     @traceLogged(traceLogger)
     def handleShowPredictionsClicked(self):
@@ -302,12 +342,12 @@ class ObjectClassificationGui(LabelingGui):
         
         if obj==0:
             return
-        oldlabel = layer._datasources[0].getRelabelingEntry(obj)
+        oldlabel = layer._datasources[0]._relabeling[obj]
         if oldlabel!=0:
             layer._datasources[0].setRelabelingEntry(obj, 0)
         else:
             num = self.editor.brushingModel.drawnNumber
             layer._datasources[0].setRelabelingEntry(obj, num)
             print "labeled object", obj, "as", num
-        
+            layer._datasources[0].put()
         

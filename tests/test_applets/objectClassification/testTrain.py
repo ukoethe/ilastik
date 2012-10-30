@@ -1,7 +1,9 @@
 import vigra
 import numpy
 import h5py
-from ilastik.applets.objectClassification.opObjectClassification import OpObjectTrain, OpObjectPredict
+import ilastik.applets.objectClassification.opObjectClassification
+print ilastik.applets.objectClassification.opObjectClassification.__file__
+#from ilastik.applets.objectClassification.opObjectClassification import OpObjectTrain, OpObjectPredict
 from lazyflow.request import Request, Pool
 from lazyflow.graph import Graph
 
@@ -59,7 +61,7 @@ def operatorTest():
     
     graph = Graph()
     
-    ccfile = h5py.File("/home/akreshuk/data/circles3d_cc.h5")
+    ccfile = h5py.File("/home/mschiegg/data/circles3d_cc.h5")
     cc = ccfile["/volume/data"]
     cc =numpy.squeeze(cc)
     cc = numpy.asarray(cc, dtype=numpy.uint32)
@@ -82,7 +84,8 @@ def operatorTest():
     labels[-1] = 2
     print labels
     
-    opTrain = OpObjectTrain(graph=graph)
+    opTrain = ilastik.applets.objectClassification.opObjectClassification.OpObjectTrain(graph=graph)
+    print opTrain
     opTrain.Labels.resize(1)
     opTrain.Features.resize(1)
     opTrain.Labels[0].setValue(labels)
@@ -113,4 +116,5 @@ def operatorTest():
     
     
 if __name__=='__main__':
+    print "madnesss"
     operatorTest()

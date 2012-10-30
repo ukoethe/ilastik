@@ -24,15 +24,15 @@ class OpObjectTrain(Operator):
     #FIXME: both of these should have rtype List. It's not used now, because
     #you can't call setValue on it (because it then calls setDirty with an empty slice and fails)
     
-    Features = InputSlot(level=1, stype=Opaque) # it's level 2, because for each dataset it's
-                                                            # a list on time steps
-    Labels = InputSlot(level=1) # a list of object labels, non-labeled objects have zero at their index
+    Labels = InputSlot(level=1)
+    Features = InputSlot(stype=Opaque, level =1, rtype=List )
     FixClassifier = InputSlot(stype="bool")
     
     Classifier = OutputSlot()
 
     def __init__(self, *args, **kwargs):
         super(OpObjectTrain, self).__init__(*args, **kwargs)
+        print "I'm the training operator!!!!!!!!!!!!!!!!!!!!!!"
         #self.progressSignal = OrderedSignal()
         self._forest_count = 1
         # TODO: Make treecount configurable via an InputSlot
@@ -49,22 +49,29 @@ class OpObjectTrain(Operator):
     def execute(self, slot, subindex, roi, result):
 
         #numImages = len(self.Features)
-        print "I'm the execute function of the new training operator!"
+        
         featMatrix = []
         labelsMatrix = []
+        
         for i, labels in enumerate(self.Labels):
             lab = labels[:].wait()
-            feats = self.Features[i][:].wait()
+            feats = self.Features[i][0].wait()
+            #print "blablablablab"
+            #print "len labels:", lab.shape
+            counts = numpy.asarray(feats[0]['Count'])
+            counts = counts[1:]
+            #print "len counts:", counts.shape
             print "here are my labels for i=:", i
             print lab
             print "here are my features for i=:", i
             print feats
             index = numpy.nonzero(lab)
             newlabels = lab[index]
-            newfeats = feats[index]
+            newfeats = counts[index]
             featMatrix.append(newfeats)
             labelsMatrix.append(newlabels)
-            
+        
+        
         if len(featMatrix)==0 or len(labelsMatrix)==0:
             print "No labels,no features, can't do anything"
             result[:]=None
@@ -110,7 +117,7 @@ class OpObjectTrain(Operator):
 class OpObjectPredict(Operator):
     name = "OpObjectPredict"
     
-    Features = InputSlot(stype=Opaque)
+    Features = InputSlot(stype=Opaque, rtype=List)
     LabelsCount = InputSlot(stype='integer')
     Classifier = InputSlot()
     
@@ -145,15 +152,16 @@ class OpObjectPredict(Operator):
         #FIXME FIXME
         #over here, we should really select only the objects in the roi. However, roi of list type doesn't work with setValue, so for now
         #we compute everything.
-        features = self.Features[:].wait()
-        if len(features.shape)==1:
-            features.resize(features.shape+(1,))
-        
+        features = self.Features[0].wait()
+        counts = numpy.asarray(features[0]['Count'])
+        print "feature shape for prediction:", counts.shape
+        if len(counts.shape)==1:
+            counts.resize(counts.shape+(1,))
         
         predictions = [0]*len(forests)
         
         def predict_forest(number):
-            predictions[number] = forests[number].predictProbabilities(features.astype(numpy.float32))
+            predictions[number] = forests[number].predictLabels(counts.astype(numpy.float32))
         
         #t2 = time.time()
 
@@ -205,7 +213,7 @@ class OpObjectClassification(Operator):
     
     BinaryImages = InputSlot(level = 1) #Just for display
     InputImages = InputSlot(level = 1)
-    ObjectFeatures = InputSlot( level = 1, stype=Opaque, rtype=List )
+    ObjectFeatures = InputSlot(stype=Opaque, rtype=List, level=1 )
     LabelsAllowedFlags = InputSlot(stype='bool', level=1) # Specifies which images are permitted to be labeled 
     
     LabelInputs = InputSlot(stype= Opaque, optional = True, level=1) # Input for providing label data from an external source
@@ -225,8 +233,8 @@ class OpObjectClassification(Operator):
     Eraser = OutputSlot()
     DeleteLabel = OutputSlot()
     
-    #FIXME: we'll need that when we are really predicting
-    #PredictionProbabilities = OutputSlot(level=1) # Classification predictions
+    Classifier = OutputSlot()
+    PredictionLabels = OutputSlot(level=1) # Classification predictions
 
     #PredictionProbabilityChannels = OutputSlot(level=2) # Classification predictions, enumerated by channel
     
@@ -255,6 +263,13 @@ class OpObjectClassification(Operator):
         self.opTrain.inputs['Labels'].connect(self.LabelInputs)
         self.opTrain.inputs['FixClassifier'].setValue(False)
         
+        self.opPredict = OperatorWrapper(OpObjectPredict, parent = self, graph = self.graph)
+        #self.opPredict = OpObjectPredict(graph = self.graph)
+        self.opPredict.inputs["Features"].connect(self.ObjectFeatures)
+        self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
+        self.opPredict.inputs["LabelsCount"].setValue(2)
+        
+        
         #Connect the outputs
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
@@ -262,6 +277,8 @@ class OpObjectClassification(Operator):
         self.LabelOutputs.connect( self.InputImages )
         #self.MaxLabelValue.connect( self.opMaxLabel.Output )
         self.MaxLabelValue.setValue(2)
+        self.PredictionLabels.connect(self.opPredict.Predictions)
+        self.Classifier.connect(self.opTrain.Classifier)
         
         
         def handleNewInputImage( multislot, index, *args ):
@@ -284,7 +301,7 @@ class OpObjectClassification(Operator):
     
     def setupCaches(self, imageIndex):
         #Setup the label input to correct dimensions
-        print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! calling setup caches"
+        #print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! calling setup caches"
         
         numImages = len(self.InputImages)
         
@@ -301,7 +318,7 @@ class OpObjectClassification(Operator):
         else:
             self.LabelInputs[imageIndex].setValue([])
         '''
-        self.LabelInputs[imageIndex].setValue([numpy.zeros((20,))])
+        self.LabelInputs[imageIndex].setValue([numpy.zeros((19,))])
                 
     def setupOutputs(self):
         pass

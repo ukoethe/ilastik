@@ -42,6 +42,7 @@ class OpRegionFeatures( Operator ):
         pass
     
     def execute( self, slot, subindex, roi, result ):
+        print "requesting object features for roi:", roi
         if slot is self.Output:
             def extract( a ):
                 labels = numpy.asarray(a, dtype=numpy.uint32)
@@ -163,6 +164,11 @@ class OpObjectExtraction( Operator ):
         self._opRegFeats = OpRegionFeatures( graph = graph )
         self._opRegFeats.LabelImage.connect( self.LabelImage )
         
+        self.RegionFeatures.meta.shape=(1,)
+        self.RegionFeatures.meta.dtype=object
+        self.RegionFeatures.meta.axistags =None
+        
+        
         self.RegionCount.meta.shape = (1,)
         self.RegionCount.meta.dtype = object
         self.RegionCount.meta.axistags = None
@@ -181,7 +187,6 @@ class OpObjectExtraction( Operator ):
         self._reg_cents = dict.fromkeys(xrange(m.shape[0]), numpy.asarray([], dtype=numpy.uint16))
         
         self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
-        #self.RegionCount.setValue(0)
         
     
     def execute(self, slot, subindex, roi, result):
@@ -197,6 +202,8 @@ class OpObjectExtraction( Operator ):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get( roi ).wait()
+            print self.RegionFeatures.meta.shape
+            print self.RegionFeatures.meta.axistags
             return res
         if slot is self.RegionCount:
             res = self._opRegCent.Output.get( roi ).wait()
