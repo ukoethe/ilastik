@@ -42,7 +42,7 @@ class OpRegionFeatures( Operator ):
         pass
     
     def execute( self, slot, subindex, roi, result ):
-        print "requesting object features for roi:", roi
+        #print "requesting object features for roi:", roi
         if slot is self.Output:
             def extract( a ):
                 labels = numpy.asarray(a, dtype=numpy.uint32)
@@ -202,8 +202,8 @@ class OpObjectExtraction( Operator ):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get( roi ).wait()
-            print self.RegionFeatures.meta.shape
-            print self.RegionFeatures.meta.axistags
+            #print self.RegionFeatures.meta.shape
+            #print self.RegionFeatures.meta.axistags
             return res
         if slot is self.RegionCount:
             res = self._opRegCent.Output.get( roi ).wait()
@@ -249,12 +249,12 @@ class OpObjectExtraction( Operator ):
 
     def updateLabelImageAt( self, t ):
         m = self.LabelImage.meta
-        print "Calculating LabelImage at", t
+        #print "Calculating LabelImage at", t
         start = [t,] + (len(m.shape) - 1) * [0,]
         stop = [t+1,] + list(m.shape[1:])
         a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
         a = a[0,...,0]
-        print a.shape, a.dtype
+        #print a.shape, a.dtype
         self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground( a )
 
     def __contained_in_subregion( self, roi, coords ):

@@ -6,8 +6,8 @@ def debug_with_existing(shell, workflow):
     """
     (Function for debug and testing.)
     """
-    #projFilePath = "/home/akreshuk/bla.ilp"
-    projFilePath = "/home/mschiegg/bla.ilp"
+    projFilePath = "/home/akreshuk/bla.ilp"
+    #projFilePath = "/home/mschiegg/bla.ilp"
     #projFilePath = '/magnetic/gigacube.ilp'
     #projFilePath = '/home/bergs/Downloads/synapse_detection_training1.ilp'
     #projFilePath = '/magnetic/250-2.ilp'

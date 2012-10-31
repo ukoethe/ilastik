@@ -56,15 +56,18 @@ class OpObjectTrain(Operator):
         for i, labels in enumerate(self.Labels):
             lab = labels[:].wait()
             feats = self.Features[i][0].wait()
-            #print "blablablablab"
-            #print "len labels:", lab.shape
+            
+            #print feats
+            
+            #print feats.keys()
+            
             counts = numpy.asarray(feats[0]['Count'])
             counts = counts[1:]
             #print "len counts:", counts.shape
-            print "here are my labels for i=:", i
-            print lab
-            print "here are my features for i=:", i
-            print feats
+            #print "here are my labels for i=:", i
+            #print lab
+            #print "here are my features for i=:", i
+            #print feats
             index = numpy.nonzero(lab)
             newlabels = lab[index]
             newfeats = counts[index]
@@ -78,7 +81,7 @@ class OpObjectTrain(Operator):
         else:
             featMatrix=numpy.concatenate(featMatrix,axis=0)
             labelsMatrix=numpy.concatenate(labelsMatrix,axis=0)
-            print "shape featMatrix:", featMatrix.shape, "label matrix:", labelsMatrix.shape
+            #print "shape featMatrix:", featMatrix.shape, "label matrix:", labelsMatrix.shape
             if len(featMatrix.shape)==1:
                 featMatrix.resize(featMatrix.shape+(1,))
             if len(labelsMatrix.shape)==1:
@@ -154,7 +157,7 @@ class OpObjectPredict(Operator):
         #we compute everything.
         features = self.Features[0].wait()
         counts = numpy.asarray(features[0]['Count'])
-        print "feature shape for prediction:", counts.shape
+        #print "feature shape for prediction:", counts.shape
         if len(counts.shape)==1:
             counts.resize(counts.shape+(1,))
         
@@ -186,18 +189,6 @@ class OpObjectPredict(Operator):
         print prediction
         return prediction
         
-        #prediction = prediction.reshape(*(shape[:-1] + (forests[0].labelCount(),)))
-
-        # If our LabelsCount is higher than the number of labels in the training set,
-        # then our results aren't really valid.
-        # Duplicate the last label's predictions
-        chanslice = slice(min(key[-1].start, forests[0].labelCount()-1), min(key[-1].stop, forests[0].labelCount()))
-
-        t3 = time.time()
-
-        # logger.info("Predict took %fseconds, actual RF time was %fs, feature time was %fs" % (t3-t1, t3-t2, t2-t1))
-        return prediction[...,chanslice] # FIXME: This assumes that channel is the last axis
-
     
     def propagateDirty(self, slot, subindex, roi):
         
@@ -219,22 +210,28 @@ class OpRelabel(Operator):
     #    super(OpRelabel, self).__init__(*args, **kwargs)
         
     def setupOutputs(self):
+        
         self.Output.meta.assignFrom(self.Image.meta)
         
     def execute(self, slot, subindex, roi, result):
         print "requesting from relabel: ", roi
+        print "slot meta:", self.Image.meta.shape, self.Image.meta.axistags
         im = self.Image[:].wait()
+        print "results:", im.shape
         predictions = self.Relabeling[:].wait()
-        print predictions
         predictions = predictions[0].squeeze()
-        print predictions.shape
-        relabeling = list(predictions)
+        print "predictions.shape", predictions.shape
+        #relabeling = list(predictions)
+        relabeling = predictions
         relabeling[0]=0
         maxobject = self.MaxObjectNumber.value
-        if self.relabeling.value is None:
-            self.relabeling = numpy.zeros((maxobject+1,), dtype=numpy.uint32)
-        im = self.relabeling[im]
-        return im[roi]
+        #if self.Relabeling.value is None:
+        #    self.Relabeling.setValue(numpy.zeros((maxobject+1,), dtype=numpy.uint32))
+        print "relabelign type", relabeling.dtype, "image shape before:", im.shape, im.dtype
+        print relabeling
+        im = relabeling[im]
+        print "image.shape afterwards:", im.shape
+        return im[roi.toSlice()]
         
     def propagateDirty(self, slot, subindex, roi):
         self.Output.setDirty(slice(None, None, None))

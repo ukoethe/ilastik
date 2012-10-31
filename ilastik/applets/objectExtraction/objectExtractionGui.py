@@ -177,7 +177,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         p = os.path.split(__file__)[0]+'/'
         if p == "/": p = "."+p
         #self._viewerControlWidget = uic.loadUi(p+"viewerControls.ui")
-        self._viewerControlWidget = uic.loadUi("/home/mschiegg/software/applet-workflows/ilastik/applets/featureSelection/viewerControls.ui")
+        self._viewerControlWidget = uic.loadUi("/home/akreshuk/applet-workflows/ilastik/applets/featureSelection/viewerControls.ui")
         layerListWidget = self._viewerControlWidget.listWidget
 
         # Need to handle data changes because the layerstack model hasn't 

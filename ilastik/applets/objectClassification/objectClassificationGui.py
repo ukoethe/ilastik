@@ -315,7 +315,7 @@ class ObjectClassificationGui(LabelingGui):
         #print classifier
         
         predictions = self.pipeline.PredictionLabels[0][:].wait()
-        print predictions
+        #print predictions
         '''
         predictions = predictions[0].squeeze()
         print predictions.shape
