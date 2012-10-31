@@ -1,2 +1,0 @@
-from layerViewerApplet import LayerViewerApplet
-from layerViewerGui import LayerViewerGui
