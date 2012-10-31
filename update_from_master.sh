@@ -15,7 +15,7 @@ mv html/* .
 rm -rf html
 git add .
 git commit -m "Added new docs"
-cp ../$0 .
+mv ../$0 .
 git add $0
 git commit -m "Re-added update script"
 
@@ -42,3 +42,4 @@ git add -u .
 
 git commit -m "Prepared html files for output on github pages, which doesn't allow directories that begin with underscores."
 
+git push origin gh-pages
