@@ -204,8 +204,42 @@ class OpObjectPredict(Operator):
         #self.Predictions.setDirty(List(self.Predictions, range(roi.start[0], roi.stop[0]))) 
         self.Predictions.setDirty(roi)
 
+        
+        
+class OpRelabel(Operator):
+    name = "OpRelabel"
     
+    Image = InputSlot()
+    Relabeling = InputSlot(stype=Opaque)
+    MaxObjectNumber = InputSlot(stype='integer')
+    
+    Output = OutputSlot()
 
+    #def __init__(self, *args, **kwargs):
+    #    super(OpRelabel, self).__init__(*args, **kwargs)
+        
+    def setupOutputs(self):
+        self.Output.meta.assignFrom(self.Image.meta)
+        
+    def execute(self, slot, subindex, roi, result):
+        print "requesting from relabel: ", roi
+        im = self.Image[:].wait()
+        predictions = self.Relabeling[:].wait()
+        print predictions
+        predictions = predictions[0].squeeze()
+        print predictions.shape
+        relabeling = list(predictions)
+        relabeling[0]=0
+        maxobject = self.MaxObjectNumber.value
+        if self.relabeling.value is None:
+            self.relabeling = numpy.zeros((maxobject+1,), dtype=numpy.uint32)
+        im = self.relabeling[im]
+        return im[roi]
+        
+    def propagateDirty(self, slot, subindex, roi):
+        self.Output.setDirty(slice(None, None, None))
+    
+    
 class OpObjectClassification(Operator):
     
     name = "OpObjectClassification"
@@ -269,6 +303,12 @@ class OpObjectClassification(Operator):
         self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
         self.opPredict.inputs["LabelsCount"].setValue(2)
         
+        self.opRelabelPredictions = OperatorWrapper(OpRelabel, parent = self, graph = self.graph)
+        self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
+        self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
+        self.opRelabelPredictions.inputs["MaxObjectNumber"].setValue(19)
+        
+        
         
         #Connect the outputs
         self.Eraser.setValue(100)
@@ -277,7 +317,8 @@ class OpObjectClassification(Operator):
         self.LabelOutputs.connect( self.InputImages )
         #self.MaxLabelValue.connect( self.opMaxLabel.Output )
         self.MaxLabelValue.setValue(2)
-        self.PredictionLabels.connect(self.opPredict.Predictions)
+        #self.PredictionLabels.connect(self.opPredict.Predictions)
+        self.PredictionLabels.connect(self.opRelabelPredictions.Output)
         self.Classifier.connect(self.opTrain.Classifier)
         
         

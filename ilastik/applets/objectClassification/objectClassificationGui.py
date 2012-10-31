@@ -188,18 +188,29 @@ class ObjectClassificationGui(LabelingGui):
             layers.append(layer)
             '''
         
-        nchannels = self.pipeline.MaxLabelValue.value
+        predictionSlot = self.pipeline.PredictionLabels[currentImageIndex]
+        if predictionSlot.ready():
+            self.predictsrc = LazyflowSource( predictionSlot )
+            self.predictlayer = ColortableLayer( self.predictsrc, colorTable=self._colorTable16)
+            self.predictlayer.name = "Prediction"
+            self.predictlayer.ref_object = None
+            self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
+            layers.append(self.predictlayer)
+            
+        '''    
         if self.pipeline.PredictionLabels.ready() and labelOutput.ready():
             
             self.predictsrc = RelabelingLazyflowSource(labelOutput)
+            print "reset prediction labeling to zeros"
             relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
             self.predictsrc.setRelabeling(relabeling)
+            #self.predictsrc.setRelabeling(None)
             self.predictlayer = ClickableColortableLayer(self.editor, self.onClick, datasource = self.predictsrc, colorTable=self._colorTable16)
             self.predictlayer.name = "Prediction"
             self.predictlayer.ref_object = None
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
             layers.append(self.predictlayer)
-                
+        '''
             
         
         
@@ -302,13 +313,17 @@ class ObjectClassificationGui(LabelingGui):
         #classifier = self.pipeline.Classifier[:].wait()
         #print "classifier returned"
         #print classifier
+        
         predictions = self.pipeline.PredictionLabels[0][:].wait()
         print predictions
+        '''
         predictions = predictions[0].squeeze()
         print predictions.shape
         relabeling = list(predictions)
         relabeling[0]=0
+        print relabeling
         self.predictsrc.setRelabeling(relabeling)
+        '''
         self.predictlayer.visible = True
         
         
