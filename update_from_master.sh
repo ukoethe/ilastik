@@ -4,6 +4,7 @@ cp $0 ..
 git rm -rf .
 git commit -m "Removed old docs"
 git checkout master
+git pull
 cd docs
 make html
 cp -r _build/html ..
