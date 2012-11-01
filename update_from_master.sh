@@ -1,7 +1,9 @@
 #!/bin/bash
 
-cp $0 ..
+# Remove everything from the repo
 git rm -rf .
+# Except don't remove this script
+git checkout HEAD $0
 git commit -m "Removed old docs"
 git checkout master
 git pull
@@ -14,10 +16,7 @@ git checkout gh-pages
 mv html/* .
 rm -rf html
 git add .
-git commit -m "Added new docs"
-mv ../$0 .
-git add $0
-git commit -m "Re-added update script"
+git commit -m "Added new docs (built from master)"
 
 # Prepare the files for github...
 for fl in `find . -name "*.html"` `find . -name "*.txt"` `find . -name "*.svg"` `find . -name "*.js"` `find . -name "*.css"`
