@@ -177,8 +177,13 @@ class ObjectExtractionGui( LayerViewerGui ):
         p = os.path.split(__file__)[0]+'/'
         if p == "/": p = "."+p
         #self._viewerControlWidget = uic.loadUi(p+"viewerControls.ui")
-        self._viewerControlWidget = uic.loadUi("/home/akreshuk/applet-workflows/ilastik/applets/featureSelection/viewerControls.ui")
-        layerListWidget = self._viewerControlWidget.listWidget
+        pdir = p.split("/")[1:-2]
+        path = ""
+        for pd in pdir:
+            path = path+"/"+pd
+        path = path + "/featureSelection/viewerControls.ui"
+        self._viewerControlWidget = uic.loadUi(path)
+        layerListWidget = self._viewerControlWidget.featureListWidget
 
         # Need to handle data changes because the layerstack model hasn't 
         # updated his data yet by the time he calls the rowsInserted signal

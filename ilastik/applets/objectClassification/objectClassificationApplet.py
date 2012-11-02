@@ -8,12 +8,12 @@ from objectClassificationGui import ObjectClassificationGui
 from lazyflow.graph import OperatorWrapper
 
 class ObjectClassificationApplet( Applet ):
-    def __init__( self, graph, guiName="Object Features", projectFileGroupName="ObjectFeatures" ):
+    def __init__( self, workflow, guiName="Object Features", projectFileGroupName="ObjectFeatures" ):
         
         super(ObjectClassificationApplet, self).__init__( guiName )
         
         #self._topLevelOperator = OperatorWrapper(OpObjectFeatures, graph=graph)
-        self._topLevelOperator = OpObjectClassification(graph = graph)
+        self._topLevelOperator = OpObjectClassification(parent=workflow)
 
         self._gui = ObjectClassificationGui(self._topLevelOperator, self.guiControlSignal, self.shellRequestSignal)
         

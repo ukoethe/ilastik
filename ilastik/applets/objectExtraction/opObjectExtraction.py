@@ -155,13 +155,13 @@ class OpObjectExtraction( Operator ):
         self._mem_h5 = h5py.File(str(id(self)), driver='core', backing_store=False)
         self._reg_cents = {}
 
-        self._opLabelImage = OpLabelImage( graph = graph )
+        self._opLabelImage = OpLabelImage( parent=self, graph = self.graph )
         self._opLabelImage.BinaryImage.connect( self.BinaryImage )
 
-        self._opRegCent = OpRegionCenters( graph = graph )
+        self._opRegCent = OpRegionCenters( parent=self, graph = self.graph )
         self._opRegCent.LabelImage.connect( self.LabelImage )
 
-        self._opRegFeats = OpRegionFeatures( graph = graph )
+        self._opRegFeats = OpRegionFeatures( parent = self, graph = self.graph )
         self._opRegFeats.LabelImage.connect( self.LabelImage )
         
         self.RegionFeatures.meta.shape=(1,)

@@ -32,7 +32,6 @@ class OpObjectTrain(Operator):
 
     def __init__(self, *args, **kwargs):
         super(OpObjectTrain, self).__init__(*args, **kwargs)
-        print "I'm the training operator!!!!!!!!!!!!!!!!!!!!!!"
         #self.progressSignal = OrderedSignal()
         self._forest_count = 1
         # TODO: Make treecount configurable via an InputSlot
@@ -56,18 +55,10 @@ class OpObjectTrain(Operator):
         for i, labels in enumerate(self.Labels):
             lab = labels[:].wait()
             feats = self.Features[i][0].wait()
-            
-            #print feats
-            
-            #print feats.keys()
-            
+
             counts = numpy.asarray(feats[0]['Count'])
             counts = counts[1:]
-            #print "len counts:", counts.shape
-            #print "here are my labels for i=:", i
-            #print lab
-            #print "here are my features for i=:", i
-            #print feats
+
             index = numpy.nonzero(lab)
             newlabels = lab[index]
             newfeats = counts[index]
@@ -81,7 +72,6 @@ class OpObjectTrain(Operator):
         else:
             featMatrix=numpy.concatenate(featMatrix,axis=0)
             labelsMatrix=numpy.concatenate(labelsMatrix,axis=0)
-            #print "shape featMatrix:", featMatrix.shape, "label matrix:", labelsMatrix.shape
             if len(featMatrix.shape)==1:
                 featMatrix.resize(featMatrix.shape+(1,))
             if len(labelsMatrix.shape)==1:
@@ -131,14 +121,6 @@ class OpObjectPredict(Operator):
         self.Predictions.meta.shape=(1,)
         self.Predictions.meta.dtype = object
         self.Predictions.meta.axistags = None
-        '''
-        nimages = len(self.Features)
-        self.Predictions.resize(nimages)
-        for i in range(nimages):
-            self.Predictions[i].meta.shape = (1,)
-            self.Predictions[i].meta.dtype = object
-            self.Predictions[i].meta.axistags = None
-        '''
 
 
     def execute(self, slot, subindex, roi, result):
@@ -206,31 +188,21 @@ class OpRelabel(Operator):
     
     Output = OutputSlot()
 
-    #def __init__(self, *args, **kwargs):
-    #    super(OpRelabel, self).__init__(*args, **kwargs)
-        
     def setupOutputs(self):
         
         self.Output.meta.assignFrom(self.Image.meta)
         
     def execute(self, slot, subindex, roi, result):
-        print "requesting from relabel: ", roi
-        print "slot meta:", self.Image.meta.shape, self.Image.meta.axistags
         im = self.Image[:].wait()
-        print "results:", im.shape
         predictions = self.Relabeling[:].wait()
         predictions = predictions[0].squeeze()
-        print "predictions.shape", predictions.shape
         #relabeling = list(predictions)
         relabeling = predictions
         relabeling[0]=0
         maxobject = self.MaxObjectNumber.value
         #if self.Relabeling.value is None:
         #    self.Relabeling.setValue(numpy.zeros((maxobject+1,), dtype=numpy.uint32))
-        print "relabelign type", relabeling.dtype, "image shape before:", im.shape, im.dtype
-        print relabeling
         im = relabeling[im]
-        print "image.shape afterwards:", im.shape
         return im[roi.toSlice()]
         
     def propagateDirty(self, slot, subindex, roi):
@@ -275,20 +247,6 @@ class OpObjectClassification(Operator):
         self.opInputShapeReader = OperatorWrapper( OpShapeReader, parent=self, graph=self.graph )
         self.opInputShapeReader.Input.connect( self.InputImages )
         
-        #self.opMaxLabel = OpMaxListValue(graph=self.graph)
-        
-        # Set up other label cache inputs
-                
-        # Initialize the delete input to -1, which means "no label".
-        # Now changing this input to a positive value will cause label deletions.
-        # (The deleteLabel input is monitored for changes.)
-        #self.opLabelArray.inputs["deleteLabel"].setValue(-1)
-        
-        # Find the highest label in all the label images
-        #self.opMaxLabel.Inputs.connect( self.opLabelArray.outputs['maxLabel'] )
-    
-        #self.opMaxLabel.Inputs.connect(self.LabelInputs)
-        
         self.opTrain = OpObjectTrain(graph = self.graph)
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
         self.opTrain.inputs['Labels'].connect(self.LabelInputs)
@@ -322,16 +280,7 @@ class OpObjectClassification(Operator):
         def handleNewInputImage( multislot, index, *args ):
             def handleInputReady(slot):
                 self.setupCaches( multislot.index(slot) )
-                '''
-                print "meta info of operator slots:"
-                print self.LabelInputs.meta.axistags
-                print self.LabelOutputs.meta.axistags
-                print self.LabelsAllowedFlags.meta.axistags
-                print self.MaxObjectNumber.meta.axistags
-                print self.InputImages.meta.axistags
-                print self.ObjectFeatures.meta.axistags
-                #self.LabelInputs.value.append([])
-                '''
+
             multislot[index].notifyReady(handleInputReady)
                 
         self.InputImages.notifyInserted( handleNewInputImage )
@@ -348,24 +297,11 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        '''
-        if self.MaxObjectNumber[imageIndex].ready():
-            #FIXME: we set it to a list of arrays, because otherwise value only returns the first element
-            self.LabelInputs[imageIndex].setValue([numpy.zeros((self.MaxObjectNumber[imageIndex].value+1))])
-            print "set up label inputs", self.MaxObjectNumber[imageIndex].value, self.LabelInputs[imageIndex].value
-        else:
-            self.LabelInputs[imageIndex].setValue([])
-        '''
+        #FIXME: this should take from MaxObjectNumber slot
         self.LabelInputs[imageIndex].setValue([numpy.zeros((19,))])
                 
     def setupOutputs(self):
         pass
-        '''
-        if self.Features.ready():
-            feats = self.Features[0]
-            nobjects = feats[feats.activeNames()[0]].shape[0]
-            self.maxObjectNumber.setValue(nobjects)
-        '''
     
     def setInSlot(self, slot, subindex, roi, value):
         # Nothing to do here: All inputs that support __setitem__

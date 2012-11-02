@@ -54,9 +54,6 @@ class ObjectClassificationGui(LabelingGui):
         labelSlots.labelInput = pipeline.LabelInputs
         labelSlots.labelOutput = pipeline.LabelOutputs
         #FIXME: it's not yet clear what to do with these 2 slots
-        #in principle, the operator does not need to connect to them,
-        #everything should be done by the model, operator just gets the list
-        #connect to dummy slots for now 
         labelSlots.labelEraserValue = pipeline.Eraser
         labelSlots.labelDelete = pipeline.DeleteLabel
         
@@ -64,10 +61,9 @@ class ObjectClassificationGui(LabelingGui):
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
         #labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
         
+        #FIXME: this should be taken from a slot of the operator
         self.maxObjectNumber = 19
         
-        #labelSlots.labelEraserValue.setValue(100)
-        #labelSlots.labelDelete.setValue(-1)
         
         # We provide our own UI file (which adds an extra control for interactive mode)
         # This UI file is copied from pixelClassification pipeline
@@ -88,8 +84,6 @@ class ObjectClassificationGui(LabelingGui):
 
         self.labelingDrawerUi.checkInteractive.setEnabled(True)
         self.labelingDrawerUi.checkInteractive.toggled.connect(self.toggleInteractive)
-        #self.labelingDrawerUi.labelImageButton.clicked.connect(self.onLabelImageButtonClicked)
-        #self.labelingDrawerUi.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
         #self.labelingDrawerUi.savePredictionsButton.clicked.connect(self.onSavePredictionsButtonClicked)
 
         #self.labelingDrawerUi.checkShowPredictions.clicked.connect(self.handleShowPredictionsClicked)
@@ -121,7 +115,7 @@ class ObjectClassificationGui(LabelingGui):
         Return a colortable layer that displays the label slot data, along with its associated label source.
         direct: whether this layer is drawn synchronously by volumina
         """
-        print "!!!!!!!!!!!!!!!!! creating label layer"
+        #print "!!!!!!!!!!!!!!!!! creating label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
         #maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
         
@@ -132,7 +126,7 @@ class ObjectClassificationGui(LabelingGui):
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
             # Add the layer to draw the labels, but don't add any labels
-            print "!!!!!!!!!!!!!!!!!!!!!1", labelOutput.meta.shape
+            #print "!!!!!!!!!!!!!!!!!!!!!1", labelOutput.meta.shape
             labelsrc = RelabelingLazyflowSinkSource( labelOutput,
                                            self._labelingSlots.labelInput[currentImageIndex])
         
@@ -150,7 +144,7 @@ class ObjectClassificationGui(LabelingGui):
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
             
-            #FIXME = maybe it shouldn't be done here...
+            #FIXME = maybe it shouldn't be done here... Anyway, it doesn't work yet.
             clickInt = ClickInterpreter2(self.editor, labellayer, self.onClick)
             self.editor.brushingInterpreter = clickInt
             
@@ -197,55 +191,7 @@ class ObjectClassificationGui(LabelingGui):
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
             layers.append(self.predictlayer)
             
-        '''    
-        if self.pipeline.PredictionLabels.ready() and labelOutput.ready():
-            
-            self.predictsrc = RelabelingLazyflowSource(labelOutput)
-            print "reset prediction labeling to zeros"
-            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
-            self.predictsrc.setRelabeling(relabeling)
-            #self.predictsrc.setRelabeling(None)
-            self.predictlayer = ClickableColortableLayer(self.editor, self.onClick, datasource = self.predictsrc, colorTable=self._colorTable16)
-            self.predictlayer.name = "Prediction"
-            self.predictlayer.ref_object = None
-            self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
-            layers.append(self.predictlayer)
-        '''
-            
-        
-        
-        '''
-        # Add each of the predictions
-        for channel, predictionSlot in enumerate(self.pipeline.PredictionProbabilityChannels[currentImageIndex]):
-            if predictionSlot.ready() and channel < len(labels):
-                ref_label = labels[channel]
-                predictsrc = LazyflowSource(predictionSlot)
-                predictLayer = AlphaModulatedLayer( predictsrc,
-                                                    tintColor=ref_label.color,
-                                                    range=(0.0, 1.0),
-                                                    normalize=(0.0, 1.0) )
-                predictLayer.opacity = 0.25
-                predictLayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
-                predictLayer.visibleChanged.connect(self.updateShowPredictionCheckbox)
 
-                def setLayerColor(c):
-                    predictLayer.tintColor = c
-                def setLayerName(n):
-                    newName = "Prediction for %s" % ref_label.name
-                    predictLayer.name = newName
-                setLayerName(ref_label.name)
-
-                ref_label.colorChanged.connect(setLayerColor)
-                ref_label.nameChanged.connect(setLayerName)
-                layers.append(predictLayer)
-            
-        
-            inputLayer = self.createStandardLayerFromSlot( inputSlot )
-            inputLayer.name = "Input Data"
-            inputLayer.visible = True
-            inputLayer.opacity = 1.0
-            layers.append(inputLayer)
-        '''
         return layers
     
     @pyqtSlot()
@@ -281,10 +227,6 @@ class ObjectClassificationGui(LabelingGui):
             self.labelingDrawerUi.checkShowPredictions.setChecked( True )
             self.handleShowPredictionsClicked()
 
-        #FIXME FIXME
-        if checked:
-            self.forceTrainAndPredict()
-       
 
         # If we're changing modes, enable/disable our controls and other applets accordingly
         if self.interactiveModeActive != checked:
@@ -296,38 +238,6 @@ class ObjectClassificationGui(LabelingGui):
                 self.labelingDrawerUi.AddLabelButton.setEnabled( True )
         self.interactiveModeActive = checked    
 
-    def forceTrainAndPredict(self):
-        
-        #print "labels set so far:"
-        #print self.pipeline.LabelInputs[0].value
-        '''
-        labels = numpy.zeros((self.maxObjectNumber,), dtype=numpy.uint32)
-        labels[0] = 1
-        labels[1] = 1
-        labels[2]= 2
-        labels[-1] = 2
-        self.pipeline.LabelInputs[0].setValue(labels)
-        '''
-        #feats = self.pipeline.ObjectFeatures[0][0].wait()
-        #print feats
-        #classifier = self.pipeline.Classifier[:].wait()
-        #print "classifier returned"
-        #print classifier
-        
-        predictions = self.pipeline.PredictionLabels[0][:].wait()
-        #print predictions
-        '''
-        predictions = predictions[0].squeeze()
-        print predictions.shape
-        relabeling = list(predictions)
-        relabeling[0]=0
-        print relabeling
-        self.predictsrc.setRelabeling(relabeling)
-        '''
-        self.predictlayer.visible = True
-        
-        
-        
         
     @pyqtSlot()
     @traceLogged(traceLogger)

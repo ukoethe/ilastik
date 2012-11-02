@@ -14,22 +14,21 @@ from lazyflow.operators.ioOperators.opInputDataReader import OpInputDataReader
 from lazyflow.operators import OpAttributeSelector
 
 class ObjectClassificationWorkflow( Workflow ):
+    
     def __init__( self ):
-        super(ObjectClassificationWorkflow, self).__init__()
+        graph = Graph()
+        super(ObjectClassificationWorkflow, self).__init__( graph = graph )
         self._applets = []
 
-        # Create a graph to be shared by all operators
-        graph = Graph()
-        self._graph = graph
         ######################
         # Interactive workflow
         ######################
         
         ## Create applets 
         self.projectMetadataApplet = ProjectMetadataApplet()
-        self.dataSelectionApplet = DataSelectionApplet(graph, "Input Segmentation", "Input Segmentation", batchDataGui=False)
-        self.objectExtractionApplet = ObjectExtractionApplet( graph )
-        self.objectClassificationApplet = ObjectClassificationApplet( graph )
+        self.dataSelectionApplet = DataSelectionApplet(self, "Input Segmentation", "Input Segmentation", batchDataGui=False)
+        self.objectExtractionApplet = ObjectExtractionApplet( self )
+        self.objectClassificationApplet = ObjectClassificationApplet( self )
         
         ## Access applet operators
         opData = self.dataSelectionApplet.topLevelOperator
@@ -66,7 +65,3 @@ class ObjectClassificationWorkflow( Workflow ):
     def imageNameListSlot(self):
         return self._imageNameListSlot
     
-    @property
-    def graph( self ):
-        '''the lazyflow graph shared by the applets'''
-        return self._graph
