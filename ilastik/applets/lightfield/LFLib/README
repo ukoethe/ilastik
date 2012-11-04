@@ -1,0 +1,92 @@
+EASYWAY: On UBUNTU systems use the installation script:
+  $sudo sh install.sh
+  set the paths in your .bashrc (sudo gedit ~/.bashrc):
+	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:
+	export LD_LIBRARY_PATH
+	export PYTHONPATH="${PYTHONPATH}:/location of lightfieldoperators/"
+	export PYTHONPATH="${PYTHONPATH}:/location of lightfieldoperators/lazyflow/"
+
+  run in shell: $viewLF /location/of/a/lightfield.h5
+  or from python: import LFLib.Viewer.viewer as viewer
+		viewer.show("here filename or lightfield instance")
+
+OTHERWISE manually install:
+
+Dependencies:
+
+LIBRARIES:
+  libqt4-dev
+  libopenexr-dev
+  libhdf5-serial-dev
+  libfftw3-dev
+  doxygen
+  libboost-all-dev
+  libblas-dev
+  liblapack-dev
+  gfortran
+
+
+PYTHON (2.7):
+  python-numpy (1.5.1)
+  python-scipy (0.9.0)
+  python-matplotlib (1.0.1)
+  python-h5py (2.0.0)
+  python-qt4 (4.8.5)
+  python-qt4-gl
+  python-qt4-dev
+  pyqt4-dev-tools
+  python-sphinx
+  cython (0.16)
+  OpenEXR (1.2.0)
+  
+
+OTHERS:
+  cmake
+  vigra see subdirectory ./LFLib/vigra
+  lazyflow see subdirectory ./LFLib/lazyflow
+
+
+
+Build Vigra:
+
+  Dependencies for vigra:
+  libjpeg, libtiff, libpng, OpenEXR for reading and writing JPEG, TIFF, PNG, and EXR images respectively.
+  HDF5 for reading and writing HDF5 files (storage of MultiArray and RandomForest).
+  libfftw for fast Fourier transforms.
+  doxygen and Python to generate C++ documentation.
+  Python, boost_python, and numpy to compile and run vigranumpy (the VIGRA Python bindings).
+  sphinx to generate vigranumpy documentation.
+  nosetests to execute the vigranumpy test suite.
+
+    > mkdir \<vigra_build_path\>       
+    > cd \<vigra_build_path\>       
+    > cmake [options] \<vigra_source_path\>
+    > make          # build (Linux/Unix and MinGW only)
+    > make check    # compile and run tests (optional, Linux/Unix and MinGW only)
+    > make doc      # generate documentation (Linux/Unix and MinGW only)
+    > make install  # install (Linux/Unix and MinGW only)
+    > make examples # build examples (optional, Linux/Unix and MinGW only)
+
+
+Build lazyflow:
+
+  Dependencies for lazyflow:
+  greenlet,psutil,vigra
+	
+
+    > run $easy_install psutil greenlet       
+    > cd lightfieldoperators/LFLib/lazyflow>       
+    > python setup.py build
+    > sudo python setup.py install
+
+
+after all run $sudo sh lightfieldoperators/LFLib/setup.sh
+
+ensure to set all environment variables (see top of the page)
+
+run in shell: $viewLF /location/of/a/lightfield.h5
+or from python: import LFLib.Viewer.viewer as viewer
+		viewer.show("here filename or lightfield instance")
+
+
+

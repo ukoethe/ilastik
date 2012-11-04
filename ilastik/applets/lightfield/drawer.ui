@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>386</width>
-    <height>349</height>
+    <width>380</width>
+    <height>360</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,20 +15,20 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
-    <widget class="QToolBox" name="editGammaPage">
+    <widget class="QToolBox" name="editLfPage">
      <property name="autoFillBackground">
       <bool>false</bool>
      </property>
      <property name="currentIndex">
-      <number>4</number>
+      <number>5</number>
      </property>
      <widget class="QWidget" name="editChannelPage">
       <property name="geometry">
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>368</width>
-        <height>176</height>
+        <width>362</width>
+        <height>156</height>
        </rect>
       </property>
       <attribute name="label">
@@ -110,8 +110,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>368</width>
-        <height>176</height>
+        <width>362</width>
+        <height>156</height>
        </rect>
       </property>
       <attribute name="label">
@@ -146,6 +146,14 @@
       </layout>
      </widget>
      <widget class="QWidget" name="editContrastPage">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>362</width>
+        <height>156</height>
+       </rect>
+      </property>
       <attribute name="label">
        <string>Contrast and Brighness</string>
       </attribute>
@@ -197,7 +205,15 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="page">
+     <widget class="QWidget" name="editGammaPage">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>362</width>
+        <height>156</height>
+       </rect>
+      </property>
       <attribute name="label">
        <string>Gamma</string>
       </attribute>
@@ -232,7 +248,15 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="page_2">
+     <widget class="QWidget" name="editMedianPage">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>362</width>
+        <height>156</height>
+       </rect>
+      </property>
       <attribute name="label">
        <string>Median</string>
       </attribute>
@@ -258,6 +282,58 @@
          </item>
          <item row="1" column="1">
           <widget class="QSpinBox" name="editMedianSize"/>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="editDepthPage">
+      <attribute name="label">
+       <string>Depth</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <item>
+        <layout class="QFormLayout" name="formLayout_5">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Inner Scale</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="editDepthInner">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.600000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>Outer Scale</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="editDepthOuter">
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.800000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QPushButton" name="editDepthSubmit">
+           <property name="text">
+            <string>Submit</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>

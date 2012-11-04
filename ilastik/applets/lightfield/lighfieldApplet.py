@@ -5,7 +5,7 @@ Created on Oct 14, 2012
 '''
 from lazyflow.graph import OperatorWrapper
 from ilastik.applets.base.applet import Applet
-from operators import LightfieldOperator
+from lightfieldOperator import LightfieldOperator
 
 class LightfieldApplet( Applet ):
     """
