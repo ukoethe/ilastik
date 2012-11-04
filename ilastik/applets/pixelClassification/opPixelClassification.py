@@ -16,8 +16,8 @@ class OpPixelClassification( Operator ):
     
     InputImages = InputSlot(level=1) # Original input data.  Used for display only.
 
-    LabelsAllowedFlags = InputSlot(stype='bool', level=1) # Specifies which images are permitted to be labeled 
     LabelInputs = InputSlot(optional = True, level=1) # Input for providing label data from an external source
+    LabelsAllowedFlags = InputSlot(stype='bool', level=1) # Specifies which images are permitted to be labeled 
 
     FeatureImages = InputSlot(level=1) # Computed feature images (each channel is a different feature)
     CachedFeatureImages = InputSlot(level=1) # Cached feature data.
@@ -40,11 +40,11 @@ class OpPixelClassification( Operator ):
 
     UncertaintyEstimate = OutputSlot(level=1)
 
-    def __init__( self, graph ):
+    def __init__( self, *args, **kwargs ):
         """
         Instantiate all internal operators and connect them together.
         """
-        super(OpPixelClassification, self).__init__(graph=graph)
+        super(OpPixelClassification, self).__init__(*args, **kwargs)
 
         self.FreezePredictions.setValue(True) # Default
         
@@ -350,9 +350,6 @@ class OpEnsembleMargin(Operator):
         roi.start[chanAxis] = 0
         roi.stop[chanAxis] = 1
         self.Output.setDirty( roi )
-
-
-
 
 
 
