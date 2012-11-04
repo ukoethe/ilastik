@@ -4,18 +4,13 @@ Created on Oct 14, 2012
 @author: fredo
 '''
 from ilastik.applets.layerViewer.layerViewerGui import LayerViewerGui
-from volumina.pixelpipeline.imagepump import ImagePump
-from volumina.slicingtools import SliceProjection, SliceProjectionTest
-from volumina.eventswitch import EventSwitch
-from volumina.navigationControler import NavigationControler, NavigationInterpreter
-from volumina.brushingcontroler import BrushingControler, BrushingInterpreter, CrosshairControler
-from volumina.clickReportingInterpreter import ClickReportingInterpreter
-from PyQt4.QtGui import QTransform,QWidget
+import operations
 from PyQt4 import uic
 import os
 useVTK = True
-
+import numpy as np
 import logging
+import pickle
 
 try:
     from volumina.view3d.view3d import OverviewScene
@@ -44,6 +39,7 @@ class LightfieldGui(LayerViewerGui):
         self.volumeEditorWidget.quadview.splitHorizontal2.addWidget(view_3d)
         
         self.initDrawers()
+        self.dataSelectionOperator = None
         
         
     def initDrawers(self):
@@ -54,19 +50,30 @@ class LightfieldGui(LayerViewerGui):
         self._drawers.editContrastSubmit.clicked.connect(self.editContrast)
         self._drawers.editGammaSubmit.clicked.connect(self.editGamma)
         self._drawers.editMedianSubmit.clicked.connect(self.editMedian)
+        self._drawers.editDepthSubmit.clicked.connect(self.editDepth)
         
     def appletDrawers(self):
         return [("Lightfield View", self._drawers )]
     
+    def editDepth(self):
+        inner = self._drawers.editDepthInner.value()
+        outer = self._drawers.editDepthOuter.value()
+#        self.operation = "pass"
+#        self.options = {}
+#        self.logger.info("Calculating depth")
+#        depth = operations.depth(self.dataSelectionOperator.outputs["Image"][:].allocate().wait(),inner,outer)
+#        depth.dirty = True
+        self.operation = "Depth"
+        self.options = {"inner" : inner, "outer" : outer}
+#        print depth
+    
     def editGauss(self):
-        self.logger.info("Edit Gauss has been clicked.")
         radius = self._drawers.editGaussRadius.value()
         self.operation = "Gauss"
         self.options = {"radius":radius}
         
         
     def editChannel(self):
-        self.logger.info("Edit channel has been clicked")
         r = self._drawers.editChannelR.value()
         b = self._drawers.editChannelB.value()
         g = self._drawers.editChannelG.value()
@@ -88,7 +95,7 @@ class LightfieldGui(LayerViewerGui):
         size = self._drawers.editMedianSize.value()
         self.operation = "Median"
         self.options = {"size": size}
-        
+    
     @property
     def operation(self):
         pass
@@ -104,8 +111,10 @@ class LightfieldGui(LayerViewerGui):
     @options.setter
     def options(self,value):
         self.topLevelOperator.Options.setValue(value)
-        
+
+    
     def setupLayers(self, currentImageIndex):
+        self.logger.info("setupLayers called")
         layers = []
 
         # Show the thresholded data

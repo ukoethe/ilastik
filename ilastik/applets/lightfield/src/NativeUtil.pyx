@@ -45,13 +45,15 @@ def put(np.ndarray src, np.ndarray dest):
 @cython.boundscheck(False)
 @cython.wraparound(False)   
 cdef _put(np.ndarray src, np.ndarray dest):
-    cdef int k,i
-    cdef list kRange = range(src.shape[0])
-    cdef list lRange = range(src.shape[1])
-  
+    cdef int k,l,m
+    cdef list kRange = range(src.shape[2])
+    cdef list lRange = range(src.shape[3])
+    cdef list mRange = range(src.shape[4])
+    
     for k in kRange:
         for l in lRange:
-            dest[k][l] = src[k][l]
+            for m in mRange:
+                dest[0,0,k,l,m] = src[0,0,k,l,m]
 
 def median(np.ndarray lf, int channel, int size):
   

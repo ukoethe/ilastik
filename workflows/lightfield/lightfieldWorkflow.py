@@ -17,6 +17,7 @@ class LightfieldWorkflow(Workflow):
         # Create applets 
         self.dataSelectionApplet = DataSelectionApplet(graph, "Input Data", "Input Data", supportIlastik05Import=True, batchDataGui=False)
         self.lightfieldApplet = LightfieldApplet(graph)
+        self.lightfieldApplet.gui.dataSelectionOperator = self.dataSelectionApplet.topLevelOperator
 #        self.lightfieldApplet = LightfieldApplet2(graph)
 
         self._applets.append( self.dataSelectionApplet )
