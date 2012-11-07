@@ -100,11 +100,13 @@ class ObjectClassificationGui(LabelingGui):
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
             # Add the layer to draw the labels, but don't add any labels
+
+            # FIXME: this is all wrong now.
             labelsrc = RelabelingLazyflowSinkSource(
                 labelOutput,
                 self._labelingSlots.labelInput[currentImageIndex])
 
-            relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
+            relabeling=numpy.zeros(self.maxObjects + 1, dtype=numpy.uint32)
             labelsrc.setRelabeling(relabeling)
             labellayer = ClickableColortableLayer(self.editor,
                                                   self.onClick,

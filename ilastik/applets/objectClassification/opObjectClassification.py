@@ -164,7 +164,7 @@ class OpRelabel(Operator):
 
     Image = InputSlot()
     Relabeling = InputSlot(stype=Opaque)
-    MaxObjectNumber = InputSlot(stype='integer')
+    MaxObjects = InputSlot(stype='integer')
 
     Output = OutputSlot()
 
@@ -177,7 +177,7 @@ class OpRelabel(Operator):
         predictions = predictions[0].squeeze()
         relabeling = predictions
         relabeling[0]=0
-        maxobject = self.MaxObjectNumber.value
+        maxobject = self.MaxObjects.value
 
         im = relabeling[im]
         return im[roi.toSlice()]
@@ -199,7 +199,7 @@ class OpObjectClassification(Operator):
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
     FreezePredictions = InputSlot(stype='bool')
-    MaxObjectNumber = InputSlot(level=1, stype=Opaque)
+    MaxObjects = InputSlot(level=1, stype=Opaque)
 
     ################
     # Output slots #
@@ -237,11 +237,11 @@ class OpObjectClassification(Operator):
 
         self.opRelabelLabels.inputs["Image"].connect(self.InputImages)
         self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
-        self.opRelabelLabels.inputs["MaxObjectNumber"].connect(self.MaxObjectNumber)
+        self.opRelabelLabels.inputs["MaxObjects"].connect(self.MaxObjects)
 
         self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
         self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
-        self.opRelabelPredictions.inputs["MaxObjectNumber"].connect(self.MaxObjectNumber)
+        self.opRelabelPredictions.inputs["MaxObjects"].connect(self.MaxObjects)
 
         # connect outputs
         self.MaxLabelValue.setValue(_MAXLABELS)
@@ -268,7 +268,7 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
 
-        result = self.MaxObjectNumber[imageIndex].value
+        result = self.MaxObjects[imageIndex].value
         self.LabelInputs[imageIndex].setValue([numpy.zeros((result,))])
 
     def setupOutputs(self):
@@ -281,9 +281,9 @@ class OpObjectClassification(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
-        if slot == self.MaxObjectNumber or slot == self.ObjectFeatures:
+        if slot == self.MaxObjects or slot == self.ObjectFeatures:
             for i, _input in enumerate(self.LabelInputs):
-                result = self.MaxObjectNumber[i].value
+                result = self.MaxObjects[i].value
                 _input.setValue([numpy.zeros((result,))])
 
 
