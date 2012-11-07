@@ -20,7 +20,7 @@ from ilastik.applets.labeling import LabelingGui
 
 import volumina.colortables as colortables
 from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
-                         RelabelingLazyflowSinkSource, ClickableColortableLayer, RelabelingLazyflowSource
+                         RelabelingLazyflowSinkSource, ClickableColortableLayer
 
 from volumina.brushingcontroler import ClickInterpreter2
 

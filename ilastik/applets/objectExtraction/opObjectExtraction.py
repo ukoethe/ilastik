@@ -202,23 +202,29 @@ class OpObjectExtraction( Operator ):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get( roi ).wait()
-            #print self.RegionFeatures.meta.shape
-            #print self.RegionFeatures.meta.axistags
+            self._regionCount(subindex, res[0])
             return res
+
         if slot is self.RegionCount:
-            res = self._opRegCent.Output.get( roi ).wait()
-            #FIXME: there has to be some magic here, to extract not only from the first time slice
-        
-            feats = res[0]
-            nobjects = feats[feats.activeNames()[0]].shape[0]            
+            result = self._regionCount(subindex)
+            return [result]
+
+    def _regionCount(self, subindex, feats=None):
+        #FIXME: there has to be some magic here, to extract not only from the first time slice
+
+        if feats is None:
+            feats = self._opRegFeats.Output.get( roi ).wait()[0]
+
+        nobjects = feats[feats.activeFeatures()[0]].shape[0]
+        if self.RegionCount.value != nobjects:
             self.RegionCount.setValue([nobjects])
-            result[0]=nobjects
-            return result
-            
-            
+            self.propagateDirty(self.RegionCount, subindex, None)
+        return nobjects
+
 
     def propagateDirty(self, inputSlot, subindex, roi):
-        raise NotImplementedError
+        if inputSlot is self.RegionCount:
+            inputSlot.setDirty(roi)
 
     def updateLabelImage( self ):
         m = self.LabelImage.meta

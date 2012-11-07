@@ -226,7 +226,7 @@ class OpObjectClassification(Operator):
     
     FreezePredictions = InputSlot(stype='bool')
 
-    #MaxObjectNumber = InputSlot(level=1, stype = Opaque)
+    MaxObjectNumber = InputSlot(level=1, stype = Opaque)
 
     MaxLabelValue = OutputSlot()
     
@@ -257,20 +257,24 @@ class OpObjectClassification(Operator):
         self.opPredict.inputs["Features"].connect(self.ObjectFeatures)
         self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
         self.opPredict.inputs["LabelsCount"].setValue(2)
-        
+
+        self.opRelabelLabels = OperatorWrapper(OpRelabel, parent = self, graph = self.graph)
+        self.opRelabelLabels.inputs["Image"].connect(self.InputImages)
+        self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
+        self.opRelabelLabels.inputs["MaxObjectNumber"].connect(self.MaxObjectNumber)
+
         self.opRelabelPredictions = OperatorWrapper(OpRelabel, parent = self, graph = self.graph)
         self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
         self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
-        self.opRelabelPredictions.inputs["MaxObjectNumber"].setValue(19)
-        
-        
-        
+        self.opRelabelPredictions.inputs["MaxObjectNumber"].connect(self.MaxObjectNumber)
+
+
+
         #Connect the outputs
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
-        #self.MaxObjectNumber.setValue(19)
         self.LabelOutputs.connect( self.InputImages )
-        #self.MaxLabelValue.connect( self.opMaxLabel.Output )
+        self.LabelOutputs.connect( self.opRelabelLabels.Output )
         self.MaxLabelValue.setValue(2)
         #self.PredictionLabels.connect(self.opPredict.Predictions)
         self.PredictionLabels.connect(self.opRelabelPredictions.Output)
@@ -297,9 +301,10 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        #FIXME: this should take from MaxObjectNumber slot
-        self.LabelInputs[imageIndex].setValue([numpy.zeros((19,))])
-                
+
+        result = self.MaxObjectNumber[imageIndex].value
+        self.LabelInputs[imageIndex].setValue([numpy.zeros((result,))])
+
     def setupOutputs(self):
         pass
     
@@ -310,8 +315,11 @@ class OpObjectClassification(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
-        pass 
-    
+        if slot == self.MaxObjectNumber or slot == self.ObjectFeatures:
+            for i, _input in enumerate(self.LabelInputs):
+                result = self.MaxObjectNumber[i].value
+                _input.setValue([numpy.zeros((result,))])
+
 class OpMaxListValue(Operator):
     #For each image, the input is a relabeling vector
     Inputs = InputSlot(level=1) # A list of lists of values
