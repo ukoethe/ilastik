@@ -27,17 +27,15 @@ from volumina.brushingcontroler import ClickInterpreter2
 
 
 class ObjectClassificationGui(LabelingGui):
-    
+
     def centralWidget( self ):
         return self
-    
+
     def appletDrawers(self):
         # Get the labeling drawer from the base class
         labelingDrawer = super(ObjectClassificationGui, self).appletDrawers()[0][1]
         return [ ("Training", labelingDrawer) ]
-        
-        #return [ ("Object picking", self.drawer ) ]
-    
+
     def reset(self):
         # Base class first
         super(ObjectClassificationGui, self).reset()
@@ -45,7 +43,7 @@ class ObjectClassificationGui(LabelingGui):
         # Ensure that we are NOT in interactive mode
         self.labelingDrawerUi.checkInteractive.setChecked(False)
         self.labelingDrawerUi.checkShowPredictions.setChecked(False)
-        
+
     @traceLogged(traceLogger)
     def __init__(self, pipeline, guiControlSignal, shellRequestSignal ):
         # Tell our base class which slots to monitor
@@ -55,46 +53,32 @@ class ObjectClassificationGui(LabelingGui):
         #FIXME: it's not yet clear what to do with these 2 slots
         labelSlots.labelEraserValue = pipeline.Eraser
         labelSlots.labelDelete = pipeline.DeleteLabel
-        
+
         labelSlots.maxLabelValue = pipeline.MaxLabelValue
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
-        #labelSlots.maxObjectNumber = pipeline.MaxObjectNumber
-        
+
         #FIXME: this should be taken from a slot of the operator
         self.maxObjectNumber = 19
-        
-        
+
+
         # We provide our own UI file (which adds an extra control for interactive mode)
         # This UI file is copied from pixelClassification pipeline
-        # 
+        #
         labelingDrawerUiPath = os.path.split(__file__)[0] + '/labelingDrawer.ui'
-        
+
         # Base class init
         super(ObjectClassificationGui, self).__init__( labelSlots, pipeline, labelingDrawerUiPath)
-        
+
         self.pipeline = pipeline
         self.guiControlSignal = guiControlSignal
         self.shellRequestSignal = shellRequestSignal
-        
-        #self.predictionSerializer = predictionSerializer
-        
+
         self.interactiveModeActive = False
-        #self._currentlySavingPredictions = False
 
         self.labelingDrawerUi.checkInteractive.setEnabled(True)
         self.labelingDrawerUi.checkInteractive.toggled.connect(self.toggleInteractive)
-        #self.labelingDrawerUi.savePredictionsButton.clicked.connect(self.onSavePredictionsButtonClicked)
-
-        #self.labelingDrawerUi.checkShowPredictions.clicked.connect(self.handleShowPredictionsClicked)
-        #def nextCheckState():
-        #    if not self.labelingDrawerUi.checkShowPredictions.isChecked():
-        #        self.labelingDrawerUi.checkShowPredictions.setChecked(True)
-        #    else:
-        #        self.labelingDrawerUi.checkShowPredictions.setChecked(False)
-        #self.labelingDrawerUi.checkShowPredictions.nextCheckState = nextCheckState
-        
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
-        
+
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
         """
@@ -103,82 +87,63 @@ class ObjectClassificationGui(LabelingGui):
         localDir = os.path.split(__file__)[0]
         # (We don't pass self here because we keep the drawer ui in a separate object.)
         self.drawer = uic.loadUi(localDir+"/drawer.ui")
-        #self.drawer.labelImageButton.clicked.connect(self.onLabelImageButtonClicked)
-        #self.drawer.extractObjectsButton.clicked.connect(self.onExtractObjectsButtonClicked)
-    
+
     @traceLogged(traceLogger)
     def createLabelLayer(self, currentImageIndex, direct=False):
-        """
-        Return a colortable layer that displays the label slot data, along with its associated label source.
+        """Return a colortable layer that displays the label slot
+        data, along with its associated label source.
+
         direct: whether this layer is drawn synchronously by volumina
+
         """
-        #print "!!!!!!!!!!!!!!!!! creating label layer"
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
-        #maxObjectNumber = self._labelingSlots.maxObjectNumber[currentImageIndex]
-        
-        #if not labelOutput.ready() or not maxObjectNumber.ready():
+
         if not labelOutput.ready():
             print "nothing ready yet"
             return (None, None)
         else:
             traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
             # Add the layer to draw the labels, but don't add any labels
-            #print "!!!!!!!!!!!!!!!!!!!!!1", labelOutput.meta.shape
-            labelsrc = RelabelingLazyflowSinkSource( labelOutput,
-                                           self._labelingSlots.labelInput[currentImageIndex])
-        
-           
-            #relabeling=numpy.zeros(maxObjectNumber.value+1, dtype=numpy.uint32)
+            labelsrc = RelabelingLazyflowSinkSource(
+                labelOutput,
+                self._labelingSlots.labelInput[currentImageIndex])
+
             relabeling=numpy.zeros(self.maxObjectNumber+1, dtype=numpy.uint32)
             labelsrc.setRelabeling(relabeling)
-            labellayer = ClickableColortableLayer(self.editor, self.onClick, datasource=labelsrc, \
-                                                  colorTable=self._colorTable16, direct=direct)
-            #labellayer = ColortableLayer(datasource=labelsrc, \
-            #                                      colorTable=self._colorTable16, direct=direct)
-            #labellayer = ColortableLayer(labelsrc, colorTable = self._colorTable16, direct=direct )
+            labellayer = ClickableColortableLayer(self.editor,
+                                                  self.onClick,
+                                                  datasource=labelsrc,
+                                                  colorTable=self._colorTable16,
+                                                  direct=direct)
             labellayer.name = "Labels"
             labellayer.ref_object = None
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
-            
+
             #FIXME = maybe it shouldn't be done here... Anyway, it doesn't work yet.
             clickInt = ClickInterpreter2(self.editor, labellayer, self.onClick)
             self.editor.brushingInterpreter = clickInt
-            
+
             return labellayer, labelsrc
-    
-    
+
     @traceLogged(traceLogger)
     def setupLayers(self, currentImageIndex):
-        
+
         # Base class provides the label layer.
         layers = super(ObjectClassificationGui, self).setupLayers(currentImageIndex)
         #This is just for colors
         labels = self.labelListData
-        
+
         labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
         binarySlot = self.pipeline.BinaryImages[currentImageIndex]
-        
+
         if binarySlot.ready():
-            #print "setting up layers in objectClass gui"
             ct = colortables.create_default_8bit()
             self.binaryimagesrc = LazyflowSource( binarySlot )
             layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
             layer.name = "Binary Image"
             layers.append(layer)
-            '''
-            ct = colortables.create_default_16bit()
-            print "Input slot type:", inputSlot.meta.shape
-            self.objectssrc = LazyflowSource( inputSlot )
-            ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
-            layer = ColortableLayer( self.objectssrc, ct )
-            layer.name = "Connected Components"
-            layer.opacity = 0.5
-            layer.visible = True
-            #self.layerstack.append(layer)
-            layers.append(layer)
-            '''
-        
+
         predictionSlot = self.pipeline.PredictionLabels[currentImageIndex]
         if predictionSlot.ready():
             self.predictsrc = LazyflowSource( predictionSlot )
@@ -187,9 +152,9 @@ class ObjectClassificationGui(LabelingGui):
             self.predictlayer.ref_object = None
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
             layers.append(self.predictlayer)
-            
+
         return layers
-    
+
     @pyqtSlot()
     @traceLogged(traceLogger)
     def handleLabelSelectionChange(self):
@@ -197,12 +162,11 @@ class ObjectClassificationGui(LabelingGui):
         if self.pipeline.MaxLabelValue.ready():
             enabled = True
             enabled &= self.pipeline.MaxLabelValue.value >= 2
-            #enabled &= numpy.prod(self.pipeline.CachedFeatureImages[self.imageIndex].meta.shape) > 0
-        
+
         self.labelingDrawerUi.savePredictionsButton.setEnabled(enabled)
         self.labelingDrawerUi.checkInteractive.setEnabled(enabled)
         self.labelingDrawerUi.checkShowPredictions.setEnabled(enabled)
-        
+
     @traceLogged(traceLogger)
     def toggleInteractive(self, checked):
         logger.debug("toggling interactive mode to '%r'" % checked)
@@ -232,7 +196,7 @@ class ObjectClassificationGui(LabelingGui):
             else:
                 self.labelingDrawerUi.labelListView.allowDelete = True
                 self.labelingDrawerUi.AddLabelButton.setEnabled( True )
-        self.interactiveModeActive = checked    
+        self.interactiveModeActive = checked
 
     @pyqtSlot()
     @traceLogged(traceLogger)
@@ -241,7 +205,7 @@ class ObjectClassificationGui(LabelingGui):
         for layer in self.layerstack:
             if "Prediction" in layer.name:
                 layer.visible = checked
-        
+
         # If we're being turned off, turn off live prediction mode, too.
         if not checked and self.labelingDrawerUi.checkInteractive.isChecked():
             self.labelingDrawerUi.checkInteractive.setChecked(False)
@@ -249,20 +213,20 @@ class ObjectClassificationGui(LabelingGui):
             for layer in self.layerstack:
                 if "Segmentation" in layer.name:
                     layer.visible = False
-        
+
     def onClick(self, layer, pos5D, pos):
-        
+
         print "click-click"
-        
+
         slicing = (slice(pos5D[0], pos5D[0] + 1),
                    slice(pos5D[1], pos5D[1]),
                    slice(pos5D[2], pos5D[2] + 1),
                    slice(pos5D[3], pos5D[3] + 1),
                    slice(pos5D[4], pos5D[4] + 1))
         arr = layer._datasources[0].request(slicing, original=True).wait()
-    
+
         obj= arr[0][0][0][0][0]
-        
+
         if obj==0:
             return
         oldlabel = layer._datasources[0]._relabeling[obj]
@@ -273,4 +237,3 @@ class ObjectClassificationGui(LabelingGui):
             layer._datasources[0].setRelabelingEntry(obj, num)
             print "labeled object", obj, "as", num
             layer._datasources[0].put()
-        
