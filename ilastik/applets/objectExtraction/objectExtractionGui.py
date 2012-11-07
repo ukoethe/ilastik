@@ -6,8 +6,10 @@ from lazyflow.rtype import SubRegion
 
 import os
 
-from volumina.api import LazyflowSource, GrayscaleLayer, RGBALayer, ConstantSource, \
-                         AlphaModulatedLayer, LayerStackModel, VolumeEditor, VolumeEditorWidget, ColortableLayer
+from volumina.api import \
+    LazyflowSource, GrayscaleLayer, RGBALayer, \
+    ConstantSource, AlphaModulatedLayer, LayerStackModel, \
+    VolumeEditor, VolumeEditorWidget, ColortableLayer
 import volumina.colortables as colortables
 
 from ilastik.applets.layerViewer import LayerViewerGui

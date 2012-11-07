@@ -19,10 +19,12 @@ from ilastik.applets.layerViewer import LayerViewerGui
 from ilastik.applets.labeling import LabelingGui
 
 import volumina.colortables as colortables
-from volumina.api import LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
-                         RelabelingLazyflowSinkSource, ClickableColortableLayer
+from volumina.api import \
+    LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
+    RelabelingLazyflowSinkSource, ClickableColortableLayer
 
 from volumina.brushingcontroler import ClickInterpreter2
+
 
 class ObjectClassificationGui(LabelingGui):
     
@@ -44,9 +46,6 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkInteractive.setChecked(False)
         self.labelingDrawerUi.checkShowPredictions.setChecked(False)
         
-        
-
-            
     @traceLogged(traceLogger)
     def __init__(self, pipeline, guiControlSignal, shellRequestSignal ):
         # Tell our base class which slots to monitor
@@ -96,8 +95,6 @@ class ObjectClassificationGui(LabelingGui):
         
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
         
-        
-    
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
         """
@@ -191,7 +188,6 @@ class ObjectClassificationGui(LabelingGui):
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
             layers.append(self.predictlayer)
             
-
         return layers
     
     @pyqtSlot()
@@ -227,8 +223,8 @@ class ObjectClassificationGui(LabelingGui):
             self.labelingDrawerUi.checkShowPredictions.setChecked( True )
             self.handleShowPredictionsClicked()
 
-
-        # If we're changing modes, enable/disable our controls and other applets accordingly
+        # If we're changing modes, enable/disable our controls and
+        # other applets accordingly
         if self.interactiveModeActive != checked:
             if checked:
                 self.labelingDrawerUi.labelListView.allowDelete = False
@@ -238,7 +234,6 @@ class ObjectClassificationGui(LabelingGui):
                 self.labelingDrawerUi.AddLabelButton.setEnabled( True )
         self.interactiveModeActive = checked    
 
-        
     @pyqtSlot()
     @traceLogged(traceLogger)
     def handleShowPredictionsClicked(self):
@@ -255,12 +250,15 @@ class ObjectClassificationGui(LabelingGui):
                 if "Segmentation" in layer.name:
                     layer.visible = False
         
-        
     def onClick(self, layer, pos5D, pos):
         
         print "click-click"
         
-        slicing = (slice(pos5D[0], pos5D[0]+1), slice(pos5D[1],pos5D[1]), slice(pos5D[2],pos5D[2]+1), slice(pos5D[3],pos5D[3]+1), slice(pos5D[4],pos5D[4]+1))
+        slicing = (slice(pos5D[0], pos5D[0] + 1),
+                   slice(pos5D[1], pos5D[1]),
+                   slice(pos5D[2], pos5D[2] + 1),
+                   slice(pos5D[3], pos5D[3] + 1),
+                   slice(pos5D[4], pos5D[4] + 1))
         arr = layer._datasources[0].request(slicing, original=True).wait()
     
         obj= arr[0][0][0][0][0]
