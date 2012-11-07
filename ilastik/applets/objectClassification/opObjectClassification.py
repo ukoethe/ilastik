@@ -18,6 +18,108 @@ from ilastik.applets.pixelClassification.opPixelClassification import OpShapeRea
 
 _MAXLABELS = 2
 
+
+class OpObjectClassification(Operator):
+    name = "OpObjectClassification"
+    category = "Top-level"
+
+    ###############
+    # Input slots #
+    ###############
+    BinaryImages = InputSlot(level=1)
+    InputImages = InputSlot(level=1)
+    ObjectFeatures = InputSlot(stype=Opaque, rtype=List, level=1)
+    LabelsAllowedFlags = InputSlot(stype='bool', level=1)
+    LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
+    FreezePredictions = InputSlot(stype='bool')
+    MaxObjects = InputSlot(level=1, stype=Opaque)
+
+    ################
+    # Output slots #
+    ################
+    MaxLabelValue = OutputSlot()
+    LabelOutputs = OutputSlot(level=1)
+    Classifier = OutputSlot()
+    PredictionLabels = OutputSlot(level=1)
+
+    # FIXME: not actually used
+    Eraser = OutputSlot()
+    DeleteLabel = OutputSlot()
+
+    def __init__(self, *args, **kwargs):
+        super(OpObjectClassification, self).__init__(*args, **kwargs)
+
+        # internal operators
+        opkwargs = dict(parent=self, graph=self)
+        self.opInputShapeReader = OperatorWrapper(OpShapeReader, **opkwargs)
+        self.opTrain = OpObjectTrain(graph=self.graph)
+        self.opPredict = OperatorWrapper(OpObjectPredict, **opkwargs)
+        self.opRelabelLabels = OperatorWrapper(OpRelabel, **opkwargs)
+        self.opRelabelPredictions = OperatorWrapper(OpRelabel, **opkwargs)
+
+        # connect inputs
+        self.opInputShapeReader.Input.connect(self.InputImages)
+
+        self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
+        self.opTrain.inputs['Labels'].connect(self.LabelInputs)
+        self.opTrain.inputs['FixClassifier'].setValue(False)
+
+        self.opPredict.inputs["Features"].connect(self.ObjectFeatures)
+        self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
+        self.opPredict.inputs["LabelsCount"].setValue(_MAXLABELS)
+
+        self.opRelabelLabels.inputs["Image"].connect(self.InputImages)
+        self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
+        self.opRelabelLabels.inputs["MaxObjects"].connect(self.MaxObjects)
+
+        self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
+        self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
+        self.opRelabelPredictions.inputs["MaxObjects"].connect(self.MaxObjects)
+
+        # connect outputs
+        self.MaxLabelValue.setValue(_MAXLABELS)
+        self.LabelOutputs.connect(self.opRelabelLabels.Output)
+        self.PredictionLabels.connect(self.opRelabelPredictions.Output)
+        self.Classifier.connect(self.opTrain.Classifier)
+        self.Eraser.setValue(100)
+        self.DeleteLabel.setValue(-1)
+
+        def handleNewInputImage(multislot, index, *args :
+            def handleInputReady(slot):
+                self.setupCaches(multislot.index(slot))
+            multislot[index].notifyReady(handleInputReady)
+
+        self.InputImages.notifyInserted(handleNewInputImage)
+
+    def setupCaches(self, imageIndex):
+        """Setup the label input to correct dimensions"""
+        numImages=len(self.InputImages)
+
+        self.LabelInputs.resize(numImages)
+
+        self.LabelInputs[imageIndex].meta.shape = (1,)
+        self.LabelInputs[imageIndex].meta.dtype = object
+        self.LabelInputs[imageIndex].meta.axistags = None
+
+        result = self.MaxObjects[imageIndex].value
+        self.LabelInputs[imageIndex].setValue([numpy.zeros((result,))])
+
+    def setupOutputs(self):
+        pass
+
+    def setInSlot(self, slot, subindex, roi, value):
+        # Nothing to do here: All inputs that support __setitem__ are
+        #   directly connected to internal operators.
+        pass
+
+    def propagateDirty(self, slot, subindex, roi):
+        # Output slots are directly connected to internal operators
+        if slot == self.MaxObjects or slot == self.ObjectFeatures:
+            for i, _input in enumerate(self.LabelInputs):
+                result = self.MaxObjects[i].value
+                _input.setValue([numpy.zeros((result,))])
+
+
 class OpObjectTrain(Operator):
     name = "TrainRandomForestObjects"
     description = "Train a random forest on multiple images"
@@ -184,107 +286,6 @@ class OpRelabel(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         self.Output.setDirty(slice(None, None, None))
-
-
-class OpObjectClassification(Operator):
-    name = "OpObjectClassification"
-    category = "Top-level"
-
-    ###############
-    # Input slots #
-    ###############
-    BinaryImages = InputSlot(level=1)
-    InputImages = InputSlot(level=1)
-    ObjectFeatures = InputSlot(stype=Opaque, rtype=List, level=1)
-    LabelsAllowedFlags = InputSlot(stype='bool', level=1)
-    LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
-    FreezePredictions = InputSlot(stype='bool')
-    MaxObjects = InputSlot(level=1, stype=Opaque)
-
-    ################
-    # Output slots #
-    ################
-    MaxLabelValue = OutputSlot()
-    LabelOutputs = OutputSlot(level=1)
-    Classifier = OutputSlot()
-    PredictionLabels = OutputSlot(level=1)
-
-    # FIXME: not actually used
-    Eraser = OutputSlot()
-    DeleteLabel = OutputSlot()
-
-    def __init__(self, *args, **kwargs):
-        super(OpObjectClassification, self).__init__(*args, **kwargs)
-
-        # internal operators
-        opkwargs = dict(parent=self, graph=self)
-        self.opInputShapeReader = OperatorWrapper(OpShapeReader, **opkwargs)
-        self.opTrain = OpObjectTrain(graph=self.graph)
-        self.opPredict = OperatorWrapper(OpObjectPredict, **opkwargs)
-        self.opRelabelLabels = OperatorWrapper(OpRelabel, **opkwargs)
-        self.opRelabelPredictions = OperatorWrapper(OpRelabel, **opkwargs)
-
-        # connect inputs
-        self.opInputShapeReader.Input.connect(self.InputImages)
-
-        self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
-        self.opTrain.inputs['Labels'].connect(self.LabelInputs)
-        self.opTrain.inputs['FixClassifier'].setValue(False)
-
-        self.opPredict.inputs["Features"].connect(self.ObjectFeatures)
-        self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
-        self.opPredict.inputs["LabelsCount"].setValue(_MAXLABELS)
-
-        self.opRelabelLabels.inputs["Image"].connect(self.InputImages)
-        self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
-        self.opRelabelLabels.inputs["MaxObjects"].connect(self.MaxObjects)
-
-        self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
-        self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
-        self.opRelabelPredictions.inputs["MaxObjects"].connect(self.MaxObjects)
-
-        # connect outputs
-        self.MaxLabelValue.setValue(_MAXLABELS)
-        self.LabelOutputs.connect(self.opRelabelLabels.Output)
-        self.PredictionLabels.connect(self.opRelabelPredictions.Output)
-        self.Classifier.connect(self.opTrain.Classifier)
-        self.Eraser.setValue(100)
-        self.DeleteLabel.setValue(-1)
-
-        def handleNewInputImage(multislot, index, *args :
-            def handleInputReady(slot):
-                self.setupCaches(multislot.index(slot))
-            multislot[index].notifyReady(handleInputReady)
-
-        self.InputImages.notifyInserted(handleNewInputImage)
-
-    def setupCaches(self, imageIndex):
-        """Setup the label input to correct dimensions"""
-        numImages=len(self.InputImages)
-
-        self.LabelInputs.resize(numImages)
-
-        self.LabelInputs[imageIndex].meta.shape = (1,)
-        self.LabelInputs[imageIndex].meta.dtype = object
-        self.LabelInputs[imageIndex].meta.axistags = None
-
-        result = self.MaxObjects[imageIndex].value
-        self.LabelInputs[imageIndex].setValue([numpy.zeros((result,))])
-
-    def setupOutputs(self):
-        pass
-
-    def setInSlot(self, slot, subindex, roi, value):
-        # Nothing to do here: All inputs that support __setitem__ are
-        #   directly connected to internal operators.
-        pass
-
-    def propagateDirty(self, slot, subindex, roi):
-        # Output slots are directly connected to internal operators
-        if slot == self.MaxObjects or slot == self.ObjectFeatures:
-            for i, _input in enumerate(self.LabelInputs):
-                result = self.MaxObjects[i].value
-                _input.setValue([numpy.zeros((result,))])
 
 
 class OpMaxListValue(Operator):
