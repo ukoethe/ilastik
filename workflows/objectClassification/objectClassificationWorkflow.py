@@ -13,11 +13,11 @@ from lazyflow.stype import Opaque
 from lazyflow.operators.ioOperators.opInputDataReader import OpInputDataReader
 from lazyflow.operators import OpAttributeSelector
 
-class ObjectClassificationWorkflow( Workflow ):
+class ObjectClassificationWorkflow(Workflow):
 
-    def __init__( self ):
+    def __init__(self):
         graph = Graph()
-        super(ObjectClassificationWorkflow, self).__init__( graph = graph )
+        super(ObjectClassificationWorkflow, self).__init__(graph = graph)
         self._applets = []
 
         ######################
@@ -26,9 +26,12 @@ class ObjectClassificationWorkflow( Workflow ):
 
         ## Create applets
         self.projectMetadataApplet = ProjectMetadataApplet()
-        self.dataSelectionApplet = DataSelectionApplet(self, "Input Segmentation", "Input Segmentation", batchDataGui=False)
-        self.objectExtractionApplet = ObjectExtractionApplet( self )
-        self.objectClassificationApplet = ObjectClassificationApplet( self )
+        self.dataSelectionApplet = DataSelectionApplet(self,
+                                                       "Input Segmentation",
+                                                       "Input Segmentation",
+                                                       batchDataGui=False)
+        self.objectExtractionApplet = ObjectExtractionApplet(self)
+        self.objectClassificationApplet = ObjectClassificationApplet(self)
 
         ## Access applet operators
         opData = self.dataSelectionApplet.topLevelOperator
@@ -36,34 +39,35 @@ class ObjectClassificationWorkflow( Workflow ):
         opObjClassification = self.objectClassificationApplet.topLevelOperator
 
         # connect data -> extraction
-        opObjExtraction.BinaryImage.connect( opData.Image )
+        opObjExtraction.BinaryImage.connect(opData.Image)
 
         # connect data -> classification
-        opObjClassification.BinaryImages.connect( opData.Image )
-        opObjClassification.LabelsAllowedFlags.connect( opData.AllowLabels )
+        opObjClassification.BinaryImages.connect(opData.Image)
+        opObjClassification.LabelsAllowedFlags.connect(opData.AllowLabels)
 
         # connect extraction -> classification
-        opObjClassification.InputImages.connect( opObjExtraction.LabelImage )
-        opObjClassification.ObjectFeatures.connect( opObjExtraction.RegionFeatures )
-        opObjClassification.MaxObjectNumber.connect( opObjExtraction.RegionCount )
+        opObjClassification.InputImages.connect(opObjExtraction.LabelImage)
+        opObjClassification.ObjectFeatures.connect(opObjExtraction.RegionFeatures)
+        opObjClassification.MaxObjectNumber.connect(opObjExtraction.RegionCount)
 
         self._applets.append(self.projectMetadataApplet)
         self._applets.append(self.dataSelectionApplet)
         self._applets.append(self.objectExtractionApplet)
         self._applets.append(self.objectClassificationApplet)
 
-        # The shell needs a slot from which he can read the list of image names to switch between.
-        # Use an OpAttributeSelector to create a slot containing just the filename from the OpDataSelection's DatasetInfo slot.
-        opSelectFilename = OperatorWrapper( OpAttributeSelector, graph=graph )
-        opSelectFilename.InputObject.connect( opData.Dataset )
-        opSelectFilename.AttributeName.setValue( 'filePath' )
+        # The shell needs a slot from which he can read the list of
+        # image names to switch between. Use an OpAttributeSelector to
+        # create a slot containing just the filename from the
+        # OpDataSelection's DatasetInfo slot.
+        opSelectFilename = OperatorWrapper(OpAttributeSelector, graph=graph)
+        opSelectFilename.InputObject.connect(opData.Dataset)
+        opSelectFilename.AttributeName.setValue('filePath')
 
         self._imageNameListSlot = opSelectFilename.Result
 
     @property
     def applets(self):
         return self._applets
-
 
     @property
     def imageNameListSlot(self):
