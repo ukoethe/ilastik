@@ -50,16 +50,12 @@ class ObjectClassificationGui(LabelingGui):
         labelSlots = LabelingGui.LabelingSlots()
         labelSlots.labelInput = pipeline.LabelInputs
         labelSlots.labelOutput = pipeline.LabelOutputs
-        #FIXME: it's not yet clear what to do with these 2 slots
+
         labelSlots.labelEraserValue = pipeline.Eraser
         labelSlots.labelDelete = pipeline.DeleteLabel
 
         labelSlots.maxLabelValue = pipeline.MaxLabelValue
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
-
-        #FIXME: this should be taken from a slot of the operator
-        self.maxObjectNumber = 19
-
 
         # We provide our own UI file (which adds an extra control for interactive mode)
         # This UI file is copied from pixelClassification pipeline
@@ -120,8 +116,10 @@ class ObjectClassificationGui(LabelingGui):
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
 
-            #FIXME = maybe it shouldn't be done here... Anyway, it doesn't work yet.
-            clickInt = ClickInterpreter2(self.editor, labellayer, self.onClick)
+            #FIXME = maybe it shouldn't be done here... Anyway, it
+            #doesn't work yet.
+            clickInt = ClickInterpreter2(self.editor, labellayer,
+                                         self.onClick)
             self.editor.brushingInterpreter = clickInt
 
             return labellayer, labelsrc
@@ -215,18 +213,9 @@ class ObjectClassificationGui(LabelingGui):
                     layer.visible = False
 
     def onClick(self, layer, pos5D, pos):
-
-        print "click-click"
-
-        slicing = (slice(pos5D[0], pos5D[0] + 1),
-                   slice(pos5D[1], pos5D[1]),
-                   slice(pos5D[2], pos5D[2] + 1),
-                   slice(pos5D[3], pos5D[3] + 1),
-                   slice(pos5D[4], pos5D[4] + 1))
+        slicing = tuple(slice(i, i+1) for i in pos5D)
         arr = layer._datasources[0].request(slicing, original=True).wait()
-
         obj= arr[0][0][0][0][0]
-
         if obj==0:
             return
         oldlabel = layer._datasources[0]._relabeling[obj]
