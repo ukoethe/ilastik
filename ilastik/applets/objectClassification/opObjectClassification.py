@@ -225,7 +225,7 @@ class OpObjectClassification(Operator):
         self.opRelabelPredictions = OperatorWrapper(OpRelabel, **opkwargs)
 
         # connect inputs
-        self.opInputShapeReader.Input.connect(self.InputImages )
+        self.opInputShapeReader.Input.connect(self.InputImages)
 
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
         self.opTrain.inputs['Labels'].connect(self.LabelInputs)
@@ -245,18 +245,18 @@ class OpObjectClassification(Operator):
 
         # connect outputs
         self.MaxLabelValue.setValue(_MAXLABELS)
-        self.LabelOutputs.connect(self.opRelabelLabels.Output )
+        self.LabelOutputs.connect(self.opRelabelLabels.Output)
         self.PredictionLabels.connect(self.opRelabelPredictions.Output)
         self.Classifier.connect(self.opTrain.Classifier)
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
 
-        def handleNewInputImage(multislot, index, *args ):
+        def handleNewInputImage(multislot, index, *args :
             def handleInputReady(slot):
-                self.setupCaches(multislot.index(slot) )
+                self.setupCaches(multislot.index(slot))
             multislot[index].notifyReady(handleInputReady)
 
-        self.InputImages.notifyInserted(handleNewInputImage )
+        self.InputImages.notifyInserted(handleNewInputImage)
 
     def setupCaches(self, imageIndex):
         """Setup the label input to correct dimensions"""
