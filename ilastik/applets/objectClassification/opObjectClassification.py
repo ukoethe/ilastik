@@ -26,8 +26,8 @@ class OpObjectClassification(Operator):
     ###############
     # Input slots #
     ###############
-    BinaryImages = InputSlot(level=1)
-    InputImages = InputSlot(level=1)
+    BinaryImages = InputSlot(level=1) # for visualization
+    CCImages = InputSlot(level=1) # connected component images
     ObjectFeatures = InputSlot(stype=Opaque, rtype=List, level=1)
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
@@ -58,7 +58,7 @@ class OpObjectClassification(Operator):
         self.opRelabelPredictions = OperatorWrapper(OpRelabel, **opkwargs)
 
         # connect inputs
-        self.opInputShapeReader.Input.connect(self.InputImages)
+        self.opInputShapeReader.Input.connect(self.CCImages)
 
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
         self.opTrain.inputs['Labels'].connect(self.LabelInputs)
@@ -68,11 +68,11 @@ class OpObjectClassification(Operator):
         self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
         self.opPredict.inputs["LabelsCount"].setValue(_MAXLABELS)
 
-        self.opRelabelLabels.inputs["Image"].connect(self.InputImages)
+        self.opRelabelLabels.inputs["Image"].connect(self.CCImages)
         self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
         self.opRelabelLabels.inputs["MaxObjects"].connect(self.MaxObjects)
 
-        self.opRelabelPredictions.inputs["Image"].connect(self.InputImages)
+        self.opRelabelPredictions.inputs["Image"].connect(self.CCImages)
         self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
         self.opRelabelPredictions.inputs["MaxObjects"].connect(self.MaxObjects)
 
@@ -91,11 +91,11 @@ class OpObjectClassification(Operator):
                 self.setupCaches(multislot.index(slot))
             multislot[index].notifyReady(handleInputReady)
 
-        self.InputImages.notifyInserted(handleNewInputImage)
+        self.CCImages.notifyInserted(handleNewInputImage)
 
     def setupCaches(self, imageIndex):
         """Setup the label input to correct dimensions"""
-        numImages=len(self.InputImages)
+        numImages=len(self.CCImages)
 
         self.LabelInputs.resize(numImages)
 
