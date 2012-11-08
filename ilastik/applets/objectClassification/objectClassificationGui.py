@@ -85,29 +85,23 @@ class ObjectClassificationGui(LabelingGui):
         self.drawer = uic.loadUi(localDir+"/drawer.ui")
 
     @traceLogged(traceLogger)
-    def createLabelLayer(self, currentImageIndex, direct=False):
+    def createLabelLayer(self, imageIndex, direct=False):
         """Return a colortable layer that displays the label slot
         data, along with its associated label source.
 
         direct: whether this layer is drawn synchronously by volumina
 
         """
-        labelOutput = self._labelingSlots.labelOutput[currentImageIndex]
+        labelInput = self._labelingSlots.labelInput[imageIndex]
+        labelOutput = self._labelingSlots.labelOutput[imageIndex]
 
         if not labelOutput.ready():
             print "nothing ready yet"
             return (None, None)
         else:
-            traceLogger.debug("Setting up labels for image index={}".format(currentImageIndex) )
-            # Add the layer to draw the labels, but don't add any labels
-
-            # FIXME: this is all wrong now.
-            labelsrc = RelabelingLazyflowSinkSource(
-                labelOutput,
-                self._labelingSlots.labelInput[currentImageIndex])
-
-            relabeling=numpy.zeros(self.maxObjects + 1, dtype=numpy.uint32)
-            labelsrc.setRelabeling(relabeling)
+            traceLogger.debug("Setting up labels for image index={}".format(imageIndex))
+            labelsrc = LazyflowSinkSource(labelOutput,
+                                          labelInput)
             labellayer = ClickableColortableLayer(self.editor,
                                                   self.onClick,
                                                   datasource=labelsrc,
@@ -118,11 +112,7 @@ class ObjectClassificationGui(LabelingGui):
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
 
-            #FIXME = maybe it shouldn't be done here... Anyway, it
-            #doesn't work yet.
-            clickInt = ClickInterpreter2(self.editor, labellayer,
-                                         self.onClick)
-            self.editor.brushingInterpreter = clickInt
+            # TODO: how to deal with clicks?
 
             return labellayer, labelsrc
 
@@ -213,18 +203,3 @@ class ObjectClassificationGui(LabelingGui):
             for layer in self.layerstack:
                 if "Segmentation" in layer.name:
                     layer.visible = False
-
-    def onClick(self, layer, pos5D, pos):
-        slicing = tuple(slice(i, i+1) for i in pos5D)
-        arr = layer._datasources[0].request(slicing, original=True).wait()
-        obj= arr[0][0][0][0][0]
-        if obj==0:
-            return
-        oldlabel = layer._datasources[0]._relabeling[obj]
-        if oldlabel!=0:
-            layer._datasources[0].setRelabelingEntry(obj, 0)
-        else:
-            num = self.editor.brushingModel.drawnNumber
-            layer._datasources[0].setRelabelingEntry(obj, num)
-            print "labeled object", obj, "as", num
-            layer._datasources[0].put()

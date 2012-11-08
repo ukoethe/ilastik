@@ -54,8 +54,8 @@ class OpObjectClassification(Operator):
         self.opInputShapeReader = OperatorWrapper(OpShapeReader, **opkwargs)
         self.opTrain = OpObjectTrain(graph=self.graph)
         self.opPredict = OperatorWrapper(OpObjectPredict, **opkwargs)
-        self.opRelabelLabels = OperatorWrapper(OpRelabel, **opkwargs)
-        self.opRelabelPredictions = OperatorWrapper(OpRelabel, **opkwargs)
+        self.opLabelsToImage = OperatorWrapper(OpToImage, **opkwargs)
+        self.opPredictionsToImage = OperatorWrapper(OpToImage, **opkwargs)
 
         # connect inputs
         self.opInputShapeReader.Input.connect(self.CCImages)
@@ -68,25 +68,25 @@ class OpObjectClassification(Operator):
         self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
         self.opPredict.inputs["LabelsCount"].setValue(_MAXLABELS)
 
-        self.opRelabelLabels.inputs["Image"].connect(self.CCImages)
-        self.opRelabelLabels.inputs["Relabeling"].connect(self.LabelInputs)
-        self.opRelabelLabels.inputs["MaxObjects"].connect(self.MaxObjects)
+        self.opLabelsToImage.inputs["Image"].connect(self.CCImages)
+        self.opLabelsToImage.inputs["ObjectMap"].connect(self.LabelInputs)
+        self.opLabelsToImage.inputs["MaxObjects"].connect(self.MaxObjects)
 
-        self.opRelabelPredictions.inputs["Image"].connect(self.CCImages)
-        self.opRelabelPredictions.inputs["Relabeling"].connect(self.opPredict.Predictions)
-        self.opRelabelPredictions.inputs["MaxObjects"].connect(self.MaxObjects)
+        self.opPredictionsToImage.inputs["Image"].connect(self.CCImages)
+        self.opPredictionsToImage.inputs["ObjectMap"].connect(self.opPredict.Predictions)
+        self.opPredictionsToImage.inputs["MaxObjects"].connect(self.MaxObjects)
 
         # connect outputs
         self.MaxLabelValue.setValue(_MAXLABELS)
-        self.LabelImages.connect(self.opRelabelLabels.Output)
-        self.PredictionImages.connect(self.opRelabelPredictions.Output)
+        self.LabelImages.connect(self.opLabelsToImage.Output)
+        self.PredictionImages.connect(self.opPredictionsToImage.Output)
         self.Classifier.connect(self.opTrain.Classifier)
 
         # TODO: remove these
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
 
-        def handleNewInputImage(multislot, index, *args :
+        def handleNewInputImage(multislot, index, *args):
             def handleInputReady(slot):
                 self.setupCaches(multislot.index(slot))
             multislot[index].notifyReady(handleInputReady)
@@ -263,11 +263,11 @@ class OpObjectPredict(Operator):
         self.Predictions.setDirty(roi)
 
 
-class OpRelabel(Operator):
-    name = "OpRelabel"
+class OpToImage(Operator):
+    name = "OpToImage"
 
     Image = InputSlot()
-    Relabeling = InputSlot(stype=Opaque)
+    ObjectMap = InputSlot(stype=Opaque)
     MaxObjects = InputSlot(stype='integer')
 
     Output = OutputSlot()
@@ -277,13 +277,12 @@ class OpRelabel(Operator):
 
     def execute(self, slot, subindex, roi, result):
         im = self.Image[:].wait()
-        predictions = self.Relabeling[:].wait()
-        predictions = predictions[0].squeeze()
-        relabeling = predictions
-        relabeling[0]=0
+        _map = self.ObjectMap[:].wait()
+        _map = _map[0].squeeze()
+        _map[0] = 0
         maxobject = self.MaxObjects.value
 
-        im = relabeling[im]
+        im = _map[im]
         return im[roi.toSlice()]
 
     def propagateDirty(self, slot, subindex, roi):
