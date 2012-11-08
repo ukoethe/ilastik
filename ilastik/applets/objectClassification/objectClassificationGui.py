@@ -21,7 +21,7 @@ from ilastik.applets.labeling import LabelingGui
 import volumina.colortables as colortables
 from volumina.api import \
     LazyflowSource, GrayscaleLayer, ColortableLayer, AlphaModulatedLayer, \
-    RelabelingLazyflowSinkSource, ClickableColortableLayer
+    ClickableColortableLayer, LazyflowSinkSource
 
 from volumina.brushingcontroler import ClickInterpreter2
 
@@ -112,7 +112,12 @@ class ObjectClassificationGui(LabelingGui):
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
 
-            # TODO: how to deal with clicks?
+            labellayer.opLabelInput = self.pipeline.LabelInputs[imageIndex]
+#            labellayer.opCCImage = self.pipeline.CCImagesOut[imageIndex]
+
+            clickInt = ClickInterpreter2(self.editor, labellayer,
+                                         self.onClick)
+            self.editor.brushingInterpreter = clickInt
 
             return labellayer, labelsrc
 
@@ -203,3 +208,17 @@ class ObjectClassificationGui(LabelingGui):
             for layer in self.layerstack:
                 if "Segmentation" in layer.name:
                     layer.visible = False
+
+    def onClick(self, layer, pos5D, pos):
+        slicing = tuple(slice(i, i+1) for i in pos5D)
+        label = self.editor.brushingModel.drawnNumber
+
+        ccslot = layer.opCCImage
+        arr = ccslot.request(slicing).wait()
+        obj = arr.flat[0]
+
+        labelslot = layer.opLabelInput
+        labels = labelslot[:].wait()[0]
+        labels[obj] = label
+        labelslot.setValue([labels])
+        slot.setDirty(slice(None))
