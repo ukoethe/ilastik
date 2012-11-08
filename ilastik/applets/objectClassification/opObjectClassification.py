@@ -41,6 +41,7 @@ class OpObjectClassification(Operator):
     Classifier = OutputSlot()
     LabelImages = OutputSlot(level=1)
     PredictionImages = OutputSlot(level=1)
+    CCImagesOut = OutputSlot(level=1)
 
     # FIXME: not actually used
     Eraser = OutputSlot()
@@ -81,6 +82,8 @@ class OpObjectClassification(Operator):
         self.LabelImages.connect(self.opLabelsToImage.Output)
         self.PredictionImages.connect(self.opPredictionsToImage.Output)
         self.Classifier.connect(self.opTrain.Classifier)
+
+        self.CCImagesOut.connect(self.CCImages)
 
         # TODO: remove these
         self.Eraser.setValue(100)

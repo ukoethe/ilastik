@@ -107,13 +107,12 @@ class ObjectClassificationGui(LabelingGui):
                                                   datasource=labelsrc,
                                                   colorTable=self._colorTable16,
                                                   direct=direct)
+
+            labellayer.ccImageSlot = self.pipeline.CCImagesOut[imageIndex]
             labellayer.name = "Labels"
             labellayer.ref_object = None
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
-
-            labellayer.opLabelInput = self.pipeline.LabelInputs[imageIndex]
-#            labellayer.opCCImage = self.pipeline.CCImagesOut[imageIndex]
 
             clickInt = ClickInterpreter2(self.editor, labellayer,
                                          self.onClick)
@@ -210,15 +209,15 @@ class ObjectClassificationGui(LabelingGui):
                     layer.visible = False
 
     def onClick(self, layer, pos5D, pos):
-        slicing = tuple(slice(i, i+1) for i in pos5D)
         label = self.editor.brushingModel.drawnNumber
 
-        ccslot = layer.opCCImage
-        arr = ccslot.request(slicing).wait()
+        slicing = tuple(slice(i, i+1) for i in pos5D[1:])
+
+        arr = layer.ccImageSlot[slicing].wait()
         obj = arr.flat[0]
 
-        labelslot = layer.opLabelInput
+        labelslot = layer._datasources[0]._inputSlot
         labels = labelslot[:].wait()[0]
         labels[obj] = label
         labelslot.setValue([labels])
-        slot.setDirty(slice(None))
+        labelslot.setDirty(slice(None))
