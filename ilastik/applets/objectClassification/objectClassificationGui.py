@@ -144,7 +144,7 @@ class ObjectClassificationGui(LabelingGui):
             layer.name = "Binary Image"
             layers.append(layer)
 
-        predictionSlot = self.pipeline.PredictionLabels[currentImageIndex]
+        predictionSlot = self.pipeline.PredictionImages[currentImageIndex]
         if predictionSlot.ready():
             self.predictsrc = LazyflowSource( predictionSlot )
             self.predictlayer = ColortableLayer( self.predictsrc, colorTable=self._colorTable16)
