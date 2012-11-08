@@ -38,8 +38,8 @@ class OpObjectClassification(Operator):
     # Output slots #
     ################
     MaxLabelValue = OutputSlot()
-    LabelOutputs = OutputSlot(level=1)
     Classifier = OutputSlot()
+    LabelImages = OutputSlot(level=1)
     PredictionImages = OutputSlot(level=1)
 
     # FIXME: not actually used
@@ -78,9 +78,11 @@ class OpObjectClassification(Operator):
 
         # connect outputs
         self.MaxLabelValue.setValue(_MAXLABELS)
-        self.LabelOutputs.connect(self.opRelabelLabels.Output)
+        self.LabelImages.connect(self.opRelabelLabels.Output)
         self.PredictionImages.connect(self.opRelabelPredictions.Output)
         self.Classifier.connect(self.opTrain.Classifier)
+
+        # TODO: remove these
         self.Eraser.setValue(100)
         self.DeleteLabel.setValue(-1)
 

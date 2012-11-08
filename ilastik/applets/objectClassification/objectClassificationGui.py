@@ -49,7 +49,7 @@ class ObjectClassificationGui(LabelingGui):
         # Tell our base class which slots to monitor
         labelSlots = LabelingGui.LabelingSlots()
         labelSlots.labelInput = pipeline.LabelInputs
-        labelSlots.labelOutput = pipeline.LabelOutputs
+        labelSlots.labelOutput = pipeline.LabelImages
 
         labelSlots.labelEraserValue = pipeline.Eraser
         labelSlots.labelDelete = pipeline.DeleteLabel
