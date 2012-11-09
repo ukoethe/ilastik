@@ -221,7 +221,7 @@ class OpObjectExtraction(Operator):
             feats = self._opRegFeats.Output.get(roi).wait()[0]
 
         nobjects = feats[feats.activeFeatures()[0]].shape[0]
-        if self.RegionCount.value != nobjects:
+        if self.RegionCount.value[0] != nobjects:
             self.RegionCount.setValue([nobjects])
             self.propagateDirty(self.RegionCount, subindex, None)
         return nobjects

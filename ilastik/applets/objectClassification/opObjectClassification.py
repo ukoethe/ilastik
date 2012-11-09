@@ -156,7 +156,8 @@ class OpObjectTrain(Operator):
         labelsMatrix = []
 
         for i, labels in enumerate(self.Labels):
-            lab = labels[:].wait()
+            lab = labels[:].wait()[0]
+
             feats = self.Features[i][0].wait()
 
             counts = numpy.asarray(feats[0]['Count'])
