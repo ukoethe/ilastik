@@ -261,10 +261,8 @@ class OpObjectPredict(Operator):
 
 class OpToImage(Operator):
     name = "OpToImage"
-
     Image = InputSlot()
     ObjectMap = InputSlot(stype=Opaque)
-
     Output = OutputSlot()
 
     def setupOutputs(self):
@@ -272,11 +270,11 @@ class OpToImage(Operator):
 
     def execute(self, slot, subindex, roi, result):
         im = self.Image[:].wait()
-        _map = self.ObjectMap[:].wait()
-        _map = _map[0].squeeze()
-        _map[0] = 0
-
-        im = _map[im]
+        map_ = self.ObjectMap[:].wait()
+        map_ = map_[0].squeeze()
+        if len(map_) != 0:
+            map_[0] = 0
+            im = map_[im]
         return im[roi.toSlice()]
 
     def propagateDirty(self, slot, subindex, roi):
