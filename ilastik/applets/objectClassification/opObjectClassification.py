@@ -71,11 +71,9 @@ class OpObjectClassification(Operator):
 
         self.opLabelsToImage.inputs["Image"].connect(self.CCImages)
         self.opLabelsToImage.inputs["ObjectMap"].connect(self.LabelInputs)
-        self.opLabelsToImage.inputs["MaxObjects"].connect(self.MaxObjects)
 
         self.opPredictionsToImage.inputs["Image"].connect(self.CCImages)
         self.opPredictionsToImage.inputs["ObjectMap"].connect(self.opPredict.Predictions)
-        self.opPredictionsToImage.inputs["MaxObjects"].connect(self.MaxObjects)
 
         # connect outputs
         self.MaxLabelValue.setValue(_MAXLABELS)
@@ -142,7 +140,6 @@ class OpObjectTrain(Operator):
 
     def __init__(self, *args, **kwargs):
         super(OpObjectTrain, self).__init__(*args, **kwargs)
-        #self.progressSignal = OrderedSignal()
         self._forest_count = 1
         # TODO: Make treecount configurable via an InputSlot
         self._tree_count = 100
@@ -181,17 +178,14 @@ class OpObjectTrain(Operator):
             if len(labelsMatrix.shape)==1:
                 labelsMatrix.resize(labelsMatrix.shape+(1,))
             try:
-                # train and store self._forest_count forests in
-                # parallel
+                # train and store forests in parallel
                 pool = Pool()
-
                 for i in range(self._forest_count):
                     def train_and_store(number):
                         result[number] = vigra.learning.RandomForest(self._tree_count)
                         result[number].learnRF(featMatrix.astype(numpy.float32),
                                                labelsMatrix.astype(numpy.uint32))
                     req = pool.request(partial(train_and_store, i))
-
                 pool.wait()
                 pool.clean()
             except:
@@ -243,8 +237,6 @@ class OpObjectPredict(Operator):
         def predict_forest(number):
             predictions[number] = forests[number].predictLabels(counts.astype(numpy.float32))
 
-        #t2 = time.time()
-
         # predict the data with all the forests in parallel
         pool = Pool()
 
@@ -271,7 +263,6 @@ class OpToImage(Operator):
 
     Image = InputSlot()
     ObjectMap = InputSlot(stype=Opaque)
-    MaxObjects = InputSlot(stype='integer')
 
     Output = OutputSlot()
 
@@ -283,7 +274,6 @@ class OpToImage(Operator):
         _map = self.ObjectMap[:].wait()
         _map = _map[0].squeeze()
         _map[0] = 0
-        maxobject = self.MaxObjects.value
 
         im = _map[im]
         return im[roi.toSlice()]

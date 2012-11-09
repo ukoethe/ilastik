@@ -114,6 +114,8 @@ class ObjectClassificationGui(LabelingGui):
             labellayer.zeroIsTransparent  = False
             labellayer.colortableIsRandom = True
 
+            # FIXME: labeling actions should not be tied to this
+            # particular layer.
             clickInt = ClickInterpreter2(self.editor, labellayer,
                                          self.onClick)
             self.editor.brushingInterpreter = clickInt
@@ -140,7 +142,7 @@ class ObjectClassificationGui(LabelingGui):
 
         predictionSlot = self.pipeline.PredictionImages[currentImageIndex]
         if predictionSlot.ready():
-            self.predictsrc = LazyflowSource( predictionSlot )
+            self.predictsrc = LazyflowSource(predictionSlot)
             self.predictlayer = ColortableLayer( self.predictsrc, colorTable=self._colorTable16)
             self.predictlayer.name = "Prediction"
             self.predictlayer.ref_object = None
@@ -165,20 +167,20 @@ class ObjectClassificationGui(LabelingGui):
     def toggleInteractive(self, checked):
         logger.debug("toggling interactive mode to '%r'" % checked)
         print "toggling interactive mode to '%r'" % checked
-        if checked==True:
-            if len(self.pipeline.ObjectFeatures) == 0:
-                self.labelingDrawerUi.checkInteractive.setChecked(False)
-                mexBox=QMessageBox()
-                mexBox.setText("There are no features selected ")
-                mexBox.exec_()
-                return
+        if checked and len(self.pipeline.ObjectFeatures) == 0:
+            self.labelingDrawerUi.checkInteractive.setChecked(False)
+            mexBox=QMessageBox()
+            mexBox.setText("There are no features selected ")
+            mexBox.exec_()
+            return
 
         self.labelingDrawerUi.savePredictionsButton.setEnabled(not checked)
-        self.pipeline.FreezePredictions.setValue( not checked )
+        self.pipeline.FreezePredictions.setValue(not checked)
 
-        # Auto-set the "show predictions" state according to what the user just clicked.
+        # Auto-set the "show predictions" state according to what the
+        # user just clicked.
         if checked:
-            self.labelingDrawerUi.checkShowPredictions.setChecked( True )
+            self.labelingDrawerUi.checkShowPredictions.setChecked(True)
             self.handleShowPredictionsClicked()
 
         # If we're changing modes, enable/disable our controls and
@@ -186,10 +188,10 @@ class ObjectClassificationGui(LabelingGui):
         if self.interactiveModeActive != checked:
             if checked:
                 self.labelingDrawerUi.labelListView.allowDelete = False
-                self.labelingDrawerUi.AddLabelButton.setEnabled( False )
+                self.labelingDrawerUi.AddLabelButton.setEnabled(False)
             else:
                 self.labelingDrawerUi.labelListView.allowDelete = True
-                self.labelingDrawerUi.AddLabelButton.setEnabled( True )
+                self.labelingDrawerUi.AddLabelButton.setEnabled(True)
         self.interactiveModeActive = checked
 
     @pyqtSlot()
@@ -209,6 +211,10 @@ class ObjectClassificationGui(LabelingGui):
                     layer.visible = False
 
     def onClick(self, layer, pos5D, pos):
+        """Extracts the object index that was clicked on and updates
+        that object's label.
+
+        """
         label = self.editor.brushingModel.drawnNumber
 
         slicing = tuple(slice(i, i+1) for i in pos5D[1:])
