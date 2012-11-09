@@ -96,7 +96,6 @@ class ObjectClassificationGui(LabelingGui):
         labelOutput = self._labelingSlots.labelOutput[imageIndex]
 
         if not labelOutput.ready():
-            print "nothing ready yet"
             return (None, None)
         else:
             traceLogger.debug("Setting up labels for image index={}".format(imageIndex))
@@ -166,7 +165,6 @@ class ObjectClassificationGui(LabelingGui):
     @traceLogged(traceLogger)
     def toggleInteractive(self, checked):
         logger.debug("toggling interactive mode to '%r'" % checked)
-        print "toggling interactive mode to '%r'" % checked
         if checked and len(self.pipeline.ObjectFeatures) == 0:
             self.labelingDrawerUi.checkInteractive.setChecked(False)
             mexBox=QMessageBox()
@@ -216,12 +214,9 @@ class ObjectClassificationGui(LabelingGui):
 
         """
         label = self.editor.brushingModel.drawnNumber
-
         slicing = tuple(slice(i, i+1) for i in pos5D[1:])
-
         arr = layer.ccImageSlot[slicing].wait()
         obj = arr.flat[0]
-
         labelslot = layer._datasources[0]._inputSlot
         labels = labelslot[:].wait()[0]
         labels[obj] = label

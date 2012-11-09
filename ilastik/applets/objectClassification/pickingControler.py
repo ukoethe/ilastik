@@ -91,7 +91,6 @@ class PickingInterpreter( BrushingInterpreter ):
     ###
     def onEntry_draw( self, imageview, event ):
         if QApplication.keyboardModifiers() == Qt.ShiftModifier:
-            print "enabling erasing"
             self._pickingCtrl._pickingModel.setErasing()
             self._temp_erasing = True
         imageview.mousePos = imageview.mapScene2Data(imageview.mapToScene(event.pos()))
@@ -100,7 +99,6 @@ class PickingInterpreter( BrushingInterpreter ):
     def onExit_draw( self, imageview, event ):
         self._pickingCtrl.endDrawing(imageview.mousePos)
         if self._temp_erasing:
-            print "disabling erasing"
             self._pickingCtrl._pickingModel.disableErasing()
             self._temp_erasing = False
 
@@ -141,7 +139,6 @@ class PickingControler(QObject):
         self._tempErase = False
 
     def beginDrawing(self, imageview, pos):
-        print "begin drawing"
         imageview.mousePos = pos
         self._isDrawing  = True
         self._pickingModel.beginDrawing(pos, imageview.sliceShape)
@@ -151,7 +148,6 @@ class PickingControler(QObject):
         self._pickingModel.endDrawing(pos)
         
     def setDataSink(self, dataSink):
-        print "data sink set"
         self._dataSink = dataSink
         
     def _writeIntoSink(self, brushStrokeOffset, labels):

@@ -90,7 +90,6 @@ class LayerViewerGui(QMainWindow):
             if slot.level == 1:
                 # The user gave us a slot that is indexed as slot[image]
                 # Wrap the operator so it has the right level.  Indexed as: slot[image][0]
-                print "promoting slot", slot.name
                 oldname = slot.name
                 opPromoteInput = OperatorWrapper( Op1ToMulti, graph=slot.operator.graph )
                 opPromoteInput.Input.connect(slot)
@@ -429,7 +428,6 @@ class LayerViewerGui(QMainWindow):
                         op5 = Op5ifyer( graph=slot.graph )
                         op5.input.connect( slot )
                         newDataShape = op5.output.meta.shape
-                        print slot.name, newDataShape
                         # We just needed the operator to determine the transposed shape.
                         # Disconnect it so it can be garbage collected.
                         op5.input.disconnect()

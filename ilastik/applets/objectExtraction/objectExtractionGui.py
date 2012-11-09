@@ -105,7 +105,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )            
     '''
     def reset( self ):
-        print "reset(): not implemented"
+        pass
 
     ###########################################
     ###########################################
@@ -231,12 +231,6 @@ class ObjectExtractionGui( LayerViewerGui ):
             progress.setValue(maxt)   
         else:
             oper.updateLabelImage()
-        
-        
-        print "Label image call ended"
-        print "result of type:", oper.LabelImage.meta
-        #roi = SubRegion(oper.LabelImage, start=len(m.shape)*(0,), stop=m.shape)
-        #oper.LabelImage.setDirty(roi)
 
     def _onExtractObjectsButtonPressed( self ):
         

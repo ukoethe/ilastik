@@ -39,7 +39,6 @@ class OpRegionFeatures(Operator):
         pass
 
     def execute(self, slot, subindex, roi, result):
-        #print "requesting object features for roi:", roi
         if slot is self.Output:
             def extract(a):
                 labels = numpy.asarray(a, dtype=numpy.uint32)
@@ -52,12 +51,10 @@ class OpRegionFeatures(Operator):
                 centers = numpy.asarray(feats['RegionCenter'],
                                         dtype=numpy.uint16)
                 centers = centers[1:,:]
-                print centers.shape
                 return centers
 
             feats = {}
             for t in roi:
-                #print "RegionFeatures at", t
                 if t in self._cache:
                     feats_at = self._cache[t]
                 elif self.fixed:
@@ -80,7 +77,6 @@ class OpRegionFeatures(Operator):
                         a = a[0,...,0] # assumes t,x,y,z,c
                     else:
                         a = a.squeeze()
-                    print a.shape, a.dtype
                     feats_at = extract(a)
                     self._cache[t] = feats_at
                 feats[t] = feats_at
@@ -120,7 +116,6 @@ class OpRegionCenters(Operator):
 
             centers = {}
             for t in roi:
-                print "RegionCenters at", t
                 if t in self._cache:
                     centers_at = self._cache[t]
                 elif self.fixed:
@@ -234,7 +229,6 @@ class OpObjectExtraction(Operator):
         m = self.LabelImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             for t in range(m.shape[0]):
-                print "Calculating LabelImage at", t
                 #self.updateLabelImageAt(t)
                 start = [t,] + (len(m.shape) - 1) * [0,]
                 stop = [t+1,] + list(m.shape[1:])
@@ -260,13 +254,11 @@ class OpObjectExtraction(Operator):
 
     def updateLabelImageAt(self, t):
         m = self.LabelImage.meta
-        #print "Calculating LabelImage at", t
         start = [t,] + (len(m.shape) - 1) * [0,]
         stop = [t+1,] + list(m.shape[1:])
         a = self.BinaryImage.get(SubRegion(self.BinaryImage,
                                            start=start, stop=stop)).wait()
         a = a[0,...,0]
-        #print a.shape, a.dtype
         self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
 
     def __contained_in_subregion(self, roi, coords):

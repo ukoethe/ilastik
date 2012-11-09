@@ -145,11 +145,9 @@ class PickingModel(QObject):
         return res
 
     def moveTo(self, pos):
-        print "we shouldn't be here"
         oldX, oldY = self.pos.x(), self.pos.y()
         x,y = pos.x(), pos.y()
         
-        #print "BrushingModel.moveTo(pos=%r)" % (pos) 
         line = QGraphicsLineItem(oldX, oldY, x, y)
         line.setPen(QPen( QBrush(Qt.white), self.brushSize, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         self.scene.addItem(line)

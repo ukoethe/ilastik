@@ -169,15 +169,15 @@ class OpObjectTrain(Operator):
             featMatrix.append(newfeats)
             labelsMatrix.append(newlabels)
 
-        if len(featMatrix)==0 or len(labelsMatrix)==0:
-            result[:]=None
+        if len(featMatrix) == 0 or len(labelsMatrix) == 0:
+            result[:] = None
         else:
-            featMatrix=numpy.concatenate(featMatrix,axis=0)
-            labelsMatrix=numpy.concatenate(labelsMatrix,axis=0)
-            if len(featMatrix.shape)==1:
-                featMatrix.resize(featMatrix.shape+(1,))
-            if len(labelsMatrix.shape)==1:
-                labelsMatrix.resize(labelsMatrix.shape+(1,))
+            featMatrix = numpy.concatenate(featMatrix, axis=0)
+            labelsMatrix = numpy.concatenate(labelsMatrix, axis=0)
+            if len(featMatrix.shape) == 1:
+                featMatrix.resize(featMatrix.shape + (1,))
+            if len(labelsMatrix.shape) == 1:
+                labelsMatrix.resize(labelsMatrix.shape + (1,))
             try:
                 # train and store forests in parallel
                 pool = Pool()
