@@ -1,5 +1,10 @@
 from ilastik.applets.base.appletSerializer import AppletSerializer
 
+
+class Groups(object):
+    Labels = "Labels"
+
+
 class ObjectClassificationSerializer(AppletSerializer):
     """
     """
@@ -11,8 +16,8 @@ class ObjectClassificationSerializer(AppletSerializer):
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
         op = self.mainOperator
-        self.deleteIfPresent(topGroup, "Labels")
-        labels_gr = self.getOrCreateGroup(topGroup, "Labels")
+        self.deleteIfPresent(topGroup, Groups.Labels)
+        labels_gr = self.getOrCreateGroup(topGroup, Groups.Labels)
         for i in range(len(op.LabelInputs)):
             name = str(i)
             labels_gr.create_dataset(name=name, data=op.LabelInputs[0].value[0])
@@ -20,10 +25,10 @@ class ObjectClassificationSerializer(AppletSerializer):
 
     def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
         op = self.mainOperator
-        if "Labels" in topGroup.keys():
-            for key in topGroup["Labels"].keys():
+        if Groups.Labels in topGroup.keys():
+            for key in topGroup[Groups.Labels].keys():
                 i = int(key)
-                value = topGroup["Labels"][key].value
+                value = topGroup[Groups.Labels][key].value
                 op.LabelInputs[i].setValue([value])
 
 
