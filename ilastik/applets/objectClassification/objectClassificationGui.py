@@ -223,6 +223,8 @@ class ObjectClassificationGui(LabelingGui):
         slicing = tuple(slice(i, i+1) for i in pos5D[1:])
         arr = layer.segmentationImageSlot[slicing].wait()
         obj = arr.flat[0]
+        if obj == 0: # background
+            return
         labelslot = layer._datasources[0]._inputSlot
         labels = labelslot[:].wait()[0]
         labels[obj] = label
