@@ -32,7 +32,7 @@ class OpObjectClassification(Operator):
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
     FreezePredictions = InputSlot(stype='bool')
-    MaxObjects = InputSlot(level=1, stype=Opaque)
+    NumObjects = InputSlot(level=1, stype=Opaque)
 
     ################
     # Output slots #
@@ -101,7 +101,7 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        self._maxObjectsChanged(imageIndex)
+        self._numObjectsChanged(imageIndex)
 
     def setupOutputs(self):
         pass
@@ -113,12 +113,12 @@ class OpObjectClassification(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
-        if slot == self.MaxObjects:
-            self._maxObjectsChanged(subindex)
+        if slot == self.NumObjects:
+            self._numObjectsChanged(subindex)
 
-    def _maxObjectsChanged(self, imageIndex):
+    def _numObjectsChanged(self, imageIndex):
         old = self.LabelInputs[imageIndex].value
-        new = self.MaxObjects[imageIndex].value
+        new = self.NumObjects[imageIndex].value
         if old != new:
             self.LabelInputs[imageIndex].setValue([numpy.zeros((nobjects,))])
 
