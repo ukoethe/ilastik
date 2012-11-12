@@ -2,6 +2,7 @@ from ilastik.applets.base.applet import Applet
 
 from opObjectClassification import OpObjectClassification
 from objectClassificationGui import ObjectClassificationGui
+from objectClassificationSerializer import ObjectClassificationSerializer
 
 from lazyflow.graph import OperatorWrapper
 
@@ -14,7 +15,10 @@ class ObjectClassificationApplet(Applet):
         self._gui = ObjectClassificationGui(self._topLevelOperator,
                                             self.guiControlSignal,
                                             self.shellRequestSignal)
-        self._serializableItems = []
+        self._serializableItems = [
+            ObjectClassificationSerializer(self._topLevelOperator,
+                                           projectFileGroupName)]
+
         
     @property
     def topLevelOperator(self):
