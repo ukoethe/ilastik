@@ -54,7 +54,7 @@ class ObjectClassificationGui(LabelingGui):
         labelSlots.labelEraserValue = pipeline.Eraser
         labelSlots.labelDelete = pipeline.DeleteLabel
 
-        labelSlots.maxLabelValue = pipeline.MaxLabelValue
+        labelSlots.maxLabelValue = pipeline.NumLabels
         labelSlots.labelsAllowed = pipeline.LabelsAllowedFlags
 
         # We provide our own UI file (which adds an extra control for interactive mode)
@@ -76,7 +76,7 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkShowPredictions.setEnabled(True)
         self.labelingDrawerUi.checkShowPredictions.toggled.connect(self.handleShowPredictionsClicked)
 
-        self.pipeline.MaxLabelValue.notifyDirty(bind(self.handleLabelSelectionChange))
+        self.pipeline.NumLabels.notifyDirty(bind(self.handleLabelSelectionChange))
 
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
@@ -160,9 +160,9 @@ class ObjectClassificationGui(LabelingGui):
     @traceLogged(traceLogger)
     def handleLabelSelectionChange(self):
         enabled = False
-        if self.pipeline.MaxLabelValue.ready():
+        if self.pipeline.NumLabels.ready():
             enabled = True
-            enabled &= self.pipeline.MaxLabelValue.value >= 2
+            enabled &= self.pipeline.NumLabels.value >= 2
 
         self.labelingDrawerUi.savePredictionsButton.setEnabled(enabled)
         self.labelingDrawerUi.checkInteractive.setEnabled(enabled)

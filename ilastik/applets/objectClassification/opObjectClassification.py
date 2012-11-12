@@ -37,7 +37,7 @@ class OpObjectClassification(Operator):
     ################
     # Output slots #
     ################
-    MaxLabelValue = OutputSlot()
+    NumLabels = OutputSlot()
     Classifier = OutputSlot()
     LabelImages = OutputSlot(level=1)
     PredictionImages = OutputSlot(level=1)
@@ -76,7 +76,7 @@ class OpObjectClassification(Operator):
         self.opPredictionsToImage.inputs["ObjectMap"].connect(self.opPredict.Predictions)
 
         # connect outputs
-        self.MaxLabelValue.setValue(_MAXLABELS)
+        self.NumLabels.setValue(_MAXLABELS)
         self.LabelImages.connect(self.opLabelsToImage.Output)
         self.PredictionImages.connect(self.opPredictionsToImage.Output)
         self.Classifier.connect(self.opTrain.Classifier)
