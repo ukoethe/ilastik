@@ -6,14 +6,17 @@ from objectExtractionSerializer import ObjectExtractionSerializer
 
 from lazyflow.graph import OperatorWrapper
 
-class ObjectExtractionApplet( Applet ):
-    def __init__( self, workflow, guiName="Object Extraction", projectFileGroupName="ObjectExtraction" ):
-        super(ObjectExtractionApplet, self).__init__( guiName )
-        self._topLevelOperator = OperatorWrapper(OpObjectExtraction, parent=workflow)
-
+class ObjectExtractionApplet(Applet):
+    def __init__(self, workflow,
+                 guiName="Object Extraction",
+                 projectFileGroupName="ObjectExtraction"):
+        super(ObjectExtractionApplet, self).__init__(guiName)
+        self._topLevelOperator = OperatorWrapper(OpObjectExtraction,
+                                                 parent=workflow)
         self._gui = ObjectExtractionGui(self._topLevelOperator)
-        
-        self._serializableItems = [ ObjectExtractionSerializer(self._topLevelOperator, projectFileGroupName) ]
+        self._serializableItems = [
+            ObjectExtractionSerializer(self._topLevelOperator,
+                                       projectFileGroupName)]
 
     @property
     def topLevelOperator(self):
