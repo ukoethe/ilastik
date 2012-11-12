@@ -73,6 +73,9 @@ class ObjectClassificationGui(LabelingGui):
 
         self.labelingDrawerUi.checkInteractive.setEnabled(True)
         self.labelingDrawerUi.checkInteractive.toggled.connect(self.toggleInteractive)
+        self.labelingDrawerUi.checkShowPredictions.setEnabled(True)
+        self.labelingDrawerUi.checkShowPredictions.toggled.connect(self.handleShowPredictionsClicked)
+
         self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
 
     @traceLogged(traceLogger)
