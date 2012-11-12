@@ -117,10 +117,13 @@ class OpObjectClassification(Operator):
             self._numObjectsChanged(subindex)
 
     def _numObjectsChanged(self, imageIndex):
-        old = self.LabelInputs[imageIndex].value
-        new = self.NumObjects[imageIndex].value
+        try:
+            old = self.LabelInputs[imageIndex].value
+            new = self.NumObjects[imageIndex].value
+        except:
+            old, new = -1, 0
         if old != new:
-            self.LabelInputs[imageIndex].setValue([numpy.zeros((nobjects,))])
+            self.LabelInputs[imageIndex].setValue([numpy.zeros((new,))])
 
 
 class OpObjectTrain(Operator):
