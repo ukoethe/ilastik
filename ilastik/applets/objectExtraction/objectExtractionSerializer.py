@@ -4,6 +4,7 @@ class ObjectExtractionSerializer(AppletSerializer):
     """
     """
     SerializerVersion = 0.1
+    _featureNames = ['RegionCenter', 'Count']
 
     def __init__(self, mainOperator, projectFileGroupName):
         super(ObjectExtractionSerializer, self).__init__(
@@ -20,8 +21,8 @@ class ObjectExtractionSerializer(AppletSerializer):
         samples_gr = self.getOrCreateGroup(topGroup, "samples")
         for t in op._opRegFeats._cache.keys():
             t_gr = samples_gr.create_group(str(t))
-            t_gr.create_dataset(name="RegionCenter", data=op._opRegFeats._cache[t]['RegionCenter'])
-            t_gr.create_dataset(name="Count", data=op._opRegFeats._cache[t]['Count'])
+            for name in self._featureNames:
+                t_gr.create_dataset(name=name, data=op._opRegFeats._cache[t][name])
 
     def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
         dest = self.mainOperator.innerOperators[0]._mem_h5
@@ -31,13 +32,11 @@ class ObjectExtractionSerializer(AppletSerializer):
 
         if "samples" in topGroup.keys():
             cache = {}
-
             for t in topGroup["samples"].keys():
                 cache[int(t)] = dict()
-                if 'RegionCenter' in topGroup["samples"][t].keys():
-                    cache[int(t)]['RegionCenter'] = topGroup["samples"][t]['RegionCenter'].value
-                if 'Count' in topGroup["samples"][t].keys():
-                    cache[int(t)]['Count'] = topGroup["samples"][t]['Count'].value
+                for name in self._featureNames:
+                    if name in topGroup["samples"][t].keys():
+                        cache[int(t)][name] = topGroup["samples"][t][name].value
             self.mainOperator.innerOperators[0]._opRegFeats._cache = cache
 
     def isDirty(self):
