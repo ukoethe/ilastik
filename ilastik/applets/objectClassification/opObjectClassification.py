@@ -97,12 +97,10 @@ class OpObjectClassification(Operator):
     def setupCaches(self, imageIndex):
         """Setup the label input to correct dimensions"""
         numImages=len(self.SegmentationImages)
-
         self.LabelInputs.resize(numImages)
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-
         result = self.MaxObjects[imageIndex].value
         self.LabelInputs[imageIndex].setValue([numpy.zeros((result,))])
 
@@ -116,10 +114,9 @@ class OpObjectClassification(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
-        if slot == self.MaxObjects or slot == self.ObjectFeatures:
-            for i, _input in enumerate(self.LabelInputs):
-                result = self.MaxObjects[i].value
-                _input.setValue([numpy.zeros((result,))])
+        if slot == self.MaxObjects:
+            for i in range(len(self.LabelInputs)):
+                self.setupCaches(i)
 
 
 class OpObjectTrain(Operator):
@@ -156,9 +153,7 @@ class OpObjectTrain(Operator):
 
         for i, labels in enumerate(self.Labels):
             lab = labels[:].wait()[0]
-
             feats = self.Features[i][0].wait()
-
             counts = numpy.asarray(feats[0]['Count'])
             index = numpy.nonzero(lab)
             newlabels = lab[index]

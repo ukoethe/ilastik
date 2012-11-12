@@ -76,14 +76,18 @@ class OpObjectExtraction(Operator):
             res = self._opRegFeats.Output.get(roi).wait()
             self._regionCount(subindex, roi, res[0])
             return res
-
         if slot is self.RegionCount:
             result = self._regionCount(subindex, roi)
             return [result]
 
     def _regionCount(self, subindex, roi, feats=None):
-        #FIXME: there has to be some magic here, to extract not only
-        #from the first time slice
+        # FIXME: this ignores roi and always returns length of
+        # features. But what if features were only calculated on a
+        # region?
+
+        # FIXME: there has to be some magic here, to extract not only
+        # from the first time slice
+
         if feats is None:
             feats = self._opRegFeats.Output.get(roi).wait()[0]
 
@@ -91,12 +95,11 @@ class OpObjectExtraction(Operator):
         nobjects = len(feats['Count'])
         if self.RegionCount.value[0] != nobjects:
             self.RegionCount.setValue([nobjects])
-            self.propagateDirty(self.RegionCount, subindex, None)
+            self.RegionCount.setDirty(roi)
         return nobjects
 
     def propagateDirty(self, inputSlot, subindex, roi):
-        if inputSlot is self.RegionCount:
-            inputSlot.setDirty(roi)
+        pass
 
     def updateSegmentationImage(self):
         m = self.SegmentationImage.meta
