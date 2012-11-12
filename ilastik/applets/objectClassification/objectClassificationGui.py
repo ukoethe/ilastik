@@ -149,7 +149,10 @@ class ObjectClassificationGui(LabelingGui):
             self.predictlayer.name = "Prediction"
             self.predictlayer.ref_object = None
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
-            layers.append(self.predictlayer)
+
+            # put first, so that it is visible after hitting "live
+            # predict".
+            layers.insert(0, self.predictlayer)
 
         return layers
 
