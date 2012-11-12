@@ -160,8 +160,6 @@ class OpObjectTrain(Operator):
             feats = self.Features[i][0].wait()
 
             counts = numpy.asarray(feats[0]['Count'])
-            counts = counts[1:]
-
             index = numpy.nonzero(lab)
             newlabels = lab[index]
             newfeats = counts[index]
