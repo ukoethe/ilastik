@@ -4,16 +4,17 @@ class ObjectExtractionSerializer(AppletSerializer):
     """
     """
     SerializerVersion = 0.1
-    
+
     def __init__(self, mainOperator, projectFileGroupName):
-        super( ObjectExtractionSerializer, self ).__init__( projectFileGroupName, self.SerializerVersion )
+        super( ObjectExtractionSerializer, self ).__init__(
+            projectFileGroupName, self.SerializerVersion)
         self.mainOperator = mainOperator
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
         op = self.mainOperator.innerOperators[0]
         src = op._mem_h5
-        self.deleteIfPresent( topGroup, "LabelImage")
-        src.copy('/LabelImage', topGroup) 
+        self.deleteIfPresent( topGroup, "SegmentationImage")
+        src.copy('/SegmentationImage', topGroup)
 
         self.deleteIfPresent( topGroup, "samples")
         samples_gr = self.getOrCreateGroup( topGroup, "samples" )
@@ -23,10 +24,10 @@ class ObjectExtractionSerializer(AppletSerializer):
             t_gr.create_dataset(name="Count", data=op._opRegFeats._cache[t]['Count'])
 
     def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
-        dest = self.mainOperator.innerOperators[0]._mem_h5        
+        dest = self.mainOperator.innerOperators[0]._mem_h5
 
-        del dest['LabelImage']
-        topGroup.copy('LabelImage', dest)
+        del dest['SegmentationImage']
+        topGroup.copy('SegmentationImage', dest)
 
         if "samples" in topGroup.keys():
             cache = {}
@@ -35,8 +36,8 @@ class ObjectExtractionSerializer(AppletSerializer):
                 cache[int(t)] = dict()
                 if 'RegionCenter' in topGroup["samples"][t].keys():
                     cache[int(t)]['RegionCenter'] = topGroup["samples"][t]['RegionCenter'].value
-                if 'Count' in topGroup["samples"][t].keys():                    
-                    cache[int(t)]['Count'] = topGroup["samples"][t]['Count'].value                
+                if 'Count' in topGroup["samples"][t].keys():
+                    cache[int(t)]['Count'] = topGroup["samples"][t]['Count'].value
             self.mainOperator.innerOperators[0]._opRegFeats._cache = cache
 
     def isDirty(self):
@@ -44,4 +45,3 @@ class ObjectExtractionSerializer(AppletSerializer):
 
     def unload(self):
         pass
-

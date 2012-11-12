@@ -27,7 +27,7 @@ class OpObjectClassification(Operator):
     # Input slots #
     ###############
     BinaryImages = InputSlot(level=1) # for visualization
-    CCImages = InputSlot(level=1) # connected component images
+    SegmentationImages = InputSlot(level=1)
     ObjectFeatures = InputSlot(stype=Opaque, rtype=List, level=1)
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
@@ -41,7 +41,7 @@ class OpObjectClassification(Operator):
     Classifier = OutputSlot()
     LabelImages = OutputSlot(level=1)
     PredictionImages = OutputSlot(level=1)
-    CCImagesOut = OutputSlot(level=1)
+    SegmentationImagesOut = OutputSlot(level=1)
 
     # FIXME: not actually used
     Eraser = OutputSlot()
@@ -59,7 +59,7 @@ class OpObjectClassification(Operator):
         self.opPredictionsToImage = OperatorWrapper(OpToImage, **opkwargs)
 
         # connect inputs
-        self.opInputShapeReader.Input.connect(self.CCImages)
+        self.opInputShapeReader.Input.connect(self.SegmentationImages)
 
         self.opTrain.inputs["Features"].connect(self.ObjectFeatures)
         self.opTrain.inputs['Labels'].connect(self.LabelInputs)
@@ -69,10 +69,10 @@ class OpObjectClassification(Operator):
         self.opPredict.inputs["Classifier"].connect(self.opTrain.outputs["Classifier"])
         self.opPredict.inputs["LabelsCount"].setValue(_MAXLABELS)
 
-        self.opLabelsToImage.inputs["Image"].connect(self.CCImages)
+        self.opLabelsToImage.inputs["Image"].connect(self.SegmentationImages)
         self.opLabelsToImage.inputs["ObjectMap"].connect(self.LabelInputs)
 
-        self.opPredictionsToImage.inputs["Image"].connect(self.CCImages)
+        self.opPredictionsToImage.inputs["Image"].connect(self.SegmentationImages)
         self.opPredictionsToImage.inputs["ObjectMap"].connect(self.opPredict.Predictions)
 
         # connect outputs
@@ -81,7 +81,7 @@ class OpObjectClassification(Operator):
         self.PredictionImages.connect(self.opPredictionsToImage.Output)
         self.Classifier.connect(self.opTrain.Classifier)
 
-        self.CCImagesOut.connect(self.CCImages)
+        self.SegmentationImagesOut.connect(self.SegmentationImages)
 
         # TODO: remove these
         self.Eraser.setValue(100)
@@ -92,14 +92,13 @@ class OpObjectClassification(Operator):
                 self.setupCaches(multislot.index(slot))
             multislot[index].notifyReady(handleInputReady)
 
-        self.CCImages.notifyInserted(handleNewInputImage)
+        self.SegmentationImages.notifyInserted(handleNewInputImage)
 
     def setupCaches(self, imageIndex):
         """Setup the label input to correct dimensions"""
-        numImages=len(self.CCImages)
+        numImages=len(self.SegmentationImages)
 
         self.LabelInputs.resize(numImages)
-
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None

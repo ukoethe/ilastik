@@ -107,7 +107,7 @@ class ObjectClassificationGui(LabelingGui):
                                                   colorTable=self._colorTable16,
                                                   direct=direct)
 
-            labellayer.ccImageSlot = self.pipeline.CCImagesOut[imageIndex]
+            labellayer.segmentationImageSlot = self.pipeline.SegmentationImagesOut[imageIndex]
             labellayer.name = "Labels"
             labellayer.ref_object = None
             labellayer.zeroIsTransparent  = False
@@ -215,7 +215,7 @@ class ObjectClassificationGui(LabelingGui):
         """
         label = self.editor.brushingModel.drawnNumber
         slicing = tuple(slice(i, i+1) for i in pos5D[1:])
-        arr = layer.ccImageSlot[slicing].wait()
+        arr = layer.segmentationImageSlot[slicing].wait()
         obj = arr.flat[0]
         labelslot = layer._datasources[0]._inputSlot
         labels = labelslot[:].wait()[0]

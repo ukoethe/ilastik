@@ -47,7 +47,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         
         #inputSlot = self.pipeline.InputImages[currentImageIndex]
         binarySlot = mainOperator.BinaryImage
-        labeledSlot = mainOperator.LabelImage
+        segmentationSlot = mainOperator.SegmentationImage
         centerSlot = mainOperator.ObjectCenterImage
         
         
@@ -58,9 +58,9 @@ class ObjectExtractionGui( LayerViewerGui ):
             layer.name = "Binary Image"
             layers.append(layer)
             #self.layerstack.append(layer)
-        if labeledSlot.ready():
+        if segmentationSlot.ready():
             ct = colortables.create_default_16bit()
-            self.objectssrc = LazyflowSource( labeledSlot )
+            self.objectssrc = LazyflowSource( segmentationSlot )
             ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
             layer = ColortableLayer( self.objectssrc, ct )
             layer.name = "Label Image"
@@ -88,7 +88,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         self.layerstack.append(layer)
 
         ct = colortables.create_default_16bit()
-        self.objectssrc = LazyflowSource( mainOperator.LabelImage )
+        self.objectssrc = LazyflowSource( mainOperator.SegmentationImage )
         ct[0] = QColor(0,0,0,0).rgba() # make 0 transparent
         layer = ColortableLayer( self.objectssrc, ct )
         layer.name = "Label Image"
@@ -101,7 +101,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         self.layerstack.append( layer )
 
         if mainOperator.BinaryImage.meta.shape:
-            self.editor.dataShape = mainOperator.LabelImage.meta.shape
+            self.editor.dataShape = mainOperator.SegmentationImage.meta.shape
         mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )            
     '''
     def reset( self ):
@@ -172,7 +172,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         localDir = os.path.split(__file__)[0]
         self._drawer = uic.loadUi(localDir+"/drawer.ui")
 
-        self._drawer.labelImageButton.pressed.connect(self._onLabelImageButtonPressed)
+        self._drawer.labelImageButton.pressed.connect(self._onSegmentationImageButtonPressed)
         self._drawer.extractObjectsButton.pressed.connect(self._onExtractObjectsButtonPressed)
 
     def initViewerControlUi( self ):
@@ -210,10 +210,10 @@ class ObjectExtractionGui( LayerViewerGui ):
                 layer.visible = (i == row)
         layerListWidget.currentRowChanged.connect( handleSelectionChanged )
 
-    def _onLabelImageButtonPressed( self ):
+    def _onSegmentationImageButtonPressed( self ):
         
         oper = self.operatorForCurrentImage()
-        m = oper.LabelImage.meta
+        m = oper.SegmentationImage.meta
         
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             maxt = m.shape[m.axistags.index('t')]
@@ -227,17 +227,17 @@ class ObjectExtractionGui( LayerViewerGui ):
                 if progress.wasCanceled():
                     break
                 else:
-                    oper.updateLabelImageAt( t )
+                    oper.updateSegmentationImageAt( t )
             progress.setValue(maxt)   
         else:
-            oper.updateLabelImage()
+            oper.updateSegmentationImage()
 
     def _onExtractObjectsButtonPressed( self ):
         
         oper = self.operatorForCurrentImage()
-        m = oper.LabelImage.meta
+        m = oper.SegmentationImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) >0:
-            maxt = oper.LabelImage.meta.shape[0]
+            maxt = oper.SegmentationImage.meta.shape[0]
             progress = QProgressDialog("Extracting objects...", "Stop", 0, maxt)
             progress.setWindowModality(Qt.ApplicationModal)
             progress.setMinimumDuration(0)

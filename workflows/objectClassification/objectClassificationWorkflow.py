@@ -46,7 +46,7 @@ class ObjectClassificationWorkflow(Workflow):
         opObjClassification.LabelsAllowedFlags.connect(opData.AllowLabels)
 
         # connect extraction -> classification
-        opObjClassification.CCImages.connect(opObjExtraction.LabelImage)
+        opObjClassification.SegmentatoinImages.connect(opObjExtraction.SegmentationImage)
         opObjClassification.ObjectFeatures.connect(opObjExtraction.RegionFeatures)
         opObjClassification.MaxObjects.connect(opObjExtraction.RegionCount)
 

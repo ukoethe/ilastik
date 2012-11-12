@@ -16,7 +16,7 @@ class OpObjectExtraction(Operator):
     BinaryImage = InputSlot()
     #FeatureNames = InputSlot(stype=Opaque)
 
-    LabelImage = OutputSlot()
+    SegmentationImage = OutputSlot()
     ObjectCenterImage = OutputSlot()
 
     RegionCenters = OutputSlot(stype=Opaque, rtype=List)
@@ -29,14 +29,14 @@ class OpObjectExtraction(Operator):
         self._mem_h5 = h5py.File(str(id(self)), driver='core', backing_store=False)
         self._reg_cents = {}
 
-        self._opLabelImage = OpLabelImage(parent=self, graph = self.graph)
-        self._opLabelImage.BinaryImage.connect(self.BinaryImage)
+        self._opSegmentationImage = OpSegmentationImage(parent=self, graph = self.graph)
+        self._opSegmentationImage.BinaryImage.connect(self.BinaryImage)
 
         self._opRegCent = OpRegionCenters(parent=self, graph = self.graph)
-        self._opRegCent.LabelImage.connect(self.LabelImage)
+        self._opRegCent.SegmentationImage.connect(self.SegmentationImage)
 
         self._opRegFeats = OpRegionFeatures(parent = self, graph = self.graph)
-        self._opRegFeats.LabelImage.connect(self.LabelImage)
+        self._opRegFeats.SegmentationImage.connect(self.SegmentationImage)
 
         self.RegionFeatures.meta.shape=(1,)
         self.RegionFeatures.meta.dtype=object
@@ -51,10 +51,10 @@ class OpObjectExtraction(Operator):
         self._mem_h5.close()
 
     def setupOutputs(self):
-        self.LabelImage.meta.assignFrom(self.BinaryImage.meta)
-        self.LabelImage.meta.dtype = numpy.uint32
-        m = self.LabelImage.meta
-        self._mem_h5.create_dataset('LabelImage', shape=m.shape,
+        self.SegmentationImage.meta.assignFrom(self.BinaryImage.meta)
+        self.SegmentationImage.meta.dtype = numpy.uint32
+        m = self.SegmentationImage.meta
+        self._mem_h5.create_dataset('SegmentationImage', shape=m.shape,
                                     dtype=numpy.uint32, compression=1)
 
         self._reg_cents = dict.fromkeys(xrange(m.shape[0]),
@@ -66,8 +66,8 @@ class OpObjectExtraction(Operator):
 
         if slot is self.ObjectCenterImage:
             return self._execute_ObjectCenterImage(roi, result)
-        if slot is self.LabelImage:
-            result = self._mem_h5['LabelImage'][roi.toSlice()]
+        if slot is self.SegmentationImage:
+            result = self._mem_h5['SegmentationImage'][roi.toSlice()]
             return result
         if slot is self.RegionCenters:
             res = self._opRegCent.Output.get(roi).wait()
@@ -98,18 +98,18 @@ class OpObjectExtraction(Operator):
         if inputSlot is self.RegionCount:
             inputSlot.setDirty(roi)
 
-    def updateLabelImage(self):
-        m = self.LabelImage.meta
+    def updateSegmentationImage(self):
+        m = self.SegmentationImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             for t in range(m.shape[0]):
-                #self.updateLabelImageAt(t)
+                #self.updateSegmentationImageAt(t)
                 start = [t,] + (len(m.shape) - 1) * [0,]
                 stop = [t+1,] + list(m.shape[1:])
                 a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
                 a = a[0,...,0]
-                self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
-                roi = SubRegion(self.LabelImage, start=5*(0,), stop=m.shape)
-                self.LabelImage.setDirty(roi)
+                self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
+                roi = SubRegion(self.SegmentationImage, start=5*(0,), stop=m.shape)
+                self.SegmentationImage.setDirty(roi)
         else:
             start = len(m.shape)*[0,]
             stop = list(m.shape)
@@ -117,22 +117,22 @@ class OpObjectExtraction(Operator):
                                                start=start, stop=stop)).wait()
             a = a.squeeze()
             if len(a.shape)>2:
-                self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelVolumeWithBackground(a)
+                self._mem_h5['SegmentationImage'][...,0] = vigra.analysis.labelVolumeWithBackground(a)
             else:
-                self._mem_h5['LabelImage'][...,0] = vigra.analysis.labelImageWithBackground(a)
+                self._mem_h5['SegmentationImage'][...,0] = vigra.analysis.labelImageWithBackground(a)
             oldshape = self.BinaryImage.meta.shape
-            roi = SubRegion(self.LabelImage, start=len(oldshape)*(0,),
+            roi = SubRegion(self.SegmentationImage, start=len(oldshape)*(0,),
                             stop=oldshape)
-            self.LabelImage.setDirty(roi)
+            self.SegmentationImage.setDirty(roi)
 
-    def updateLabelImageAt(self, t):
-        m = self.LabelImage.meta
+    def updateSegmentationImageAt(self, t):
+        m = self.SegmentationImage.meta
         start = [t,] + (len(m.shape) - 1) * [0,]
         stop = [t+1,] + list(m.shape[1:])
         a = self.BinaryImage.get(SubRegion(self.BinaryImage,
                                            start=start, stop=stop)).wait()
         a = a[0,...,0]
-        self._mem_h5['LabelImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
+        self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
 
     def __contained_in_subregion(self, roi, coords):
         b = True
@@ -147,7 +147,7 @@ class OpObjectExtraction(Operator):
 
     def _execute_ObjectCenterImage(self, roi, result):
         result[:] = 0
-        m = self.LabelImage.meta
+        m = self.SegmentationImage.meta
         hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
         if hasTime:
             for t in range(roi.start[0], roi.stop[0]):
@@ -224,15 +224,15 @@ class OpObjectExtraction(Operator):
         return result
 
 
-class OpLabelImage(Operator):
+class OpSegmentationImage(Operator):
     BinaryImage = InputSlot()
-    LabelImageWithBackground = OutputSlot()
+    SegmentationImageWithBackground = OutputSlot()
 
     def setupOutputs(self):
-        self.LabelImageWithBackground.meta.assignFrom(self.BinaryImage.meta)
+        self.SegmentationImageWithBackground.meta.assignFrom(self.BinaryImage.meta)
 
     def execute(self, slot, subindex, roi, destination):
-        if slot is self.LabelImageWithBackground:
+        if slot is self.SegmentationImageWithBackground:
             a = self.BinaryImage.get(roi).wait()
             assert(a.shape[0] == 1)
             assert(a.shape[-1] == 1)
@@ -241,7 +241,7 @@ class OpLabelImage(Operator):
 
 
 class OpRegionFeatures(Operator):
-    LabelImage = InputSlot()
+    SegmentationImage = InputSlot()
     Output = OutputSlot(stype=Opaque, rtype=List)
 
     def __init__(self, parent=None, graph=None):
@@ -275,18 +275,18 @@ class OpRegionFeatures(Operator):
                 elif self.fixed:
                     feats_at = { 'RegionCenter': numpy.asarray([]), 'Count': numpy.asarray([]) }
                 else:
-                    m = self.LabelImage.meta
+                    m = self.SegmentationImage.meta
                     hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
                     troi = None
                     if hasTime:
-                        troi = SubRegion(self.LabelImage,
-                                         start=[t,] + (len(self.LabelImage.meta.shape) - 1) * [0,],
-                                         stop=[t+1,] + list(self.LabelImage.meta.shape[1:]))
+                        troi = SubRegion(self.SegmentationImage,
+                                         start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
+                                         stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
                     else:
-                        troi = SubRegion(self.LabelImage,
-                                         start=len(self.LabelImage.meta.shape)*[0,],
-                                         stop=list(self.LabelImage.meta.shape))
-                    a = self.LabelImage.get(troi).wait()
+                        troi = SubRegion(self.SegmentationImage,
+                                         start=len(self.SegmentationImage.meta.shape)*[0,],
+                                         stop=list(self.SegmentationImage.meta.shape))
+                    a = self.SegmentationImage.get(troi).wait()
 
                     if hasTime > 0:
                         a = a[0,...,0] # assumes t,x,y,z,c
@@ -298,12 +298,12 @@ class OpRegionFeatures(Operator):
             return feats
 
     def propagateDirty(self, slot, subindex, roi):
-        if slot is self.LabelImage:
+        if slot is self.SegmentationImage:
             self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0])))
 
 
 class OpRegionCenters(Operator):
-    LabelImage = InputSlot()
+    SegmentationImage = InputSlot()
     Output = OutputSlot(stype=Opaque, rtype=List)
 
     def __init__(self, parent=None, graph=None):
@@ -313,8 +313,8 @@ class OpRegionCenters(Operator):
         self.fixed = True
 
     def setupOutputs(self):
-        self.Output.meta.shape = self.LabelImage.meta.shape
-        self.Output.meta.dtype = self.LabelImage.meta.dtype
+        self.Output.meta.shape = self.SegmentationImage.meta.shape
+        self.Output.meta.dtype = self.SegmentationImage.meta.dtype
 
     def execute(self, slot, subindex, roi, result):
         if slot is self.Output:
@@ -336,10 +336,10 @@ class OpRegionCenters(Operator):
                 elif self.fixed:
                     centers_at = numpy.asarray([], dtype=numpy.uint16)
                 else:
-                    troi = SubRegion(self.LabelImage,
-                                     start = [t,] + (len(self.LabelImage.meta.shape) - 1) * [0,],
-                                     stop = [t+1,] + list(self.LabelImage.meta.shape[1:]))
-                    a = self.LabelImage.get(troi).wait()
+                    troi = SubRegion(self.SegmentationImage,
+                                     start = [t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
+                                     stop = [t+1,] + list(self.SegmentationImage.meta.shape[1:]))
+                    a = self.SegmentationImage.get(troi).wait()
                     a = a[0,...,0] # assumes t,x,y,z,c
                     centers_at = extract(a)
                     self._cache[t] = centers_at
@@ -348,5 +348,5 @@ class OpRegionCenters(Operator):
             return centers
 
     def propagateDirty(self, slot, subindex, roi):
-        if slot is self.LabelImage:
+        if slot is self.SegmentationImage:
             self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0])))
