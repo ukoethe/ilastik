@@ -63,7 +63,6 @@ class OpObjectExtraction(Operator):
         self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
 
     def execute(self, slot, subindex, roi, result):
-
         if slot is self.ObjectCenterImage:
             return self._execute_ObjectCenterImage(roi, result)
         if slot is self.SegmentationImage:
@@ -74,22 +73,22 @@ class OpObjectExtraction(Operator):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get(roi).wait()
-            self._regionCount(subindex, roi, res[0])
+            self._regionCount(roi, res[0])
             return res
         if slot is self.RegionCount:
-            result = self._regionCount(subindex, roi)
+            result = self._regionCount(roi)
             return [result]
 
-    def _regionCount(self, subindex, roi, feats=None):
+    def _regionCount(self, roi, feats=None):
         # FIXME: this ignores roi and always returns length of
         # features. But what if features were only calculated on a
         # region?
 
         # FIXME: there has to be some magic here, to extract not only
         # from the first time slice
-
         if feats is None:
-            feats = self._opRegFeats.Output.get(roi).wait()[0]
+            feats = self._opRegFeats.Output.get(roi).wait()
+            feats = feats[0]
 
         # FIXME: do not hardcode key.
         nobjects = len(feats['Count'])

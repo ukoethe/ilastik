@@ -1,4 +1,5 @@
 from ilastik.applets.base.appletSerializer import AppletSerializer
+from lazyflow.rtype import List
 
 class ObjectExtractionSerializer(AppletSerializer):
     """
@@ -38,6 +39,11 @@ class ObjectExtractionSerializer(AppletSerializer):
                     if name in topGroup["samples"][t].keys():
                         cache[int(t)][name] = topGroup["samples"][t][name].value
             self.mainOperator.innerOperators[0]._opRegFeats._cache = cache
+
+        # update region count
+        slot = self.mainOperator.innerOperators[0].RegionCount
+        roi = List(slot, [0])
+        self.mainOperator.innerOperators[0]._regionCount(roi)
 
     def isDirty(self):
         return True

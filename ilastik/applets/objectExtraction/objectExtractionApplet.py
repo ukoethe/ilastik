@@ -14,7 +14,9 @@ class ObjectExtractionApplet(Applet):
         self._topLevelOperator = OperatorWrapper(OpObjectExtraction,
                                                  parent=workflow)
         self._gui = ObjectExtractionGui(self._topLevelOperator)
-        self._serializableItems = []
+        self._serializableItems = [
+            ObjectExtractionSerializer(self._topLevelOperator,
+                                       projectFileGroupName)]
 
     @property
     def topLevelOperator(self):
