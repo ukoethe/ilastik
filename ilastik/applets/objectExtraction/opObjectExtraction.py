@@ -202,20 +202,21 @@ class OpObjectExtraction(Operator):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get(roi).wait()
-            self._regionCount(subindex, res[0])
+            self._regionCount(subindex, roi, res[0])
             return res
 
         if slot is self.RegionCount:
-            result = self._regionCount(subindex)
+            result = self._regionCount(subindex, roi)
             return [result]
 
-    def _regionCount(self, subindex, feats=None):
-        #FIXME: there has to be some magic here, to extract not only from the first time slice
-
+    def _regionCount(self, subindex, roi, feats=None):
+        #FIXME: there has to be some magic here, to extract not only
+        #from the first time slice
         if feats is None:
             feats = self._opRegFeats.Output.get(roi).wait()[0]
 
-        nobjects = feats[feats.activeFeatures()[0]].shape[0]
+        # FIXME: do not hardcode key.
+        nobjects = len(feats['Count'])
         if self.RegionCount.value[0] != nobjects:
             self.RegionCount.setValue([nobjects])
             self.propagateDirty(self.RegionCount, subindex, None)
