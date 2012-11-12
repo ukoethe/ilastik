@@ -6,18 +6,18 @@ class ObjectExtractionSerializer(AppletSerializer):
     SerializerVersion = 0.1
 
     def __init__(self, mainOperator, projectFileGroupName):
-        super( ObjectExtractionSerializer, self ).__init__(
+        super(ObjectExtractionSerializer, self).__init__(
             projectFileGroupName, self.SerializerVersion)
         self.mainOperator = mainOperator
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
         op = self.mainOperator.innerOperators[0]
         src = op._mem_h5
-        self.deleteIfPresent( topGroup, "SegmentationImage")
+        self.deleteIfPresent(topGroup, "SegmentationImage")
         src.copy('/SegmentationImage', topGroup)
 
-        self.deleteIfPresent( topGroup, "samples")
-        samples_gr = self.getOrCreateGroup( topGroup, "samples" )
+        self.deleteIfPresent(topGroup, "samples")
+        samples_gr = self.getOrCreateGroup(topGroup, "samples")
         for t in op._opRegFeats._cache.keys():
             t_gr = samples_gr.create_group(str(t))
             t_gr.create_dataset(name="RegionCenter", data=op._opRegFeats._cache[t]['RegionCenter'])
