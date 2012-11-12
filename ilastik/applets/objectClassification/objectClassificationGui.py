@@ -28,13 +28,13 @@ from volumina.brushingcontroler import ClickInterpreter2
 
 class ObjectClassificationGui(LabelingGui):
 
-    def centralWidget( self ):
+    def centralWidget(self):
         return self
 
     def appletDrawers(self):
         # Get the labeling drawer from the base class
         labelingDrawer = super(ObjectClassificationGui, self).appletDrawers()[0][1]
-        return [ ("Training", labelingDrawer) ]
+        return [("Training", labelingDrawer)]
 
     def reset(self):
         # Base class first
@@ -45,7 +45,7 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkShowPredictions.setChecked(False)
 
     @traceLogged(traceLogger)
-    def __init__(self, pipeline, guiControlSignal, shellRequestSignal ):
+    def __init__(self, pipeline, guiControlSignal, shellRequestSignal):
         # Tell our base class which slots to monitor
         labelSlots = LabelingGui.LabelingSlots()
         labelSlots.labelInput = pipeline.LabelInputs
@@ -63,7 +63,7 @@ class ObjectClassificationGui(LabelingGui):
         labelingDrawerUiPath = os.path.split(__file__)[0] + '/labelingDrawer.ui'
 
         # Base class init
-        super(ObjectClassificationGui, self).__init__( labelSlots, pipeline, labelingDrawerUiPath)
+        super(ObjectClassificationGui, self).__init__(labelSlots, pipeline, labelingDrawerUiPath)
 
         self.pipeline = pipeline
         self.guiControlSignal = guiControlSignal
@@ -76,7 +76,7 @@ class ObjectClassificationGui(LabelingGui):
         self.labelingDrawerUi.checkShowPredictions.setEnabled(True)
         self.labelingDrawerUi.checkShowPredictions.toggled.connect(self.handleShowPredictionsClicked)
 
-        self.pipeline.MaxLabelValue.notifyDirty( bind(self.handleLabelSelectionChange) )
+        self.pipeline.MaxLabelValue.notifyDirty(bind(self.handleLabelSelectionChange))
 
     @traceLogged(traceLogger)
     def initAppletDrawerUi(self):
@@ -137,15 +137,15 @@ class ObjectClassificationGui(LabelingGui):
 
         if binarySlot.ready():
             ct = colortables.create_default_8bit()
-            self.binaryimagesrc = LazyflowSource( binarySlot )
-            layer = GrayscaleLayer( self.binaryimagesrc, range=(0,1), normalize=(0,1) )
+            self.binaryimagesrc = LazyflowSource(binarySlot)
+            layer = GrayscaleLayer(self.binaryimagesrc, range=(0,1), normalize=(0,1))
             layer.name = "Binary Image"
             layers.append(layer)
 
         predictionSlot = self.pipeline.PredictionImages[currentImageIndex]
         if predictionSlot.ready():
             self.predictsrc = LazyflowSource(predictionSlot)
-            self.predictlayer = ColortableLayer( self.predictsrc, colorTable=self._colorTable16)
+            self.predictlayer = ColortableLayer(self.predictsrc, colorTable=self._colorTable16)
             self.predictlayer.name = "Prediction"
             self.predictlayer.ref_object = None
             self.predictlayer.visible = self.labelingDrawerUi.checkInteractive.isChecked()
