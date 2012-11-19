@@ -20,7 +20,7 @@ class ObjectClassificationSerializer(AppletSerializer):
         labels_gr = self.getOrCreateGroup(topGroup, Groups.Labels)
         for i in range(len(op.LabelInputs)):
             name = str(i)
-            labels_gr.create_dataset(name=name, data=op.LabelInputs[0].value[0])
+            labels_gr.create_dataset(name=name, data=op.LabelInputs[i].value[0])
 
 
     def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
