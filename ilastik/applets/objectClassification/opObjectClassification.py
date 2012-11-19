@@ -101,7 +101,7 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        self._numObjectsChanged(imageIndex)
+        self._resizeLabelInputs(imageIndex)
 
     def setupOutputs(self):
         pass
@@ -114,16 +114,16 @@ class OpObjectClassification(Operator):
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
         if slot == self.NumObjects:
-            self._numObjectsChanged(subindex)
+            self._resizeLabelInputs(subindex)
 
-    def _numObjectsChanged(self, imageIndex):
+    def _resizeLabelInputs(self, imageIndex):
         try:
-            old = self.LabelInputs[imageIndex].value
-            new = self.NumObjects[imageIndex].value
+            nlabels = len(self.LabelInputs[imageIndex].value[0])
+            nobjects = self.NumObjects[imageIndex].value
         except:
-            old, new = -1, 0
-        if old != new:
-            self.LabelInputs[imageIndex].setValue([numpy.zeros((new,))])
+            nlabels, nobjects = -1, 0
+        if nlabels != nobjects:
+            self.LabelInputs[imageIndex].setValue([numpy.zeros((nobjects,))])
 
 
 class OpObjectTrain(Operator):
