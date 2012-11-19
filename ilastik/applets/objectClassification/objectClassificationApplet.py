@@ -8,8 +8,8 @@ from lazyflow.graph import OperatorWrapper
 
 class ObjectClassificationApplet(Applet):
     def __init__(self, workflow,
-                 guiName="Object Features",
-                 projectFileGroupName="ObjectFeatures"):
+                 guiName="Object Classification",
+                 projectFileGroupName="ObjectClassification"):
         super(ObjectClassificationApplet, self).__init__(guiName)
         self._topLevelOperator = OpObjectClassification(parent=workflow)
         self._gui = ObjectClassificationGui(self._topLevelOperator,
