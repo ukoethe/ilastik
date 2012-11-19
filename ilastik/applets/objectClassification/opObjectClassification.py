@@ -159,26 +159,18 @@ class OpObjectTrain(Operator):
         labelsMatrix = []
 
         for i, labels in enumerate(self.Labels):
-            lab = labels[:].wait()[0]
             feats = self.Features[i][0].wait()
-            counts = numpy.asarray(feats[0]['Count'])
-            counts = counts.squeeze()
-            lab = lab.squeeze()
+            counts = numpy.asarray(feats[0]['Count']).squeeze()
+            lab = labels[:].wait()[0].squeeze()
             index = numpy.nonzero(lab)
-            newlabels = lab[index]
-            newfeats = counts[index]
-            featMatrix.append(newfeats)
-            labelsMatrix.append(newlabels)
+            featMatrix.append(counts[index])
+            labelsMatrix.append(lab[index])
 
         if len(featMatrix) == 0 or len(labelsMatrix) == 0:
             result[:] = None
         else:
-            featMatrix = numpy.concatenate(featMatrix, axis=0)
-            labelsMatrix = numpy.concatenate(labelsMatrix, axis=0)
-            featMatrix = featMatrix.reshape(-1, 1)
-            labelsMatrix = labelsMatrix.reshape(-1, 1)
-            featMatrix = featMatrix.astype(numpy.float32)
-            labelsMatrix = labelsMatrix.astype(numpy.uint32)
+            featMatrix = numpy.concatenate(featMatrix, axis=0).reshape(-1, 1)
+            labelsMatrix = numpy.concatenate(labelsMatrix, axis=0).reshape(-1, 1)
             try:
                 # train and store forests in parallel
                 pool = Pool()
