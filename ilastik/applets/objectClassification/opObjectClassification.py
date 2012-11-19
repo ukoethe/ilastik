@@ -136,7 +136,7 @@ class OpObjectTrain(Operator):
     # setDirty with an empty slice and fails)
 
     Labels = InputSlot(level=1)
-    Features = InputSlot(stype=Opaque, level =1, rtype=List)
+    Features = InputSlot(stype=Opaque, level=1, rtype=List)
     FixClassifier = InputSlot(stype="bool")
 
     Classifier = OutputSlot()
