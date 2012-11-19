@@ -162,6 +162,8 @@ class OpObjectTrain(Operator):
             lab = labels[:].wait()[0]
             feats = self.Features[i][0].wait()
             counts = numpy.asarray(feats[0]['Count'])
+            counts = counts.squeeze()
+            lab = lab.squeeze()
             index = numpy.nonzero(lab)
             newlabels = lab[index]
             newfeats = counts[index]
@@ -173,10 +175,10 @@ class OpObjectTrain(Operator):
         else:
             featMatrix = numpy.concatenate(featMatrix, axis=0)
             labelsMatrix = numpy.concatenate(labelsMatrix, axis=0)
-            if len(featMatrix.shape) == 1:
-                featMatrix.resize(featMatrix.shape + (1,))
-            if len(labelsMatrix.shape) == 1:
-                labelsMatrix.resize(labelsMatrix.shape + (1,))
+            featMatrix = featMatrix.reshape(-1, 1)
+            labelsMatrix = labelsMatrix.reshape(-1, 1)
+            featMatrix = featMatrix.astype(numpy.float32)
+            labelsMatrix = labelsMatrix.astype(numpy.uint32)
             try:
                 # train and store forests in parallel
                 pool = Pool()
@@ -189,8 +191,8 @@ class OpObjectTrain(Operator):
                 pool.wait()
                 pool.clean()
             except:
-                raise Exception("couldn't learn classifier")
-
+                print ("couldn't learn classifier")
+                raise
         return result
 
     def propagateDirty(self, slot, subindex, roi):
