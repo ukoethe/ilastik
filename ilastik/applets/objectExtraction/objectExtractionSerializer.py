@@ -13,7 +13,27 @@ class ObjectExtractionSerializer(AppletSerializer):
         self.mainOperator = mainOperator
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
-        op = self.mainOperator.innerOperators[0]
+        for i, op in enumerate(self.mainOperator.innerOperators):
+            opname = "operator_{0}".format(i)
+            self.deleteIfPresent(topGroup, opname)
+            group = self.getOrCreateGroup(topGroup, opname)
+            self._serializeOperatorToHdf5(op, group, hdf5File,
+                                          projectFilePath)
+
+    def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File,
+                             projectFilePath):
+        for i, op in enumerate(self.mainOperator.innerOperators):
+            opname = "operator_{0}".format(i)
+            if opname in topGroup.keys():
+                group = topGroup[opname]
+                self._deserializeOperatorFromHdf5(op, group,
+                                                  groupVersion,
+                                                  hdf5File,
+                                                  projectFilePath)
+
+
+    def _serializeOperatorToHdf5(self, op, topGroup, hdf5File,
+                                 projectFilePath):
         src = op._mem_h5
         self.deleteIfPresent(topGroup, "SegmentationImage")
         src.copy('/SegmentationImage', topGroup)
@@ -23,10 +43,12 @@ class ObjectExtractionSerializer(AppletSerializer):
         for t in op._opRegFeats._cache.keys():
             t_gr = samples_gr.create_group(str(t))
             for name in self._featureNames:
-                t_gr.create_dataset(name=name, data=op._opRegFeats._cache[t][name])
+                t_gr.create_dataset(name=name,
+                                    data=op._opRegFeats._cache[t][name])
 
-    def _deserializeFromHdf5(self, topGroup, groupVersion, hdf5File, projectFilePath):
-        dest = self.mainOperator.innerOperators[0]._mem_h5
+    def _deserializeOperatorFromHdf5(self, op, topGroup, groupVersion,
+                                     hdf5File, projectFilePath):
+        dest = op._mem_h5
 
         del dest['SegmentationImage']
         topGroup.copy('SegmentationImage', dest)
@@ -38,12 +60,12 @@ class ObjectExtractionSerializer(AppletSerializer):
                 for name in self._featureNames:
                     if name in topGroup["samples"][t].keys():
                         cache[int(t)][name] = topGroup["samples"][t][name].value
-            self.mainOperator.innerOperators[0]._opRegFeats._cache = cache
+            op._opRegFeats._cache = cache
 
         # update region count
-        slot = self.mainOperator.innerOperators[0].RegionCount
+        slot = op.RegionCount
         roi = List(slot, [0])
-        self.mainOperator.innerOperators[0]._regionCount(roi)
+        op._regionCount(roi)
 
     def isDirty(self):
         return True
