@@ -40,6 +40,13 @@ class AppletSerializer(object):
     # Base class implementation #
     #############################
 
+    # TODO: take a single list of slots, with the following attributes:
+    # - slot
+    # - name (if None, slot.name)
+    # - serialize function (if None, auto)
+    # - deserialize function (if None, auto)
+    # - unload function (if None, auto)
+
     def __init__(self, operator, version, autoSlots=None,
                  unloadSlots=None, topGroupName=None):
         """Constructor. Subclasses must call this method in their own
@@ -122,11 +129,30 @@ class AppletSerializer(object):
             else:
                 slot.resize(0)
 
-    def _autoSerialize(self, slot, group):
-        pass
+    def _autoSerialize(self, slot, name, group):
+        self.deleteIfPresent(group, name)
 
-    def _autoDeserialize(self, slot, group):
-        pass
+        if slot.level == 0:
+            self.deleteIfPresent(group, name)
+            group.create_dataset(name, data=slot.value)
+        else:
+            subgroup = group.create_group(name)
+            for i, subslot in enumerate(slot):
+                subname = "{0}_{1}".format(name, i)
+                self._autoSerialize(subslot, subname, subgroup)
+
+    def _autoDeserialize(self, slot, name, group):
+        try:
+            subgroup = group[name]
+        except KeyError:
+            pass
+        else:
+            if slot.level == 0:
+                slot = subgroup.value
+            else:
+                for i, subslot in enumerate(slot.children):
+                    subname = "{0}_{1}".format(name, i)
+                    self._autoDeserialize(child, subname, subgroup)
 
     def serializeToHdf5(self, hdf5File, projectFilePath):
         """Serialize the current applet state to the given hdf5 file.
