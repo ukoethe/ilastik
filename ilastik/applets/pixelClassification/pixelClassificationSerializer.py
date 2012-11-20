@@ -3,8 +3,7 @@ import os
 import numpy
 import h5py
 import vigra
-from ilastik.applets.base.appletSerializer import \
-    AppletSerializer, slicingToString, stringToSlicing
+from ilastik.applets.base.appletSerializer import AppletSerializer
 from ilastik.utility import bind
 from lazyflow.operators import OpH5WriterBigDataset
 from lazyflow.operators.ioOperators import OpStreamingHdf5Reader
@@ -124,7 +123,7 @@ class PixelClassificationSerializer(AppletSerializer):
                     labelGroup.create_dataset(blockName, data=block)
                     
                     # Add the slice this block came from as an attribute of the dataset
-                    labelGroup[blockName].attrs['blockSlice'] = slicingToString(slicing)
+                    labelGroup[blockName].attrs['blockSlice'] = self.slicingToString(slicing)
     
             self._dirtyFlags[Section.Labels] = False
 
@@ -281,7 +280,7 @@ class PixelClassificationSerializer(AppletSerializer):
                     # For each block of label data in the file
                     for blockData in labelGroup.values():
                         # The location of this label data block within the image is stored as an hdf5 attribute
-                        slicing = stringToSlicing( blockData.attrs['blockSlice'] )
+                        slicing = self.stringToSlicing( blockData.attrs['blockSlice'] )
                         # Slice in this data to the label input
                         self.mainOperator.LabelInputs[index][slicing] = blockData[...]
             finally:
