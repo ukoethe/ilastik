@@ -49,6 +49,6 @@ class BatchIoSerializer(AppletSerializer):
                               name=('datasetInfos', 'dataset{:>04}')),
         ]
 
-        super( BatchIoSerializer, self ).__init__(projectFileGroupName,
-                                                  self.SerializerVersion,
-                                                  slots=slots)
+        super(BatchIoSerializer, self).__init__(projectFileGroupName,
+                                                self.SerializerVersion,
+                                                slots=slots)

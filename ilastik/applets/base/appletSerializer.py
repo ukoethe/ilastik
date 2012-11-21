@@ -216,6 +216,7 @@ class SerialBlockSlot(SerialSlot):
 
 
 class SerialClassifierSlot(SerialSlot):
+    """A random forest classifier slot."""
     def __init__(self, slot, cacheslot, name=None, default=None, depends=None):
         super(SerialClassifierSlot, self).__init__(slot, name, default, depends)
         self.cacheslot = cacheslot
