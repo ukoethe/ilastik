@@ -8,7 +8,6 @@ import vigra
 import h5py
 import numpy
 
-
 #######################
 # Convenience methods #
 #######################
