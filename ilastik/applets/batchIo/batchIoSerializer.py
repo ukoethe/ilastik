@@ -9,23 +9,24 @@ from ilastik.applets.base.appletSerializer import \
 
 from ilastik.utility import bind
 
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel( logging.DEBUG )
-logger.addHandler( logging.StreamHandler(sys.stdout) )
+# FIXME: re-add logging
 
 class SerialDatasetPath(SerialSlot):
     """Stores the dirty flag so we can restore the previous
     session efficiently.
 
     """
+    def __init__(self, slot, dirtyslot, *args, **kwargs):
+        super(SerialDatasetPath, self).__init__(slot, *args, **kwargs)
+        self.dirtyslot = dirtyslot
+
     def serialize(self, group):
         deleteIfPresent(group, self.name)
         subgroup = group.create_group(self.name)
         for index in range(len(self.slot)):
             groupName = self.subname.format(index)
-            dataGroup = datasetDir.create_group(groupName)
-            dataGroup.create_dataset('Dirty', data=self.mainOperator.Dirty[index])
+            dataGroup = subgroup.create_group(groupName)
+            dataGroup.create_dataset('Dirty', data=self.dirtyslot[index])
 
     def deserialize(self, group):
         # TODO: Operator needs a way of being told his dirty status
@@ -43,7 +44,9 @@ class BatchIoSerializer(AppletSerializer):
             SerialSlot(operator.ExportDirectory, default=''),
             SerialSlot(operator.Format, default=ExportFormat.H5),
             SerialSlot(operator.Suffix, default='_results'),
-            SerialDatasetPath(operator.DatasetPath, name=('datasetInfos', 'dataset{:>04}')),
+            SerialDatasetPath(operator.DatasetPath,
+                              operator.Dirty,
+                              name=('datasetInfos', 'dataset{:>04}')),
         ]
 
         super( BatchIoSerializer, self ).__init__(projectFileGroupName,
