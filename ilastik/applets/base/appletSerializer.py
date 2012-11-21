@@ -111,6 +111,7 @@ class SerialSlot(object):
 
 
     def serialize(self, group):
+        """Default serializer. May need to be overridden."""
         if not self.slot.ready():
             return
         deleteIfPresent(group, self.name)
@@ -125,17 +126,20 @@ class SerialSlot(object):
         self.dirty = False
 
     def deserialize(self, group):
+        """Default deserializer. May need to be overridden."""
         try:
-            subgroup = group[name]
+            subgroup = group[self.name]
         except KeyError:
             pass
         else:
-            if slot.level == 0:
-                self.slot.setValue(subgroup[:])
+            if self.slot.level == 0:
+                val = subgroup[()]
+                self.slot.setValue(val)
             else:
                 self.slot.resize(len(subgroup))
-                for i, value in enumerate(subgroup):
-                    slot[i].setValue(value[:])
+                for i, g in enumerate(subgroup):
+                    val = g[()]
+                    slot[i].setValue(val)
         self.dirty = False
 
     def unload(self):
