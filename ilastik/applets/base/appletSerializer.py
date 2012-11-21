@@ -175,7 +175,7 @@ class SerialSlot(object):
             if self.default is not None:
                 self.slot.setValue(self.default)
             else:
-                self.slot.disconnect
+                self.slot.disconnect()
         else:
             self.slot.resize(0)
 
