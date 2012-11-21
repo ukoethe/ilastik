@@ -1,6 +1,6 @@
 from ilastik.applets.base.appletSerializer import \
     AppletSerializer, stringToSlicing, slicingToString, \
-    deleteIfPresent
+    deleteIfPresent, SerialBlockSlot
 
 class LabelingSerializer(AppletSerializer):
     """Encapsulate the serialization scheme for pixel classification
