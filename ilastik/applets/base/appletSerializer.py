@@ -98,14 +98,14 @@ class SerialSlot(object):
         flag.
 
         """
-        def setDirty():
+        def setDirty(*args, **kwargs):
             self.dirty = True
 
         def doMulti(self, index):
-            self.slot[index].notifyDirty(setDirty())
+            self.slot[index].notifyDirty(setDirty)
 
         if self.slot.level == 0:
-            self.slot.notifyDirty(setDirty())
+            self.slot.notifyDirty(setDirty)
         else:
             slot.notifyInserted(doMulti)
 
