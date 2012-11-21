@@ -42,7 +42,7 @@ class SerialPredictionSlot(SerialSlot):
         # FIXME: progress indicator
         # TODO: break up into smaller units
 
-        if (not self.dirty) and (not self.name in group.keys()):
+        if (not self.dirty) and (self.name in group.keys()):
             return
         deleteIfPresent(group, self.name)
         for i,slot in enumerate(self.operator.PredictionsFromDisk):
