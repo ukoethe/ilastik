@@ -230,7 +230,9 @@ class SerialClassifierSlot(SerialSlot):
 
     def serialize(self, group):
         deleteIfPresent(group, self.name)
-        # TODO: return if not ready
+        self.dirty = False
+        if not self.slot.ready():
+            return
 
         classifier_forests = self.slot.value
 
@@ -256,8 +258,6 @@ class SerialClassifierSlot(SerialSlot):
 
         os.remove(cachePath)
         os.removedirs(tmpDir)
-
-        self.dirty = False
 
     def deserialize(self, group):
         try:
