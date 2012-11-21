@@ -172,10 +172,10 @@ class SerialSlot(object):
 
     def unload(self):
         if self.slot.level == 0:
-            if self.default is not None:
-                self.slot.setValue(self.default)
-            else:
+            if self.default is None:
                 self.slot.disconnect()
+            else:
+                self.slot.setValue(self.default)
         else:
             self.slot.resize(0)
 
