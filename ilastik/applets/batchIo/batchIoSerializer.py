@@ -4,7 +4,8 @@ import copy
 
 from opBatchIo import ExportFormat
 
-from ilastik.applets.base.appletSerializer import AppletSerializer
+from ilastik.applets.base.appletSerializer import \
+    AppletSerializer, deleteIfPresent
 
 from ilastik.utility import bind
 
@@ -38,9 +39,9 @@ class BatchIoSerializer(AppletSerializer):
     
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
         # Delete any datasets we're about to write
-        self.deleteIfPresent( topGroup, 'ExportDirectory' )
-        self.deleteIfPresent( topGroup, 'Format' )
-        self.deleteIfPresent( topGroup, 'Suffix' )
+        deleteIfPresent( topGroup, 'ExportDirectory' )
+        deleteIfPresent( topGroup, 'Format' )
+        deleteIfPresent( topGroup, 'Suffix' )
         
         # These settings are common to all datasets.  Serialize to top group.
         topGroup.create_dataset( 'ExportDirectory', data=self.mainOperator.ExportDirectory.value )
@@ -48,7 +49,7 @@ class BatchIoSerializer(AppletSerializer):
         topGroup.create_dataset( 'Suffix', data=self.mainOperator.Suffix.value )
 
         # Delete all previous dataset info
-        self.deleteIfPresent(topGroup, 'datasetInfos')
+        deleteIfPresent(topGroup, 'datasetInfos')
         
         datasetDir = topGroup.create_group('datasetInfos')
 

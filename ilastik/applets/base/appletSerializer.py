@@ -92,7 +92,6 @@ class SerialSlot(object):
         self.dirty = False
         self._bind()
 
-
     def _bind(self):
         """Setup so that when slot is dirty, set appropriate dirty
         flag.
@@ -108,7 +107,6 @@ class SerialSlot(object):
             self.slot.notifyDirty(setDirty)
         else:
             slot.notifyInserted(doMulti)
-
 
     def serialize(self, group):
         """Default serializer. May need to be overridden."""

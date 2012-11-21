@@ -4,7 +4,8 @@ import numpy
 import h5py
 import vigra
 from ilastik.applets.base.appletSerializer import \
-  AppletSerializer, stringToSlicing, slicingToString
+    AppletSerializer, stringToSlicing, slicingToString, \
+    deleteIfPresent
 from ilastik.utility import bind
 from lazyflow.operators import OpH5WriterBigDataset
 from lazyflow.operators.ioOperators import OpStreamingHdf5Reader
@@ -98,7 +99,7 @@ class PixelClassificationSerializer(AppletSerializer):
     def _serializeLabels(self, topGroup):
         with Tracer(traceLogger):
             # Delete all labels from the file
-            self.deleteIfPresent(topGroup, 'LabelSets')
+            deleteIfPresent(topGroup, 'LabelSets')
             labelSetDir = topGroup.create_group('LabelSets')
     
             numImages = len(self.mainOperator.NonzeroLabelBlocks)
@@ -124,7 +125,7 @@ class PixelClassificationSerializer(AppletSerializer):
 
     def _serializeClassifier(self, topGroup):
         with Tracer(traceLogger):
-            self.deleteIfPresent(topGroup, 'ClassifierForests')
+            deleteIfPresent(topGroup, 'ClassifierForests')
             self._dirtyFlags[Section.Classifier] = False
     
             if not self.mainOperator.Classifier.ready():
@@ -164,7 +165,7 @@ class PixelClassificationSerializer(AppletSerializer):
             # If the predictions are missing, then maybe the user wants them stored (even if they aren't dirty)
             if self._dirtyFlags[Section.Predictions] or 'Predictions' not in topGroup.keys():
 
-                self.deleteIfPresent(topGroup, 'Predictions')
+                deleteIfPresent(topGroup, 'Predictions')
                 
                 # Disconnect the precomputed prediction inputs.
                 for i,slot in enumerate( self.mainOperator.PredictionsFromDisk ):
@@ -223,7 +224,7 @@ class PixelClassificationSerializer(AppletSerializer):
                     finally:
                         # If we were cancelled, delete the predictions we just started
                         if not self.predictionStorageEnabled or failedToSave:
-                            self.deleteIfPresent(predictionDir, datasetName)
+                            deleteIfPresent(predictionDir, datasetName)
                             self._predictionsPresent = False
                             startProgress = progress[0]
                         else:

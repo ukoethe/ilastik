@@ -1,5 +1,6 @@
 from ilastik.applets.base.appletSerializer import \
-  AppletSerializer, stringToSlicing, slicingToString
+    AppletSerializer, stringToSlicing, slicingToString, \
+    deleteIfPresent
 
 class LabelingSerializer(AppletSerializer):
     """
@@ -24,7 +25,7 @@ class LabelingSerializer(AppletSerializer):
                 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
         # Delete all labels from the file
-        self.deleteIfPresent(topGroup, 'LabelSets')
+        deleteIfPresent(topGroup, 'LabelSets')
         labelSetDir = topGroup.create_group('LabelSets')
 
         numImages = len(self.mainOperator.NonzeroLabelBlocks)
