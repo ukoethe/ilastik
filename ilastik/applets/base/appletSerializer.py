@@ -111,6 +111,8 @@ class SerialSlot(object):
 
 
     def serialize(self, group):
+        if not self.slot.ready():
+            return
         deleteIfPresent(group, self.name)
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
@@ -120,6 +122,7 @@ class SerialSlot(object):
                 subname = self.subname.format(i)
                 subgoup.create_dataset(subname,
                                        data=self.slot[i].value)
+        self.dirty = False
 
     def deserialize(self, group):
         try:
@@ -133,6 +136,7 @@ class SerialSlot(object):
                 self.slot.resize(len(subgroup))
                 for i, value in enumerate(subgroup):
                     slot[i].setValue(value[:])
+        self.dirty = False
 
     def unload(self):
         if self.slot.level == 0:
