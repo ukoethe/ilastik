@@ -3,6 +3,144 @@ from ilastik import VersionManager
 from ilastik.utility.simpleSignal import SimpleSignal
 from ilastik.utility.maybe import maybe
 
+
+#######################
+# Convenience methods #
+#######################
+
+def getOrCreateGroup(parentGroup, groupName):
+    """
+    Returns parentGorup[groupName], creating first it if necessary.
+    """
+    try:
+        return parentGroup[groupName]
+    except KeyError:
+        return parentGroup.create_group(groupName)
+
+def deleteIfPresent(parentGroup, name):
+    """
+    Deletes parentGorup[groupName], if it exists.
+    """
+    try:
+        del parentGroup[name]
+    except KeyError:
+        pass
+
+def slicingToString(slicing):
+    """Convert the given slicing into a string of the form
+    '[0:1,2:3,4:5]'
+
+    """
+    strSlicing = '['
+    for s in slicing:
+        strSlicing += str(s.start)
+        strSlicing += ':'
+        strSlicing += str(s.stop)
+        strSlicing += ','
+
+    # Drop the last comma
+    strSlicing = strSlicing[:-1]
+    strSlicing += ']'
+    return strSlicing
+
+def stringToSlicing(strSlicing):
+    """Parse a string of the form '[0:1,2:3,4:5]' into a slicing
+    (i.e. list of slices)
+
+    """
+    slicing = []
+    # Drop brackets
+    strSlicing = strSlicing[1:-1]
+    sliceStrings = strSlicing.split(',')
+    for s in sliceStrings:
+        ends = s.split(':')
+        start = int(ends[0])
+        stop = int(ends[1])
+        slicing.append(slice(start, stop))
+
+    return slicing
+
+
+class SerialSlot(object):
+    """
+    Wraps a slot and implements the logic for serializing it.
+
+    Has two member variables:
+
+    * slot: the slot to save/load
+
+    * name: name used for the group in the hdf5 file.
+        - for level 0 slots, this should just be a string, or None to
+          use the slot's name.
+        - for level 1 slots, this should be a tuple (groupname,
+          substring), or None.
+
+    """
+    def __init__(self, slot, name=None):
+        self.slot = slot
+        if name is None:
+            if slot.level == 0:
+                name = slot.name
+            else:
+                name = slot.name, "{0}"
+
+        if slot.level == 0:
+            self.name = name
+        else:
+            self.name, self.subname = name
+
+        self.dirty = False
+        self._bind()
+
+
+    def _bind(self):
+        """Setup so that when slot is dirty, set appropriate dirty
+        flag.
+
+        """
+        def setDirty():
+            self.dirty = True
+
+        def doMulti(self, index):
+            self.slot[index].notifyDirty(setDirty())
+
+        if self.slot.level == 0:
+            self.slot.notifyDirty(setDirty())
+        else:
+            slot.notifyInserted(doMulti)
+
+
+    def serialize(self, group):
+        deleteIfPresent(group, self.name)
+        if self.slot.level == 0:
+            group.create_dataset(self.name, data=self.slot.value)
+        else:
+            subgroup = group.create_group(self.name)
+            for i, subslot in enumerate(self.slot):
+                subname = self.subname.format(i)
+                subgoup.create_dataset(subname,
+                                       data=self.slot[i].value)
+
+    def deserialize(self, group):
+        try:
+            subgroup = group[name]
+        except KeyError:
+            pass
+        else:
+            if slot.level == 0:
+                self.slot.setValue(subgroup[:])
+            else:
+                self.slot.resize(len(subgroup))
+                for i, value in enumerate(subgroup):
+                    slot[i].setValue(value[:])
+
+    def unload(self):
+        if self.slot.level == 0:
+            self.slot.disconnect
+        else:
+            self.slot.resize(0)
+
+
 ####################################
 # the base applet serializer class #
 ####################################
@@ -16,9 +154,9 @@ class AppletSerializer(object):
 
     _base_initialized = False
 
-    ####################
-    # Abstract methods #
-    ####################
+    #########################
+    # Semi-abstract methods #
+    #########################
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
 
@@ -34,71 +172,32 @@ class AppletSerializer(object):
         necessary.
 
         """
-        raise NotImplementedError
+        pass
 
     #############################
     # Base class implementation #
     #############################
 
-    # TODO: take a single list of slots, with the following attributes:
-    # - slot
-    # - name (if None, slot.name)
-    # - serialize function (if None, auto)
-    # - deserialize function (if None, auto)
-    # - unload function (if None, auto)
-
-    def __init__(self, operator, version, autoSlots=None,
-                 unloadSlots=None, topGroupName=None):
+    def __init__(self, topGroupName, version, slots=None):
         """Constructor. Subclasses must call this method in their own
         __init__ functions. If they fail to do so, the shell raises an
         exception.
 
         Parameters:
         * operator: the operator to serialize
+        * slots : a list of SerialSlots
         * version: serializer version; for compatability checks
-        * autoSlots:  list of slots to be automatically serialized
-        * unloadSlots: list of slots to be automatically unloaded
         * topGroupName: name of this applet's data group in the file.
             Defaults to the name of the operator.
 
         """
         # FIXME: exception if subclass fails to call?
-        self._version = version
+        self.version = version
         self.progressSignal = SimpleSignal() # Signature: emit(percentComplete)
         self._base_initialized = True
-        self.operator = operator
         self._dirtyFlags = {}
-
-        # TODO: slot verification
-        self.autoSlots = maybe(autoslots, [])
-        self.unloadSlots = maybe(unloadSlots, [])
-        self.topGroupName = maybe(topGroupName, operator.name)
-
-        self._setupAuto()
-
-    def _setDirty(name):
-        self._dirtyFlags[name] = True
-
-    def bindSlot(self, slot, name):
-        """Setup so that when slot is dirty, set appropriate dirty
-        flag.
-
-        """
-        def _doSingle(slot, name):
-            slot.notifyDirty(bind(self.setDirty, name))
-
-        def _doMulti(slot, name, index):
-            _doSingle(slot[index], name)
-
-        if slot.level == 0:
-            _doSingle(slot, name)
-        else:
-            slot.notifyInserted(bind(_doMulti, slot, name))
-
-    def self._setupAuto(self):
-        for slot in self.autoSlots:
-            self._dirtyFlags[slot.name] = False
-            self.bindSlot(slot, slot.name)
+        self.topGroupName = topGroupName
+        self.serialSlots = maybe(slots, [])
 
     def isDirty(self):
         """Returns true if the current state of this item (in memory)
@@ -108,7 +207,7 @@ class AppletSerializer(object):
         is not enough.
 
         """
-        return any(self._dirtyFlags.values())
+        return any(list(ss.dirty for ss in self.serialSlots))
 
     def unload(self):
         """Called if either
@@ -123,36 +222,8 @@ class AppletSerializer(object):
         project.
 
         """
-        for slot in self.unloadSlots:
-            if slot.level == 0:
-                slot.disconnect()
-            else:
-                slot.resize(0)
-
-    def _autoSerialize(self, slot, name, group):
-        self.deleteIfPresent(group, name)
-
-        if slot.level == 0:
-            self.deleteIfPresent(group, name)
-            group.create_dataset(name, data=slot.value)
-        else:
-            subgroup = group.create_group(name)
-            for i, subslot in enumerate(slot):
-                subname = "{0}_{1}".format(name, i)
-                self._autoSerialize(subslot, subname, subgroup)
-
-    def _autoDeserialize(self, slot, name, group):
-        try:
-            subgroup = group[name]
-        except KeyError:
-            pass
-        else:
-            if slot.level == 0:
-                slot = subgroup.value
-            else:
-                for i, subslot in enumerate(slot.children):
-                    subname = "{0}_{1}".format(name, i)
-                    self._autoDeserialize(child, subname, subgroup)
+        for ss in self.serialSlots:
+            ss.unload()
 
     def serializeToHdf5(self, hdf5File, projectFilePath):
         """Serialize the current applet state to the given hdf5 file.
@@ -176,20 +247,20 @@ class AppletSerializer(object):
 
         self.progressSignal.emit(0)
 
-        topGroup = self.getOrCreateGroup(hdf5File, self.topGroupName)
+        topGroup = getOrCreateGroup(hdf5File, self.topGroupName)
 
         # Set the version
         if 'StorageVersion' not in topGroup.keys():
-            topGroup.create_dataset('StorageVersion', data=self._version)
+            topGroup.create_dataset('StorageVersion', data=self.version)
         else:
-            topGroup['StorageVersion'][()] = self._version
+            topGroup['StorageVersion'][()] = self.version
 
         try:
             # Do auto serializations
-            for slot in self.autoSlots:
-                self._autoSerialize(slot, topGroup)
+            for ss in self.serialSlots:
+                ss.serialize(topGroup)
 
-            # Call the subclass to do remaining work
+            # Call the subclass to do remaining work, if any
             self._serializeToHdf5(topGroup, hdf5File, projectFilePath)
         finally:
             self.progressSignal.emit(100)
@@ -229,9 +300,8 @@ class AppletSerializer(object):
 
         try:
             if topGroup is not None:
-                # Do auto deserializations
-                for slot in self.autoSlots:
-                    self._autoDeserialize(slot, topGroup)
+                for ss in self.serialSlots:
+                    ss.deserialize(topGroup)
 
                 # Call the subclass to do remaining work
                 self._deserializeFromHdf5(topGroup, groupVersion, hdf5File, projectFilePath)
@@ -255,77 +325,6 @@ class AppletSerializer(object):
 
         """
         pass
-
-    #######################
-    # Convenience methods #
-    #######################
-
-    @staticmethod
-    def getOrCreateGroup(parentGroup, groupName):
-        """
-        Convenience helper.
-        Returns parentGorup[groupName], creating first it if necessary.
-        """
-        try:
-            return parentGroup[groupName]
-        except KeyError:
-            return parentGroup.create_group(groupName)
-
-    @staticmethod
-    def deleteIfPresent(parentGroup, name):
-        """
-        Convenience helper.
-        Deletes parentGorup[groupName], if it exists.
-        """
-        try:
-            del parentGroup[name]
-        except KeyError:
-            pass
-
-    @staticmethod
-    def slicingToString(slicing):
-        """Convert the given slicing into a string of the form
-        '[0:1,2:3,4:5]'
-
-        """
-        strSlicing = '['
-        for s in slicing:
-            strSlicing += str(s.start)
-            strSlicing += ':'
-            strSlicing += str(s.stop)
-            strSlicing += ','
-
-        # Drop the last comma
-        strSlicing = strSlicing[:-1]
-        strSlicing += ']'
-        return strSlicing
-
-    @staticmethod
-    def stringToSlicing(strSlicing):
-        """Parse a string of the form '[0:1,2:3,4:5]' into a slicing
-        (i.e. list of slices)
-
-        """
-        slicing = []
-        # Drop brackets
-        strSlicing = strSlicing[1:-1]
-        sliceStrings = strSlicing.split(',')
-        for s in sliceStrings:
-            ends = s.split(':')
-            start = int(ends[0])
-            stop = int(ends[1])
-            slicing.append(slice(start, stop))
-
-        return slicing
-
-    @property
-    def version(self):
-        """Return the version of the serializer itself."""
-        return self._version
-
-    @property
-    def topGroupName(self):
-        return self._topGroupName
 
     @property
     def base_initialized(self):
