@@ -75,12 +75,17 @@ class SerialSlot(object):
         - for level 0 slots, this should just be a string, or None to
           use the slot's name.
         - for level 1 slots, this should be a tuple (groupname,
-          substring), or None.
+          subname), or None.
 
-    * default: the default value when unload() is called.
+          if provided, subname should be able to be formated() with a
+          single argument: the index of the subslot.
+
+    * default: the default value when unload() is called. If it is
+      None, the slot will just be disconnected (for level 0 slots) or
+      resized to length 0 (for multislots)
 
     * depends: a list of slots which must be ready before this slot
-      can be serialized.
+      can be serialized. If None, defaults to [].
 
     """
     # TODO: only serialize when dirty
@@ -216,7 +221,6 @@ class SerialBlockSlot(SerialSlot):
 
 
 class SerialClassifierSlot(SerialSlot):
-    """A random forest classifier slot."""
     def __init__(self, slot, cacheslot, name=None, default=None, depends=None):
         super(SerialClassifierSlot, self).__init__(slot, name, default, depends)
         self.cacheslot = cacheslot
