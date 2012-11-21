@@ -76,8 +76,9 @@ class SerialSlot(object):
           substring), or None.
 
     """
-    def __init__(self, slot, name=None):
+    def __init__(self, slot, name=None, default=None):
         self.slot = slot
+        self.default = default
         if name is None:
             if slot.level == 0:
                 name = slot.name
@@ -142,7 +143,10 @@ class SerialSlot(object):
 
     def unload(self):
         if self.slot.level == 0:
-            self.slot.disconnect
+            if self.default is not None:
+                self.slot.setValue(default)
+            else:
+                self.slot.disconnect
         else:
             self.slot.resize(0)
 
