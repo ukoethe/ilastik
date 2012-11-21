@@ -2,6 +2,11 @@ from abc import ABCMeta, abstractmethod
 from ilastik import VersionManager
 from ilastik.utility.simpleSignal import SimpleSignal
 from ilastik.utility.maybe import maybe
+import os
+import tempfile
+import vigra
+import h5py
+import numpy
 
 
 #######################
@@ -38,19 +43,17 @@ def slicingToString(slicing):
         strSlicing += str(s.stop)
         strSlicing += ','
 
-    # Drop the last comma
-    strSlicing = strSlicing[:-1]
+    strSlicing = strSlicing[:-1] # Drop the last comma
     strSlicing += ']'
     return strSlicing
 
 def stringToSlicing(strSlicing):
-    """Parse a string of the form '[0:1,2:3,4:5]' into a slicing
-    (i.e. list of slices)
+    """Parse a string of the form '[0:1,2:3,4:5]' into a slicing (i.e.
+    list of slices)
 
     """
     slicing = []
-    # Drop brackets
-    strSlicing = strSlicing[1:-1]
+    strSlicing = strSlicing[1:-1] # Drop brackets
     sliceStrings = strSlicing.split(',')
     for s in sliceStrings:
         ends = s.split(':')
@@ -62,7 +65,7 @@ def stringToSlicing(strSlicing):
 
 
 class SerialSlot(object):
-    """Wraps a slot and implements the logic for serializing it.
+    """Implements the logic for serializing a slot.
 
     Arguments
     ---------
@@ -81,6 +84,12 @@ class SerialSlot(object):
       can be serialized.
 
     """
+    # TODO: only serialize when dirty
+    # TODO: ability to force always serialize
+
+    # TODO: wrapper around (de)serialize to perform common tasks like
+    # creating a group and setting dirty to False
+
     def __init__(self, slot, name=None, default=None, depends=None):
         self.slot = slot
         self.default = default
@@ -100,19 +109,20 @@ class SerialSlot(object):
         self.dirty = False
         self._bind()
 
-    def _bind(self):
+    def _bind(self, slot=None):
         """Setup so that when slot is dirty, set appropriate dirty
         flag.
 
         """
+        slot = maybe(slot, self.slot)
         def setDirty(*args, **kwargs):
             self.dirty = True
 
-        def doMulti(self, index):
+        def doMulti(slot, index, size):
             self.slot[index].notifyDirty(setDirty)
 
-        if self.slot.level == 0:
-            self.slot.notifyDirty(setDirty)
+        if slot.level == 0:
+            slot.notifyDirty(setDirty)
         else:
             slot.notifyInserted(doMulti)
 
@@ -132,8 +142,8 @@ class SerialSlot(object):
             subgroup = group.create_group(self.name)
             for i, subslot in enumerate(self.slot):
                 subname = self.subname.format(i)
-                subgoup.create_dataset(subname,
-                                       data=self.slot[i].value)
+                subgroup.create_dataset(subname,
+                                        data=self.slot[i].value)
         self.dirty = False
 
     def deserialize(self, group):
@@ -150,17 +160,136 @@ class SerialSlot(object):
                 self.slot.resize(len(subgroup))
                 for i, g in enumerate(subgroup):
                     val = g[()]
-                    slot[i].setValue(val)
+                    self.slot[i].setValue(val)
         self.dirty = False
 
     def unload(self):
         if self.slot.level == 0:
             if self.default is not None:
-                self.slot.setValue(default)
+                self.slot.setValue(self.default)
             else:
                 self.slot.disconnect
         else:
             self.slot.resize(0)
+
+
+#######################################################
+# some serial slots that are used in multiple applets #
+#######################################################
+
+class SerialBlockSlot(SerialSlot):
+    """A slot which only saves nonzero blocks."""
+    def __init__(self, inslot, outslot, blockslot, name=None, default=None,
+                 depends=None):
+        super(SerialBlockSlot, self).__init__(inslot, name, default, depends)
+        self.inslot = inslot
+        self.outslot = outslot
+        self.blockslot = blockslot
+        self._bind(outslot)
+
+    def serialize(self, group):
+        deleteIfPresent(group, self.name)
+        mygroup = group.create_group(self.name)
+
+        num = len(self.blockslot)
+        for index in range(num):
+            subsubname = self.subname.format(index)
+            subsubgroup = mygroup.create_group(subsubname)
+            nonZeroBlocks = self.blockslot[index].value
+            for blockIndex, slicing in enumerate(nonZeroBlocks):
+                block = self.outslot[index][slicing].wait()
+                blockName = 'block{:04d}'.format(blockIndex)
+                subsubgroup.create_dataset(blockName, data=block)
+                subsubgroup[blockName].attrs['blockSlice'] = slicingToString(slicing)
+        self.dirty = False
+
+    def deserialize(self, group):
+        mygroup = group[self.name]
+        num = len(mygroup)
+        self.inslot.resize(num)
+
+        for index, t in enumerate(sorted(mygroup.items())):
+            groupName, labelGroup = t
+            for blockData in labelGroup.values():
+                slicing = stringToSlicing(blockData.attrs['blockSlice'])
+                self.inslot[index][slicing] = blockData[...]
+        self.dirty = False
+
+
+class SerialClassifierSlot(SerialSlot):
+    def __init__(self, slot, cacheslot, name=None, default=None, depends=None):
+        super(SerialClassifierSlot, self).__init__(slot, name, default, depends)
+        self.cacheslot = cacheslot
+        if self.name is None:
+            self.name = slot.name
+            self.subname = "Forest{:04d}"
+        self.name, self.subname = name
+
+    def unload(self):
+        self.cacheslot.Input.setDirty(slice(None))
+
+    def serialize(self, group):
+        deleteIfPresent(group, self.name)
+        # TODO: return if not ready
+
+        classifier_forests = self.slot.value
+
+        # Classifier can be None if there isn't any training data yet.
+        if classifier_forests is None:
+            return
+        for forest in classifier_forests:
+            if forest is None:
+                return
+
+        # Due to non-shared hdf5 dlls, vigra can't write directly to
+        # our open hdf5 group. Instead, we'll use vigra to write the
+        # classifier to a temporary file.
+        tmpDir = tempfile.mkdtemp()
+        cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
+        for i, forest in enumerate(classifier_forests):
+            forest.writeHDF5(cachePath, '{0}/{1}'.format(self.name,
+                                                         self.subname.format(i)))
+
+        # Open the temp file and copy to our project group
+        with h5py.File(cachePath, 'r') as cacheFile:
+            group.copy(cacheFile[self.name], self.name)
+
+        os.remove(cachePath)
+        os.removedirs(tmpDir)
+
+        self.dirty = False
+
+    def deserialize(self, group):
+        try:
+            classifierGroup = group[self.name]
+        except KeyError:
+            pass
+        else:
+            # Due to non-shared hdf5 dlls, vigra can't read directly
+            # from our open hdf5 group. Instead, we'll copy the
+            # classfier data to a temporary file and give it to vigra.
+            tmpDir = tempfile.mkdtemp()
+            cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
+            with h5py.File(cachePath, 'w') as cacheFile:
+                cacheFile.copy(classifierGroup, self.name)
+
+            forests = []
+            for name, forestGroup in sorted(classifierGroup.items()):
+                forests.append(vigra.learning.RandomForest(cachePath, '{0}/{1}'.format(self.name, name)))
+
+            os.remove(cachePath)
+            os.removedirs(tmpDir)
+
+            # Now force the classifier into our classifier cache. The
+            # downstream operators (e.g. the prediction operator) can
+            # use the classifier without inducing it to be re-trained.
+            # (This assumes that the classifier we are loading is
+            # consistent with the images and labels that we just
+            # loaded. As soon as training input changes, it will be
+            # retrained.)
+            self.cacheslot.forceValue(numpy.array(forests))
+        finally:
+            self.dirty = False
 
 
 ####################################
