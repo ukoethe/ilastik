@@ -95,6 +95,9 @@ class SerialSlot(object):
     # creating a group and setting dirty to False
 
     def __init__(self, slot, name=None, default=None, depends=None):
+        if slot.level > 1:
+            # FIXME: recursive serialization, to support arbitrary levels
+            raise Exception('slots of levels > 1 not supported')
         self.slot = slot
         self.default = default
         self.depends = maybe(depends, [])
