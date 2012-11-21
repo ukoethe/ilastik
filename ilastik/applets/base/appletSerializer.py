@@ -62,10 +62,10 @@ def stringToSlicing(strSlicing):
 
 
 class SerialSlot(object):
-    """
-    Wraps a slot and implements the logic for serializing it.
+    """Wraps a slot and implements the logic for serializing it.
 
-    Has two member variables:
+    Arguments
+    ---------
 
     * slot: the slot to save/load
 
@@ -75,10 +75,17 @@ class SerialSlot(object):
         - for level 1 slots, this should be a tuple (groupname,
           substring), or None.
 
+    * default: the default value when unload() is called.
+
+    * depends: a list of slots which must be ready before this slot
+      can be serialized.
+
     """
-    def __init__(self, slot, name=None, default=None):
+    def __init__(self, slot, name=None, default=None, depends=None):
         self.slot = slot
         self.default = default
+        self.depends = maybe(depends, [])
+        self.depends.append(slot)
         if name is None:
             if slot.level == 0:
                 name = slot.name
@@ -111,8 +118,13 @@ class SerialSlot(object):
 
     def serialize(self, group):
         """Default serializer. May need to be overridden."""
-        if not self.slot.ready():
-            return
+        # TODO: dependencies should be taken care of in lazyflow; i.e.
+        # slot.ready() should only return True if all its dependencies
+        # are ready.
+        for s in self.depends:
+            if not s.ready():
+                return
+
         deleteIfPresent(group, self.name)
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
