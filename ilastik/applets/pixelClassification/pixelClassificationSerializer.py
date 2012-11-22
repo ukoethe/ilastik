@@ -40,9 +40,7 @@ class SerialPredictionSlot(SerialSlot):
         predictions to be stored with a new classifier.)
 
         """
-        # FIXME: progress indicator
-        # TODO: break up into smaller units
-
+        # TODO: progress indicator
         for i,slot in enumerate(self.operator.PredictionsFromDisk):
             slot.disconnect()
         if not self.predictionStorageEnabled:
