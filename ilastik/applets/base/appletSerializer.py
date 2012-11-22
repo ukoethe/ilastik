@@ -13,8 +13,9 @@ import numpy
 #######################
 
 def getOrCreateGroup(parentGroup, groupName):
-    """
-    Returns parentGorup[groupName], creating first it if necessary.
+    """Returns parentGorup[groupName], creating first it if
+    necessary.
+
     """
     try:
         return parentGroup[groupName]
@@ -22,9 +23,7 @@ def getOrCreateGroup(parentGroup, groupName):
         return parentGroup.create_group(groupName)
 
 def deleteIfPresent(parentGroup, name):
-    """
-    Deletes parentGorup[groupName], if it exists.
-    """
+    """Deletes parentGorup[groupName], if it exists."""
     try:
         del parentGroup[name]
     except KeyError:
@@ -64,36 +63,29 @@ def stringToSlicing(strSlicing):
 
 
 class SerialSlot(object):
-    """Implements the logic for serializing a slot.
-
-    Arguments
-    ---------
-
-    * slot: the slot to save/load
-
-    * name: name used for the group in the hdf5 file.
-        - for level 0 slots, this should just be a string, or None to
-          use the slot's name.
-        - for level 1 slots, this should be a tuple (groupname,
-          subname), or None.
-
-          if provided, subname should be able to be formated() with a
-          single argument: the index of the subslot.
-
-    * default: the default value when unload() is called. If it is
-      None, the slot will just be disconnected (for level 0 slots) or
-      resized to length 0 (for multislots)
-
-    * depends: a list of slots which must be ready before this slot
-      can be serialized. If None, defaults to [].
-
-    * autodepends: whether 'slot' should be added to 'depends'
-
-    """
-    # TODO: ability to force always serialize
-
+    """Implements the logic for serializing a slot."""
     def __init__(self, slot, name=None, default=None, depends=None,
                  autodepends=False):
+        """
+        :param slot: the slot to save/load
+
+        :param name: name used for the group in the hdf5 file.
+            - for level 0 slots, this should just be a string, or None to
+              use the slot's name.
+            - for level 1 slots, this should be a tuple (groupname,
+              subname), or None. If provided, subname should be able to be
+              format()ed with a single argument: the index of the subslot.
+
+        :param default: the default value when unload() is called. If it is
+          None, the slot will just be disconnected (for level 0 slots) or
+          resized to length 0 (for multislots)
+
+        :param depends: a list of slots which must be ready before this slot
+          can be serialized. If None, defaults to [].
+
+        :param autodepends: whether 'slot' should be added to 'depends'
+
+        """
         if slot.level > 1:
             # FIXME: recursive serialization, to support arbitrary levels
             raise Exception('slots of levels > 1 not supported')
@@ -139,7 +131,11 @@ class SerialSlot(object):
 
         Do not override (unless for some reason this function does not
         do the right thing in your case). Instead override
-        _serialize.
+        _serialize().
+
+        :param group: The parent group in which to create this slot's
+            group.
+        :type group: h5py.Group
 
         """
         if (not self.dirty) and (self.name in group.keys()):
@@ -152,6 +148,11 @@ class SerialSlot(object):
         self.dirty = False
 
     def _serialize(self, group):
+        """"
+        :param group: The parent group.
+        :type group: h5py.Group
+
+        """
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
         else:
@@ -168,6 +169,10 @@ class SerialSlot(object):
         do the right thing in your case). Instead override
         _deserialize.
 
+        :param group: The parent group in which to create this slot's
+            group.
+        :type group: h5py.Group
+
         """
         try:
             subgroup = group[self.name]
@@ -177,6 +182,11 @@ class SerialSlot(object):
         self.dirty = False
 
     def _deserialize(self, subgroup):
+        """
+        :param subgroup: *not* the parent group. This slot's group.
+        :typpe subgroup: h5py.Group
+
+        """
         if self.slot.level == 0:
             val = subgroup[()]
             self.slot.setValue(val)
@@ -187,6 +197,7 @@ class SerialSlot(object):
                 self.slot[i].setValue(val)
 
     def unload(self):
+        """see AppletSerializer.unload()"""
         if self.slot.level == 0:
             if self.default is None:
                 self.slot.disconnect()
@@ -351,11 +362,10 @@ class AppletSerializer(object):
         exception.
 
         Parameters:
-        * operator: the operator to serialize
-        * slots : a list of SerialSlots
-        * version: serializer version; for compatability checks
-        * topGroupName: name of this applet's data group in the file.
+        :param topGroupName: name of this applet's data group in the file.
             Defaults to the name of the operator.
+        :param version: serializer version; for compatability checks
+        :param slots: a list of SerialSlots
 
         """
         self.version = version
