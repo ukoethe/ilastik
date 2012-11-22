@@ -310,7 +310,7 @@ class AppletSerializer(object):
     # Force subclasses to override abstract methods and properties
     __metaclass__ = ABCMeta
 
-    _base_initialized = False
+    base_initialized = False
 
     #########################
     # Semi-abstract methods #
@@ -349,10 +349,9 @@ class AppletSerializer(object):
             Defaults to the name of the operator.
 
         """
-        # FIXME: exception if subclass fails to call?
         self.version = version
         self.progressSignal = SimpleSignal() # Signature: emit(percentComplete)
-        self._base_initialized = True
+        self.base_initialized = True
         self._dirtyFlags = {}
         self.topGroupName = topGroupName
         self.serialSlots = maybe(slots, [])
@@ -483,13 +482,3 @@ class AppletSerializer(object):
 
         """
         pass
-
-    @property
-    def base_initialized(self):
-        """Do not override this property.
-
-        Used by the shell to ensure that Applet.__init__ was called by
-        your subclass.
-
-        """
-        return self._base_initialized
