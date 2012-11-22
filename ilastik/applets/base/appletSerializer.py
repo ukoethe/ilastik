@@ -252,6 +252,9 @@ class SerialListSlot(SerialSlot):
         finally:
             self.dirty = False
 
+    def unload(self):
+        self.slot.setValue([])
+
 
 class SerialBlockSlot(SerialSlot):
     """A slot which only saves nonzero blocks."""
