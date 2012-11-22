@@ -87,20 +87,21 @@ class SerialSlot(object):
     * depends: a list of slots which must be ready before this slot
       can be serialized. If None, defaults to [].
 
+    * autodepends: whether 'slot' should be added to 'depends'
+
     """
-    # TODO: only serialize when dirty
     # TODO: ability to force always serialize
 
-    # TODO: wrapper around (de)serialize to perform common tasks like
-    # creating a group and setting dirty to False
-
-    def __init__(self, slot, name=None, default=None, depends=None):
+    def __init__(self, slot, name=None, default=None, depends=None,
+                 autodepends=False):
         if slot.level > 1:
             # FIXME: recursive serialization, to support arbitrary levels
             raise Exception('slots of levels > 1 not supported')
         self.slot = slot
         self.default = default
         self.depends = maybe(depends, [])
+        if autodepends:
+            self.depends.append(slot)
         if name is None:
             if slot.level == 0:
                 name = slot.name
@@ -151,10 +152,6 @@ class SerialSlot(object):
         self.dirty = False
 
     def _serialize(self, group):
-        # TODO: dependencies should be taken care of in lazyflow; i.e.
-        # slot.ready() should only return True if all its dependencies
-        # are ready.
-
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
         else:
@@ -238,9 +235,10 @@ class SerialBlockSlot(SerialSlot):
 
 class SerialClassifierSlot(SerialSlot):
     def __init__(self, slot, cacheslot, name=None, default=None,
-                 depends=None):
+                 depends=None, autodepends=True):
         super(SerialClassifierSlot, self).__init__(slot, name,
-                                                   default, depends)
+                                                   default, depends,
+                                                   autodepends)
         self.cacheslot = cacheslot
         if self.name is None:
             self.name = slot.name
