@@ -127,6 +127,10 @@ class SerialSlot(object):
         else:
             slot.notifyInserted(doMulti)
 
+    def shouldSerialize(self, group):
+        """Whether to serialize or not."""
+        return self.dirty or (not self.name in group.keys())
+
     def serialize(self, group):
         """Performs tasks common to all serializations, like changing
         dirty status.
@@ -155,6 +159,8 @@ class SerialSlot(object):
         :type group: h5py.Group
 
         """
+        if not self.shouldSerialize(group):
+            return
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
         else:
@@ -402,9 +408,18 @@ class AppletSerializer(object):
         for ss in self.serialSlots:
             ss.unload()
 
-    @property
-    def progressIncrement(self):
-        nslots = len(self.serialSlots)
+    def progressIncrement(self, group=None):
+        """Get the percentage progress for each slot.
+
+        :param group: If None, all all slots are assumed to be
+            processed. Otherwise, decides for each slot by calling
+            slot.shouldSerialize(group).
+
+        """
+        if group is None:
+            nslots = len(self.serialSlots)
+        else:
+            nslots = sum(ss.shouldSerialize(group) for ss in self.serialSlots)
         return divmod(100, nslots + 1)[0]
 
     def serializeToHdf5(self, hdf5File, projectFilePath):
@@ -438,9 +453,10 @@ class AppletSerializer(object):
             topGroup['StorageVersion'][()] = self.version
 
         try:
+            inc = self.progressIncrement(topGroup)
             for ss in self.serialSlots:
                 ss.serialize(topGroup)
-                self.progressSignal.emit(self.progressIncrement)
+                self.progressSignal.emit(inc)
 
             # Call the subclass to do remaining work, if any
             self._serializeToHdf5(topGroup, hdf5File, projectFilePath)
@@ -482,9 +498,10 @@ class AppletSerializer(object):
 
         try:
             if topGroup is not None:
+                inc = self.progressIncrement()
                 for ss in self.serialSlots:
                     ss.deserialize(topGroup)
-                    self.progressSignal.emit(self.progressIncrement)
+                    self.progressSignal.emit(inc)
 
                 # Call the subclass to do remaining work
                 self._deserializeFromHdf5(topGroup, groupVersion, hdf5File, projectFilePath)
