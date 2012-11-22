@@ -129,7 +129,11 @@ class SerialSlot(object):
 
     def shouldSerialize(self, group):
         """Whether to serialize or not."""
-        return self.dirty or (not self.name in group.keys())
+        result = self.dirty
+        result |= self.name not in group.keys()
+        for s in self.depends:
+            result &= s.ready()
+        return result
 
     def serialize(self, group):
         """Performs tasks common to all serializations, like changing
@@ -144,11 +148,8 @@ class SerialSlot(object):
         :type group: h5py.Group
 
         """
-        if (not self.dirty) and (self.name in group.keys()):
+        if not self.shouldSerialize(group):
             return
-        for s in self.depends:
-            if not s.ready():
-                return
         deleteIfPresent(group, self.name)
         self._serialize(group)
         self.dirty = False
@@ -159,8 +160,6 @@ class SerialSlot(object):
         :type group: h5py.Group
 
         """
-        if not self.shouldSerialize(group):
-            return
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
         else:
