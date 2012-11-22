@@ -219,8 +219,23 @@ class SerialSlot(object):
 #######################################################
 
 class SerialListSlot(SerialSlot):
+    """As the name implies: used for serializing a list.
+
+    The only differences from the base class are:
+
+    - if deserializing fails, sets the slot value to [].
+
+    - if it succeeds, applies a transform to every element of the list
+          (for instance, to convert it to the proper type).
+
+    """
     def __init__(self, slot, name=None, default=None, depends=None,
                  autodepends=False, transform=None):
+        """
+        :param transform: a function that will be applied to every
+            member of the list on deserialization.
+
+        """
         super(SerialListSlot, self).__init__(slot, name, default, depends,
                                              autodepends)
         if transform is None:
