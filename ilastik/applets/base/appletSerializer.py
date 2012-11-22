@@ -101,7 +101,6 @@ class SerialSlot(object):
         self.slot = slot
         self.default = default
         self.depends = maybe(depends, [])
-        self.depends.append(slot)
         if name is None:
             if slot.level == 0:
                 name = slot.name
