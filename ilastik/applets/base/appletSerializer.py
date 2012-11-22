@@ -70,11 +70,13 @@ class SerialSlot(object):
         :param slot: the slot to save/load
 
         :param name: name used for the group in the hdf5 file.
-            - for level 0 slots, this should just be a string, or None to
-              use the slot's name.
-            - for level 1 slots, this should be a tuple (groupname,
-              subname), or None. If provided, subname should be able to be
-              format()ed with a single argument: the index of the subslot.
+
+            - For level 0 slots, this should just be a string, or None to
+            use the slot's name.
+
+            - For level 1 slots, this should be a tuple (groupname,
+            subname), or None. If provided, subname should be able to be
+            format()ed with a single argument: the index of the subslot.
 
         :param default: the default value when unload() is called. If it is
           None, the slot will just be disconnected (for level 0 slots) or
