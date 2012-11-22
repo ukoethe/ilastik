@@ -402,6 +402,11 @@ class AppletSerializer(object):
         for ss in self.serialSlots:
             ss.unload()
 
+    @property
+    def progressIncrement(self):
+        nslots = len(self.serialSlots)
+        return divmod(100, nslots + 1)[0]
+
     def serializeToHdf5(self, hdf5File, projectFilePath):
         """Serialize the current applet state to the given hdf5 file.
 
@@ -422,9 +427,9 @@ class AppletSerializer(object):
         if not VersionManager.isProjectFileVersionCompatible(ilastikVersion):
             return
 
-        self.progressSignal.emit(0)
-
         topGroup = getOrCreateGroup(hdf5File, self.topGroupName)
+
+        self.progressSignal.emit(0)
 
         # Set the version
         if 'StorageVersion' not in topGroup.keys():
@@ -435,6 +440,7 @@ class AppletSerializer(object):
         try:
             for ss in self.serialSlots:
                 ss.serialize(topGroup)
+                self.progressSignal.emit(self.progressIncrement)
 
             # Call the subclass to do remaining work, if any
             self._serializeToHdf5(topGroup, hdf5File, projectFilePath)
@@ -478,6 +484,7 @@ class AppletSerializer(object):
             if topGroup is not None:
                 for ss in self.serialSlots:
                     ss.deserialize(topGroup)
+                    self.progressSignal.emit(self.progressIncrement)
 
                 # Call the subclass to do remaining work
                 self._deserializeFromHdf5(topGroup, groupVersion, hdf5File, projectFilePath)
