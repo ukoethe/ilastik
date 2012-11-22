@@ -30,7 +30,7 @@ class SerialPredictionSlot(SerialSlot):
             self.predictionStorageEnabled = False
             self._predictionStorageRequest.cancel()
 
-    def serialize(self, group):
+    def _serialize(self, group):
         """Called when the currently stored predictions are dirty. If
         prediction storage is currently enabled, store them to the
         file. Otherwise, just delete them/
@@ -42,9 +42,6 @@ class SerialPredictionSlot(SerialSlot):
         # FIXME: progress indicator
         # TODO: break up into smaller units
 
-        if (not self.dirty) and (self.name in group.keys()):
-            return
-        deleteIfPresent(group, self.name)
         for i,slot in enumerate(self.operator.PredictionsFromDisk):
             slot.disconnect()
         if not self.predictionStorageEnabled:
@@ -95,23 +92,22 @@ class SerialPredictionSlot(SerialSlot):
                 # Re-load the operator with the prediction groups we just saved
                 self.deserialize(group)
 
-
     def deserialize(self, group):
+        # override because we need to set self._predictionsPresent
         self._predictionsPresent = self.name in group.keys()
-        if self._predictionsPresent:
-            predictionGroup = group[self.name]
+        super(SerialPredictionSlot, self).deserialize(group)
 
-            # Flush the GUI cache of any saved up dirty rois
-            if self.operator.FreezePredictions.value == True:
-                self.operator.FreezePredictions.setValue(False)
-                self.operator.FreezePredictions.setValue(True)
+    def _deserialize(self, predictionGroup):
+        # Flush the GUI cache of any saved up dirty rois
+        if self.operator.FreezePredictions.value == True:
+            self.operator.FreezePredictions.setValue(False)
+            self.operator.FreezePredictions.setValue(True)
 
-            for imageIndex, datasetName in enumerate(predictionGroup.keys()):
-                opStreamer = OpStreamingHdf5Reader(graph=self.operator.graph)
-                opStreamer.Hdf5File.setValue(predictionGroup)
-                opStreamer.InternalPath.setValue(datasetName)
-                self.operator.PredictionsFromDisk[imageIndex].connect(opStreamer.OutputImage)
-        self.dirty = False
+        for imageIndex, datasetName in enumerate(predictionGroup.keys()):
+            opStreamer = OpStreamingHdf5Reader(graph=self.operator.graph)
+            opStreamer.Hdf5File.setValue(predictionGroup)
+            opStreamer.InternalPath.setValue(datasetName)
+            self.operator.PredictionsFromDisk[imageIndex].connect(opStreamer.OutputImage)
 
 
 class PixelClassificationSerializer(AppletSerializer):

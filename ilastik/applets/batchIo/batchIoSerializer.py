@@ -20,8 +20,7 @@ class SerialDatasetPath(SerialSlot):
         super(SerialDatasetPath, self).__init__(slot, *args, **kwargs)
         self.dirtyslot = dirtyslot
 
-    def serialize(self, group):
-        deleteIfPresent(group, self.name)
+    def _serialize(self, group):
         subgroup = group.create_group(self.name)
         for index in range(len(self.slot)):
             groupName = self.subname.format(index)
@@ -29,6 +28,8 @@ class SerialDatasetPath(SerialSlot):
             dataGroup.create_dataset('Dirty', data=self.dirtyslot[index])
 
     def deserialize(self, group):
+        # override to ensure nothing happens, since this is not implemented.
+
         # TODO: Operator needs a way of being told his dirty status
         pass
 

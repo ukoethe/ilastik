@@ -134,15 +134,28 @@ class SerialSlot(object):
             slot.notifyInserted(doMulti)
 
     def serialize(self, group):
-        """Default serializer. May need to be overridden."""
-        # TODO: dependencies should be taken care of in lazyflow; i.e.
-        # slot.ready() should only return True if all its dependencies
-        # are ready.
+        """Performs tasks common to all serializations, like changing
+        dirty status.
+
+        Do not override (unless for some reason this function does not
+        do the right thing in your case). Instead override
+        _serialize.
+
+        """
+        if (not self.dirty) and (self.name in group.keys()):
+            return
         for s in self.depends:
             if not s.ready():
                 return
-
         deleteIfPresent(group, self.name)
+        self._serialize(group)
+        self.dirty = False
+
+    def _serialize(self, group):
+        # TODO: dependencies should be taken care of in lazyflow; i.e.
+        # slot.ready() should only return True if all its dependencies
+        # are ready.
+
         if self.slot.level == 0:
             group.create_dataset(self.name, data=self.slot.value)
         else:
@@ -151,24 +164,31 @@ class SerialSlot(object):
                 subname = self.subname.format(i)
                 subgroup.create_dataset(subname,
                                         data=self.slot[i].value)
-        self.dirty = False
 
     def deserialize(self, group):
-        """Default deserializer. May need to be overridden."""
+        """Performs tasks common to all deserializations.
+
+        Do not override (unless for some reason this function does not
+        do the right thing in your case). Instead override
+        _deserialize.
+
+        """
         try:
             subgroup = group[self.name]
         except KeyError:
-            pass
-        else:
-            if self.slot.level == 0:
-                val = subgroup[()]
-                self.slot.setValue(val)
-            else:
-                self.slot.resize(len(subgroup))
-                for i, g in enumerate(subgroup):
-                    val = g[()]
-                    self.slot[i].setValue(val)
+            return
+        self._deserialize(subgroup)
         self.dirty = False
+
+    def _deserialize(self, subgroup):
+        if self.slot.level == 0:
+            val = subgroup[()]
+            self.slot.setValue(val)
+        else:
+            self.slot.resize(len(subgroup))
+            for i, g in enumerate(subgroup):
+                val = g[()]
+                self.slot[i].setValue(val)
 
     def unload(self):
         if self.slot.level == 0:
@@ -194,10 +214,8 @@ class SerialBlockSlot(SerialSlot):
         self.blockslot = blockslot
         self._bind(outslot)
 
-    def serialize(self, group):
-        deleteIfPresent(group, self.name)
+    def _serialize(self, group):
         mygroup = group.create_group(self.name)
-
         num = len(self.blockslot)
         for index in range(num):
             subsubname = self.subname.format(index)
@@ -208,24 +226,22 @@ class SerialBlockSlot(SerialSlot):
                 blockName = 'block{:04d}'.format(blockIndex)
                 subsubgroup.create_dataset(blockName, data=block)
                 subsubgroup[blockName].attrs['blockSlice'] = slicingToString(slicing)
-        self.dirty = False
 
-    def deserialize(self, group):
-        mygroup = group[self.name]
+    def _deserialize(self, mygroup):
         num = len(mygroup)
         self.inslot.resize(num)
-
         for index, t in enumerate(sorted(mygroup.items())):
             groupName, labelGroup = t
             for blockData in labelGroup.values():
                 slicing = stringToSlicing(blockData.attrs['blockSlice'])
                 self.inslot[index][slicing] = blockData[...]
-        self.dirty = False
 
 
 class SerialClassifierSlot(SerialSlot):
-    def __init__(self, slot, cacheslot, name=None, default=None, depends=None):
-        super(SerialClassifierSlot, self).__init__(slot, name, default, depends)
+    def __init__(self, slot, cacheslot, name=None, default=None,
+                 depends=None):
+        super(SerialClassifierSlot, self).__init__(slot, name,
+                                                   default, depends)
         self.cacheslot = cacheslot
         if self.name is None:
             self.name = slot.name
@@ -235,12 +251,7 @@ class SerialClassifierSlot(SerialSlot):
     def unload(self):
         self.cacheslot.Input.setDirty(slice(None))
 
-    def serialize(self, group):
-        deleteIfPresent(group, self.name)
-        self.dirty = False
-        if not self.slot.ready():
-            return
-
+    def _serialize(self, group):
         classifier_forests = self.slot.value
 
         # Classifier can be None if there isn't any training data yet.
@@ -256,8 +267,8 @@ class SerialClassifierSlot(SerialSlot):
         tmpDir = tempfile.mkdtemp()
         cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
         for i, forest in enumerate(classifier_forests):
-            forest.writeHDF5(cachePath, '{0}/{1}'.format(self.name,
-                                                         self.subname.format(i)))
+            targetname = '{0}/{1}'.format(self.name, self.subname.format(i))
+            forest.writeHDF5(cachePath, targetname)
 
         # Open the temp file and copy to our project group
         with h5py.File(cachePath, 'r') as cacheFile:
@@ -267,36 +278,37 @@ class SerialClassifierSlot(SerialSlot):
         os.removedirs(tmpDir)
 
     def deserialize(self, group):
-        try:
-            classifierGroup = group[self.name]
-        except KeyError:
-            pass
-        else:
-            # Due to non-shared hdf5 dlls, vigra can't read directly
-            # from our open hdf5 group. Instead, we'll copy the
-            # classfier data to a temporary file and give it to vigra.
-            tmpDir = tempfile.mkdtemp()
-            cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
-            with h5py.File(cachePath, 'w') as cacheFile:
-                cacheFile.copy(classifierGroup, self.name)
+        """
+        Have to override this to ensure that dirty is always set False.
+        """
+        super(SerialClassifierSlot, self).deserialize(group)
+        self.dirty = False
 
-            forests = []
-            for name, forestGroup in sorted(classifierGroup.items()):
-                forests.append(vigra.learning.RandomForest(cachePath, '{0}/{1}'.format(self.name, name)))
+    def _deserialize(self, classifierGroup):
+        # Due to non-shared hdf5 dlls, vigra can't read directly
+        # from our open hdf5 group. Instead, we'll copy the
+        # classfier data to a temporary file and give it to vigra.
+        tmpDir = tempfile.mkdtemp()
+        cachePath = os.path.join(tmpDir, 'tmp_classifier_cache.h5')
+        with h5py.File(cachePath, 'w') as cacheFile:
+            cacheFile.copy(classifierGroup, self.name)
 
-            os.remove(cachePath)
-            os.removedirs(tmpDir)
+        forests = []
+        for name, forestGroup in sorted(classifierGroup.items()):
+            targetname = '{0}/{1}'.format(self.name, name)
+            forests.append(vigra.learning.RandomForest(cachePath, targetname))
 
-            # Now force the classifier into our classifier cache. The
-            # downstream operators (e.g. the prediction operator) can
-            # use the classifier without inducing it to be re-trained.
-            # (This assumes that the classifier we are loading is
-            # consistent with the images and labels that we just
-            # loaded. As soon as training input changes, it will be
-            # retrained.)
-            self.cacheslot.forceValue(numpy.array(forests))
-        finally:
-            self.dirty = False
+        os.remove(cachePath)
+        os.removedirs(tmpDir)
+
+        # Now force the classifier into our classifier cache. The
+        # downstream operators (e.g. the prediction operator) can
+        # use the classifier without inducing it to be re-trained.
+        # (This assumes that the classifier we are loading is
+        # consistent with the images and labels that we just
+        # loaded. As soon as training input changes, it will be
+        # retrained.)
+        self.cacheslot.forceValue(numpy.array(forests))
 
 
 ####################################
@@ -352,7 +364,6 @@ class AppletSerializer(object):
         self.version = version
         self.progressSignal = SimpleSignal() # Signature: emit(percentComplete)
         self.base_initialized = True
-        self._dirtyFlags = {}
         self.topGroupName = topGroupName
         self.serialSlots = maybe(slots, [])
 
@@ -413,7 +424,6 @@ class AppletSerializer(object):
             topGroup['StorageVersion'][()] = self.version
 
         try:
-            # Do auto serializations
             for ss in self.serialSlots:
                 ss.serialize(topGroup)
 
