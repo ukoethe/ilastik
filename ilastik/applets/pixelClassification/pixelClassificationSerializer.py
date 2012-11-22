@@ -1,6 +1,7 @@
 from ilastik.applets.base.appletSerializer import \
     AppletSerializer, stringToSlicing, slicingToString, \
-    deleteIfPresent, SerialSlot, SerialClassifierSlot, SerialBlockSlot
+    deleteIfPresent, SerialSlot, SerialClassifierSlot, SerialBlockSlot, \
+    SerialListSlot
 from lazyflow.operators import OpH5WriterBigDataset
 from lazyflow.operators.ioOperators import OpStreamingHdf5Reader
 import threading
@@ -124,6 +125,9 @@ class PixelClassificationSerializer(AppletSerializer):
         slots = [SerialClassifierSlot(operator.Classifier,
                                       operator.classifier_cache,
                                       name=("ClassifierForests", "Forest{:04d}")),
+                 SerialListSlot(operator.LabelNames,
+                                transform=str),
+                 SerialListSlot(operator.LabelColors),
                  SerialBlockSlot(operator.LabelInputs,
                                  operator.LabelImages,
                                  operator.NonzeroLabelBlocks,

@@ -218,6 +218,26 @@ class SerialSlot(object):
 # some serial slots that are used in multiple applets #
 #######################################################
 
+class SerialListSlot(SerialSlot):
+    def __init__(self, slot, name=None, default=None, depends=None,
+                 autodepends=False, transform=None):
+        super(SerialListSlot, self).__init__(slot, name, default, depends,
+                                             autodepends)
+        if transform is None:
+            transform = lambda x: x
+        self.transform = transform
+
+    def deserialize(self, group):
+        try:
+            subgroup = group[self.name]
+        except KeyError:
+            self.slot.setValue([])
+        else:
+            self.slot.setValue(list(map(self.transform, subgroup)))
+        finally:
+            self.dirty = False
+
+
 class SerialBlockSlot(SerialSlot):
     """A slot which only saves nonzero blocks."""
     def __init__(self, inslot, outslot, blockslot, name=None, default=None,
