@@ -107,8 +107,16 @@ class SerialSlot(object):
         else:
             self.name, self.subname = name
 
-        self.dirty = False
+        self._dirty = False
         self._bind()
+
+    @property
+    def dirty(self):
+        return self._dirty
+
+    @dirty.setter
+    def dirty(self, value):
+        self._dirty = value
 
     def _bind(self, slot=None):
         """Setup so that when slot is dirty, set appropriate dirty
