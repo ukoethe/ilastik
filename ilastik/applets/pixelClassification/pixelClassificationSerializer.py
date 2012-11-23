@@ -31,11 +31,18 @@ class SerialPredictionSlot(SerialSlot):
             self.predictionStorageEnabled = False
             self._predictionStorageRequest.cancel()
 
+    def shouldSerialize(self, group):
+        result = super(SerialPredictionSlot,self).shouldSerialize(group)
+        result &= self.predictionStorageEnabled
+        return result
+
     def serialize(self, group):
+        for i,slot in enumerate(self.operator.PredictionsFromDisk):
+            slot.disconnect()
         super(SerialPredictionSlot, self).serialize(group)
-        if self.name in group:
-            # Re-load the operator with the prediction groups
-            self.deserialize(group)
+
+        # now reconnect to predictions on disk
+        self.deserialize(group)
 
     def _serialize(self, group):
         """Called when the currently stored predictions are dirty. If
@@ -47,10 +54,6 @@ class SerialPredictionSlot(SerialSlot):
 
         """
         # TODO: progress indicator
-        for i,slot in enumerate(self.operator.PredictionsFromDisk):
-            slot.disconnect()
-        if not self.predictionStorageEnabled:
-            return
 
         predictionDir = group.create_group(self.name)
         failedToSave = False
