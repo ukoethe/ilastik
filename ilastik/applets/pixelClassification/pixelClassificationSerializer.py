@@ -31,6 +31,12 @@ class SerialPredictionSlot(SerialSlot):
             self.predictionStorageEnabled = False
             self._predictionStorageRequest.cancel()
 
+    def serialize(self, group):
+        super(SerialPredictionSlot, self).serialize(group)
+        if self.name in group:
+            # Re-load the operator with the prediction groups
+            self.deserialize(group)
+
     def _serialize(self, group):
         """Called when the currently stored predictions are dirty. If
         prediction storage is currently enabled, store them to the
@@ -87,9 +93,6 @@ class SerialPredictionSlot(SerialSlot):
             if not self.predictionStorageEnabled or failedToSave:
                 deleteIfPresent(predictionDir, datasetName)
                 self._predictionsPresent = False
-            else:
-                # Re-load the operator with the prediction groups we just saved
-                self.deserialize(group)
 
     def deserialize(self, group):
         # override because we need to set self._predictionsPresent
