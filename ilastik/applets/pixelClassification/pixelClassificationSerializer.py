@@ -16,6 +16,11 @@ class SerialPredictionSlot(SerialSlot):
         self._predictionStorageRequest = None
         self._predictionsPresent = False
 
+    def setDirty(self, *args, **kwargs):
+        self.dirty = True
+        self._disconnect()
+        self._predictionsPresent = False
+
     @property
     def predictionStorageEnabled(self):
         return self._predictionStorageEnabled
@@ -36,13 +41,18 @@ class SerialPredictionSlot(SerialSlot):
         result &= self.predictionStorageEnabled
         return result
 
-    def serialize(self, group):
+    def _disconnect(self):
         for i,slot in enumerate(self.operator.PredictionsFromDisk):
             slot.disconnect()
+
+    def serialize(self, group):
+        self._disconnect()
+
         super(SerialPredictionSlot, self).serialize(group)
 
-        # now reconnect to predictions on disk
-        self.deserialize(group)
+        if self._predictionStorageEnabled:
+            # now reconnect to predictions on disk
+            self.deserialize(group)
 
     def _serialize(self, group):
         """Called when the currently stored predictions are dirty. If
@@ -94,8 +104,7 @@ class SerialPredictionSlot(SerialSlot):
         finally:
             # If we were cancelled, delete the predictions we just started
             if not self.predictionStorageEnabled or failedToSave:
-                deleteIfPresent(predictionDir, datasetName)
-                self._predictionsPresent = False
+                deleteIfPresent(group, self.name)
 
     def deserialize(self, group):
         # override because we need to set self._predictionsPresent
