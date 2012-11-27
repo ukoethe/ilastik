@@ -118,20 +118,21 @@ class SerialSlot(object):
     def dirty(self, value):
         self._dirty = value
 
+    def setDirty(self, *args, **kwargs):
+        self.dirty = True
+
     def _bind(self, slot=None):
         """Setup so that when slot is dirty, set appropriate dirty
         flag.
 
         """
         slot = maybe(slot, self.slot)
-        def setDirty(*args, **kwargs):
-            self.dirty = True
 
         def doMulti(slot, index, size):
-            slot[index].notifyDirty(setDirty)
+            slot[index].notifyDirty(self.setDirty)
 
         if slot.level == 0:
-            slot.notifyDirty(setDirty)
+            slot.notifyDirty(self.setDirty)
         else:
             slot.notifyInserted(doMulti)
 
