@@ -20,7 +20,6 @@ class SerialPredictionSlot(SerialSlot):
 
     def setDirty(self, *args, **kwargs):
         self.dirty = True
-        self._disconnect()
         self._predictionsPresent = False
 
     @property
@@ -65,8 +64,6 @@ class SerialPredictionSlot(SerialSlot):
         predictions to be stored with a new classifier.)
 
         """
-        # TODO: progress indicator
-
         predictionDir = group.create_group(self.name)
         failedToSave = False
         try:
