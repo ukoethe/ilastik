@@ -111,15 +111,16 @@ class SerialPredictionSlot(SerialSlot):
         self._predictionsPresent = self.name in group.keys()
         super(SerialPredictionSlot, self).deserialize(group)
 
-    def _deserialize(self, predictionGroup):
+    def _deserialize(self, group):
         # Flush the GUI cache of any saved up dirty rois
         if self.operator.FreezePredictions.value == True:
             self.operator.FreezePredictions.setValue(False)
             self.operator.FreezePredictions.setValue(True)
 
-        for imageIndex, datasetName in enumerate(predictionGroup.keys()):
+        self.operator.PredictionsFromDisk.resize(len(group))
+        for imageIndex, datasetName in enumerate(group.keys()):
             opStreamer = OpStreamingHdf5Reader(graph=self.operator.graph)
-            opStreamer.Hdf5File.setValue(predictionGroup)
+            opStreamer.Hdf5File.setValue(group)
             opStreamer.InternalPath.setValue(datasetName)
             self.operator.PredictionsFromDisk[imageIndex].connect(opStreamer.OutputImage)
 
