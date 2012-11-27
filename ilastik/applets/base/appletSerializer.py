@@ -466,7 +466,9 @@ class AppletSerializer(object):
             nslots = len(self.serialSlots)
         else:
             nslots = sum(ss.shouldSerialize(group) for ss in self.serialSlots)
-        return divmod(100, nslots + 1)[0]
+        if nslots == 0:
+            return 0
+        return divmod(100, nslots)[0]
 
     def serializeToHdf5(self, hdf5File, projectFilePath):
         """Serialize the current applet state to the given hdf5 file.
