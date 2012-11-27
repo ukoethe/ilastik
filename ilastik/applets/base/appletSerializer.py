@@ -207,8 +207,8 @@ class SerialSlot(object):
             self.slot.setValue(val)
         else:
             self.slot.resize(len(subgroup))
-            for i, g in enumerate(subgroup):
-                val = g[()]
+            for i, key in enumerate(subgroup):
+                val = subgroup[key][()]
                 self.slot[i].setValue(val)
 
     def unload(self):
