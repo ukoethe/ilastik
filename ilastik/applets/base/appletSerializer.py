@@ -128,7 +128,7 @@ class SerialSlot(object):
             self.dirty = True
 
         def doMulti(slot, index, size):
-            self.slot[index].notifyDirty(setDirty)
+            slot[index].notifyDirty(setDirty)
 
         if slot.level == 0:
             slot.notifyDirty(setDirty)
