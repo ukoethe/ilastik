@@ -266,8 +266,9 @@ class SerialListSlot(SerialSlot):
 class SerialBlockSlot(SerialSlot):
     """A slot which only saves nonzero blocks."""
     def __init__(self, inslot, outslot, blockslot, name=None, default=None,
-                 depends=None):
-        super(SerialBlockSlot, self).__init__(inslot, name, default, depends)
+                 depends=None, autodepends=False):
+        super(SerialBlockSlot, self).__init__(inslot, name, default,
+                                              depends, autodepends)
         self.inslot = inslot
         self.outslot = outslot
         self.blockslot = blockslot
