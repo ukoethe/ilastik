@@ -13,6 +13,7 @@ from lazyflow.operators import OpTrainRandomForestBlocked, OpValueCache
 from ilastik.applets.base.appletSerializer import SerialSlot
 
 class OpMock(Operator):
+    """A simple operator for testing serializers."""
     name = "OpMock"
     TestSlot = InputSlot(name="TestSlot")
     TestMultiSlot = InputSlot(name="TestMultiSlot", level=1)
@@ -55,32 +56,36 @@ class TestSerialSlot(unittest.TestCase):
 
         """
         value = randArray()
-        self.slot.setValue(value)
-        self.ss.serialize(self.group)
-
         rvalue = randArray()
+        self.slot.setValue(value)
+        self.assertTrue(self.ss.dirty)
+        self.ss.serialize(self.group)
+        self.assertTrue(not self.ss.dirty)
         self.slot.setValue(rvalue)
-
+        self.assertTrue(self.ss.dirty)
         self.assertTrue(numpy.any(self.slot.value != value))
         self.ss.deserialize(self.group)
         self.assertTrue(numpy.all(self.slot.value == value))
+        self.assertTrue(not self.ss.dirty)
 
     def testMultiSlot(self):
         """test whether serialzing and then deserializing works for a
         level-1 slot
 
         """
-        self.mslot.resize(1)
         value = randArray()
-        self.mslot[0].setValue(value)
-        self.mss.serialize(self.group)
-
         rvalue = randArray()
+        self.mslot.resize(1)
+        self.mslot[0].setValue(value)
+        self.assertTrue(self.mss.dirty)
+        self.mss.serialize(self.group)
+        self.assertTrue(not self.mss.dirty)
         self.mslot[0].setValue(rvalue)
-
+        self.assertTrue(self.mss.dirty)
         self.assertTrue(numpy.any(self.mslot[0].value != value))
         self.mss.deserialize(self.group)
         self.assertTrue(numpy.all(self.mslot[0].value == value))
+        self.assertTrue(not self.mss.dirty)
 
 
 if __name__ == "__main__":
