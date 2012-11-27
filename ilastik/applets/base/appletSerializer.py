@@ -409,7 +409,7 @@ class AppletSerializer(object):
     # Base class implementation #
     #############################
 
-    def __init__(self, topGroupName, version, slots=None):
+    def __init__(self, topGroupName, version, slots=None, operator=None):
         """Constructor. Subclasses must call this method in their own
         __init__ functions. If they fail to do so, the shell raises an
         exception.
@@ -426,6 +426,7 @@ class AppletSerializer(object):
         self.base_initialized = True
         self.topGroupName = topGroupName
         self.serialSlots = maybe(slots, [])
+        self.operator=operator
 
     def isDirty(self):
         """Returns true if the current state of this item (in memory)
