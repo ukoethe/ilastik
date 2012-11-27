@@ -5,12 +5,14 @@ from ilastik.applets.base.appletSerializer import \
 from lazyflow.operators import OpH5WriterBigDataset
 from lazyflow.operators.ioOperators import OpStreamingHdf5Reader
 import threading
+from ilastik.utility.simpleSignal import SimpleSignal
 
 class SerialPredictionSlot(SerialSlot):
 
     def __init__(self, slot, operator, *args, **kwargs):
         super(SerialPredictionSlot, self).__init__(slot, *args, **kwargs)
         self.operator = operator
+        self.progressSignal = SimpleSignal() # Signature: emit(percentComplete)
 
         self._predictionStorageEnabled = False
         self._predictionStorageRequest = None
@@ -69,6 +71,9 @@ class SerialPredictionSlot(SerialSlot):
         failedToSave = False
         try:
             num = len(self.slot)
+            if num > 0:
+                increment = 100 / float(num)
+            progress = [0]
 
             for imageIndex in range(num):
                 # Have we been cancelled?
@@ -82,6 +87,13 @@ class SerialPredictionSlot(SerialSlot):
                 opWriter.hdf5File.setValue(predictionDir)
                 opWriter.hdf5Path.setValue(datasetName)
                 opWriter.Image.connect(self.slot[imageIndex])
+
+                def handleProgress(percent):
+                    # Stop sending progress if we were cancelled
+                    if self.predictionStorageEnabled:
+                        progress[0] = percent * (increment / 100.0)
+                        self.progressSignal.emit(progress[0])
+                opWriter.progressSignal.subscribe(handleProgress)
 
                 # Create the request
                 self._predictionStorageRequest = opWriter.WriteImage[...]
@@ -153,6 +165,11 @@ class PixelClassificationSerializer(AppletSerializer):
         super(PixelClassificationSerializer, self).__init__(projectFileGroupName,
                                                             self.SerializerVersion,
                                                             slots=slots)
+
+
+        def handleProgress(x):
+            self.progressSignal.emit(x)
+        self.predictionSlot.progressSignal.connect(handleProgress)
 
     @property
     def predictionStorageEnabled(self):
