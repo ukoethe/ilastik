@@ -145,7 +145,8 @@ class PixelClassificationSerializer(AppletSerializer):
                  SerialBlockSlot(operator.LabelInputs,
                                  operator.LabelImages,
                                  operator.NonzeroLabelBlocks,
-                                 name=('LabelSets', 'labels{:03d}')),
+                                 name=('LabelSets', 'labels{:03d}'),
+                                 autodepends=False),
                  self.predictionSlot]
 
 
