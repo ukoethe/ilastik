@@ -65,7 +65,7 @@ def stringToSlicing(strSlicing):
 class SerialSlot(object):
     """Implements the logic for serializing a slot."""
     def __init__(self, slot, name=None, default=None, depends=None,
-                 autodepends=False):
+                 autodepends=True):
         """
         :param slot: the slot to save/load
 
