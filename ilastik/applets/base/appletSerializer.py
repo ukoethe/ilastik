@@ -189,11 +189,9 @@ class SerialSlot(object):
         :type group: h5py.Group
 
         """
-        try:
-            subgroup = group[self.name]
-        except KeyError:
+        if not self.name in group:
             return
-        self._deserialize(subgroup)
+        self._deserialize(group[self.name])
         self.dirty = False
 
     def _deserialize(self, subgroup):
