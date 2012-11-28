@@ -4,12 +4,8 @@ from lazyflow.rtype import List
 class ObjectExtractionSerializer(AppletSerializer):
     """
     """
-    SerializerVersion = 0.1
-    _featureNames = ['RegionCenter', 'Count']
-
     def __init__(self, mainOperator, projectFileGroupName):
-        super(ObjectExtractionSerializer, self).__init__(
-            projectFileGroupName, self.SerializerVersion)
+        super( ObjectExtractionSerializer, self ).__init__( projectFileGroupName )
         self.mainOperator = mainOperator
 
     def _serializeToHdf5(self, topGroup, hdf5File, projectFilePath):
