@@ -143,7 +143,6 @@ class OpObjectExtraction(Operator):
         return b
 
     def __make_key(self, roi, coords):
-
         key = [coords[i]-roi.start[i] for i in range(len(roi.start))]
         return tuple(key)
 
@@ -274,7 +273,7 @@ class OpRegionCenters(Operator):
                 data = numpy.asarray(a, dtype=numpy.float32)
                 feats = vigra.analysis.extractRegionFeatures(data,
                                                              labels,
-                                                             features=['RegionCenter', 'Count'],
+                                                             features=['RegionCenter'],
                                                              ignoreLabel=0)
                 centers = numpy.asarray(feats['RegionCenter'], dtype=numpy.uint16)
                 centers = centers[1:,:]
