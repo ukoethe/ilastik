@@ -1,5 +1,4 @@
 from setuptools import setup
-from ilastik import __version__
 
 packages=['ilastik',
           'ilastik.applets',
@@ -45,7 +44,7 @@ package_data={'ilastik': ['ilastik-splash.png',
               }
 
 setup(name='ilastik',
-      version=__version__,
+      version='0.6a',
       description='Interactive Image Analysis',
       url='https://github.com/Ilastik',
       packages=packages,

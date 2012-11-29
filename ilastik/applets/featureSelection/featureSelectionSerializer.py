@@ -1,7 +1,6 @@
 import numpy
 
-from ilastik.applets.base.appletSerializer import \
-    AppletSerializer, deleteIfPresent
+from ilastik.applets.base.appletSerializer import AppletSerializer
 
 from ilastik.utility import bind
 
@@ -15,8 +14,10 @@ class FeatureSelectionSerializer(AppletSerializer):
     """
     Serializes the user's pixel feature selections to an ilastik v0.6 project file.
     """
+    SerializerVersion = 0.1
+    
     def __init__(self, mainOperator, projectFileGroupName):
-        super( FeatureSelectionSerializer, self ).__init__( projectFileGroupName)
+        super( FeatureSelectionSerializer, self ).__init__( projectFileGroupName, self.SerializerVersion )
         self.mainOperator = mainOperator    
         self._dirty = False
 
@@ -34,9 +35,9 @@ class FeatureSelectionSerializer(AppletSerializer):
                 return
         
             # Delete previous entries if they exist
-            deleteIfPresent(topGroup, 'Scales')
-            deleteIfPresent(topGroup, 'FeatureIds')
-            deleteIfPresent(topGroup, 'SelectionMatrix')
+            self.deleteIfPresent(topGroup, 'Scales')
+            self.deleteIfPresent(topGroup, 'FeatureIds')
+            self.deleteIfPresent(topGroup, 'SelectionMatrix')
             
             # Store the new values (as numpy arrays)
             topGroup.create_dataset('Scales', data=self.mainOperator.Scales.value)
@@ -98,8 +99,9 @@ class Ilastik05FeatureSelectionDeserializer(AppletSerializer):
     """
     Deserializes the user's pixel feature selections from an ilastik v0.5 project file.
     """
+    SerializerVersion = 0.1
     def __init__(self, mainOperator):
-        super( Ilastik05FeatureSelectionDeserializer, self ).__init__( '' )
+        super( Ilastik05FeatureSelectionDeserializer, self ).__init__( '', self.SerializerVersion )
         self.mainOperator = mainOperator
     
     def serializeToHdf5(self, hdf5File, filePath):

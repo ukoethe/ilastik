@@ -5,13 +5,17 @@ from ilastik.applets.vigraWatershedViewer import VigraWatershedViewerApplet
 class PixelClassificationWithVigraWatershedWorkflow(Workflow):
     
     def __init__(self):
+        super(PixelClassificationWithVigraWatershedWorkflow, self).__init__()
+
         self._pixelClassificationWorkflow = PixelClassificationWorkflow()
-        graph = self._pixelClassificationWorkflow.graph
-        super(PixelClassificationWithVigraWatershedWorkflow, self).__init__( graph=graph )
+        
         self.dataSelectionApplet = self._pixelClassificationWorkflow.dataSelectionApplet
 
+        self._graph = self._pixelClassificationWorkflow.graph
+        graph = self._graph
+
         # Create applets
-        self.watershedApplet = VigraWatershedViewerApplet(self, "Watershed", "Watershed")
+        self.watershedApplet = VigraWatershedViewerApplet(graph, "Watershed", "Watershed")
         
         # Connect top-level operators
         pixelClassificationApplet = self._pixelClassificationWorkflow.pcApplet
@@ -32,3 +36,8 @@ class PixelClassificationWithVigraWatershedWorkflow(Workflow):
     @property
     def imageNameListSlot(self):
         return self._pixelClassificationWorkflow.imageNameListSlot
+    
+    @property
+    def graph( self ):
+        '''the lazyflow graph shared by the applets'''
+        return self._graph

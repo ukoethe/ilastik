@@ -53,8 +53,8 @@ class PixelClassificationWorkflow(Workflow):
         ######################
         
         ## Create applets
-        self.batchInputApplet = DataSelectionApplet(self, "Batch Prediction Input Selections", "BatchDataSelection", supportIlastik05Import=False, batchDataGui=True)
-        self.batchResultsApplet = BatchIoApplet(self, "Batch Prediction Output Locations")
+        self.batchInputApplet = DataSelectionApplet(self, "Batch Inputs", "BatchDataSelection", supportIlastik05Import=False, batchDataGui=True)
+        self.batchResultsApplet = BatchIoApplet(self, "Batch Results")
 
         ## Access applet operators
         opBatchInputs = self.batchInputApplet.topLevelOperator

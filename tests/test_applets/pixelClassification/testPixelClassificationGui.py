@@ -98,7 +98,7 @@ class TestPixelClassificationGui(ShellGuiTestCaseBase):
             pixClassApplet = self.workflow.pcApplet
             gui = pixClassApplet.gui
 
-            assert gui._viewerControlUi.liveUpdateButton.isChecked() == False
+            assert gui.labelingDrawerUi.checkInteractive.isChecked() == False
             assert gui.labelingDrawerUi.labelListModel.rowCount() == 0
             assert self.shell.projectManager.currentProjectFile is None
 
@@ -143,7 +143,7 @@ class TestPixelClassificationGui(ShellGuiTestCaseBase):
             # Do our tests at position 0,0,0
             gui.editor.posModel.slicingPos = (0,0,0)
 
-            assert gui._viewerControlUi.liveUpdateButton.isChecked() == False
+            assert not gui._labelControlUi.checkInteractive.isChecked()
             assert gui._labelControlUi.labelListModel.rowCount() == 0, "Got {} rows".format(gui._labelControlUi.labelListModel.rowCount())
             
             # Add label classes
@@ -261,7 +261,7 @@ class TestPixelClassificationGui(ShellGuiTestCaseBase):
             # Select the labeling drawer
             self.shell.setSelectedAppletDrawer(3)
 
-            assert gui._viewerControlUi.liveUpdateButton.isChecked() == False
+            assert not gui._labelControlUi.checkInteractive.isChecked()
             assert gui._labelControlUi.labelListModel.rowCount() == 2, "Row count was {}".format( gui._labelControlUi.labelListModel.rowCount() )
             
             # Use the first view for this test
@@ -308,7 +308,7 @@ class TestPixelClassificationGui(ShellGuiTestCaseBase):
             # Select the labeling drawer
             self.shell.setSelectedAppletDrawer(3)
 
-            assert gui._viewerControlUi.liveUpdateButton.isChecked() == False
+            assert not gui._labelControlUi.checkInteractive.isChecked()
             assert gui._labelControlUi.labelListModel.rowCount() == 2, "Row count was {}".format( gui._labelControlUi.labelListModel.rowCount() )
 
             assert opPix.MaxLabelValue.value == 2, "Max label value was wrong. Expected 2, got {}".format( opPix.MaxLabelValue.value  )
@@ -377,13 +377,13 @@ class TestPixelClassificationGui(ShellGuiTestCaseBase):
             self.test_4_AddLabels()
 
             # Enable interactive mode            
-            assert gui._viewerControlUi.liveUpdateButton.isChecked() == False
-            gui._viewerControlUi.liveUpdateButton.click()
+            assert not gui._labelControlUi.checkInteractive.isChecked()
+            gui._labelControlUi.checkInteractive.click()
 
             self.waitForViews(gui.editor.imageViews)
 
             # Disable iteractive mode.            
-            gui._viewerControlUi.pauseUpdateButton.click()
+            gui._labelControlUi.checkInteractive.click()
 
             self.waitForViews(gui.editor.imageViews)
 

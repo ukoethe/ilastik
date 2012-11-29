@@ -20,12 +20,6 @@ The base class provides a few signals, which applets can use to communicate with
    
    .. automethod:: __init__
 
-.. autoclass:: ControlCommand
-   :members:
-
-.. autoclass:: ShellRequest
-   :members:
-
 Top-level Operators
 ===================
 
@@ -63,7 +57,7 @@ Here's a screenshot of the ilastik-shell gui:
    :scale: 100  %
    :alt: ilastik-shell screenshot
 
-In the following figure, the areas of the GUI are labeled according to the terminology used in the ilastik code base:
+In the following figure, the areas of the GUI are labeled according to the terminology used in the applet-workflows code base:
 
 .. figure:: images/ilastik-shell-gui-areas.png
    :scale: 100  %
@@ -86,39 +80,10 @@ Applet Serializers
    .. automethod:: _serializeToHdf5
    .. automethod:: _deserializeFromHdf5
 
-Serializable Slots
-==================
-
-.. currentmodule:: ilastik.applets.base.appletSerializer
-.. autoclass:: SerialSlot
-   :members:
-
-   .. automethod:: __init__
-   .. automethod:: _serialize
-   .. automethod:: _deserialize
-
-.. autoclass:: SerialListSlot
-   :members:
-
-   .. automethod:: __init__
-
-.. autoclass:: SerialBlockSlot
-   :members:
-
-   .. automethod:: __init__
-
-.. autoclass:: SerialClassifierSlot
-   :members:
-
-   .. automethod:: __init__
-   .. automethod:: _serialize
-   .. automethod:: _deserialize
-
-
 Applet Library
 ==============
 
-Finally, the ilastik project serves as a library of applets that are useful for many workflows.
+Finally, the applet-workflows project serves as a library of applets that are useful for many workflows.
 In particular, the :ref:`layer-viewer` applet is a base class that implements simple display of arbitrary slots from your top-level operator.  
 It is intended to be used as a base class for almost all user-defined applets.
 

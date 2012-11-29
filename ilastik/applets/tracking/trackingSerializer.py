@@ -2,9 +2,10 @@ from ilastik.applets.base.appletSerializer import AppletSerializer
 import vigra
 
 class TrackingSerializer(AppletSerializer):
+    SerializerVersion = 0.1
     
     def __init__(self, mainOperator, projectFileGroupName):
-        super( TrackingSerializer, self ).__init__( projectFileGroupName )
+        super( TrackingSerializer, self ).__init__( projectFileGroupName, self.SerializerVersion )
         self.mainOperator = mainOperator
         self._dirty = False
     

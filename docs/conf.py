@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# ilastik documentation build configuration file, created by
+# applet-workflows documentation build configuration file, created by
 # sphinx-quickstart on Mon Oct 29 18:24:59 2012.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -42,7 +42,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'ilastik'
+project = u'applet-workflows'
 copyright = u'2012, Christoph Straehle, Bernhard X. Kausler, Thorben Kröger, Ullrich Köthe , Fred A. Hamprecht, Anna Kreshuk, Luca Fiaschi, Stuart Berg'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -166,7 +166,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'ilastik'
+htmlhelp_basename = 'applet-workflowsdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -185,7 +185,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'ilastik.tex', u'ilastik Documentation',
+  ('index', 'applet-workflows.tex', u'applet-workflows Documentation',
    u'Christoph Sommer, Christoph Straehle, Bernhard X. Kausler, Thorben Kröger, Ullrich Köthe , Fred A. Hamprecht, Anna Kreshuk, Luca Fiaschi, Stuart Berg', 'manual'),
 ]
 
@@ -215,7 +215,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'ilastik', u'ilastik Documentation',
+    ('index', 'applet-workflows', u'applet-workflows Documentation',
      [u'Christoph Sommer, Christoph Straehle, Bernhard X. Kausler, Thorben Kröger, Ullrich Köthe , Fred A. Hamprecht, Anna Kreshuk, Luca Fiaschi, Stuart Berg'], 1)
 ]
 
@@ -229,8 +229,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'ilastik', u'ilastik Documentation',
-   u'Christoph Sommer, Christoph Straehle, Bernhard X. Kausler, Thorben Kröger, Ullrich Köthe , Fred A. Hamprecht, Anna Kreshuk, Luca Fiaschi, Stuart Berg', 'ilastik', 'One line description of project.',
+  ('index', 'applet-workflows', u'applet-workflows Documentation',
+   u'Christoph Sommer, Christoph Straehle, Bernhard X. Kausler, Thorben Kröger, Ullrich Köthe , Fred A. Hamprecht, Anna Kreshuk, Luca Fiaschi, Stuart Berg', 'applet-workflows', 'One line description of project.',
    'Miscellaneous'),
 ]
 
