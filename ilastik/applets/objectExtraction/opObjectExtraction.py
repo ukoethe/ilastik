@@ -148,81 +148,30 @@ class OpObjectExtraction(Operator):
         return tuple(key)
 
     def _execute_ObjectCenterImage(self, roi, result):
+        # TODO: this is better, but still inelegent.
         result[:] = 0
         m = self.SegmentationImage.meta
         hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
         if hasTime:
-            for t in range(roi.start[0], roi.stop[0]):
-                centers = self.RegionFeatures([t]).wait()[t]['RegionCenter']
-                centers = numpy.asarray(centers, dtype=numpy.uint32)
-                if centers.size:
-                    centers = centers[1:,:]
-                for row in range(0,centers.shape[0]):
-                    x = centers[row,0]
-                    y = centers[row,1]
-                    z = centers[row,2]
-
-                    # mark center
-                    c =  (t,x,y,z,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi,c)] = 255
-
-                    # make the point into a cross
-                    c =  (t,x-1,y,z,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
-                    c =  (t,x,y-1,z,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
-                    c =  (t,x,y,z-1,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
-
-                    c =  (t,x+1,y,z,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
-                    c =  (t,x,y+1,z,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
-                    c =  (t,x,y,z+1,0)
-                    if self.__contained_in_subregion(roi, c):
-                        result[self.__make_key(roi, c)] = 255
+            tstart, tstop = roi.start[0], roi.stop[0]
         else:
-            centers = self.RegionFeatures([0]).wait()[0]['RegionCenter']
+            tstart, tstop = 0, 1
+        for t in range(tstart, tstop):
+            centers = self.RegionFeatures([t]).wait()[t]['RegionCenter']
             centers = numpy.asarray(centers, dtype=numpy.uint32)
             if centers.size:
                 centers = centers[1:,:]
-            for row in range(0,centers.shape[0]):
-                x = centers[row,0]
-                y = centers[row,1]
-                z = centers[row,2]
-
-                # mark center
-                c =  (x,y,z,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi,c)] = 255
-
-                # make the point into a cross
-                c =  (x-1,y,z,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-                c =  (x,y-1,z,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-                c =  (x,y,z-1,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-
-                c =  (x+1,y,z,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-                c =  (x,y+1,z,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-                c =  (x,y,z+1,0)
-                if self.__contained_in_subregion(roi, c):
-                    result[self.__make_key(roi, c)] = 255
-
+            for center in centers:
+                x, y, z = center[0:3]
+                for dim in (1, 2, 3):
+                    for offset in (-1, 0, 1):
+                        c = [t, x, y, z, 0]
+                        c[dim] += offset
+                        if not hasTime:
+                            c = c[1:]
+                        c = tuple(c)
+                        if self.__contained_in_subregion(roi, c):
+                            result[self.__make_key(roi, c)] = 255
         return result
 
 
