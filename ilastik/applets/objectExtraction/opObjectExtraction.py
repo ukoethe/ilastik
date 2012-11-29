@@ -72,7 +72,10 @@ class OpObjectExtraction(Operator):
             return res
         if slot is self.RegionFeatures:
             res = self._opRegFeats.Output.get(roi).wait()
+
+            # FIXME: depends on time slice
             self._regionCount(roi, res[0])
+
             return res
         if slot is self.RegionCount:
             result = self._regionCount(roi)

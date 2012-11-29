@@ -23,6 +23,8 @@ class OpObjectClassification(Operator):
     name = "OpObjectClassification"
     category = "Top-level"
 
+    # FIXME: labels, features, etc. depend on time slice.
+
     ###############
     # Input slots #
     ###############
