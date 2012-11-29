@@ -8,7 +8,6 @@ from lazyflow.stype import Opaque
 from lazyflow.rtype import Everything, SubRegion, List
 from lazyflow.operators.ioOperators.opStreamingHdf5Reader import OpStreamingHdf5Reader
 
-
 class OpObjectExtraction(Operator):
     name = "Object Extraction"
 
@@ -213,10 +212,6 @@ class OpRegionFeatures(Operator):
                                                              features=['RegionCenter', 'Count'],
                                                              ignoreLabel=0)
                 return feats
-                centers = numpy.asarray(feats['RegionCenter'],
-                                        dtype=numpy.uint16)
-                centers = centers[1:,:]
-                return centers
 
             feats = {}
             for t in roi:
