@@ -221,7 +221,9 @@ class ObjectClassificationGui(LabelingGui):
         """
         label = self.editor.brushingModel.drawnNumber
         slicing = tuple(slice(i, i+1) for i in pos5D)
-        arr = layer.segmentationImageSlot[slicing].wait()
+
+        # FIXME: this does not work with slot.[slicing].wait()
+        arr = layer.segmentationImageSlot.value[slicing]
         obj = arr.flat[0]
         if obj == 0: # background
             return
