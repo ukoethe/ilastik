@@ -104,8 +104,21 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        d = defaultdict(lambda: numpy.zeros((0,)))
-        self.LabelInputs[imageIndex].setValue(d)
+        self._resizeLabelInputs(imageIndex)
+
+    def _resizeLabelInputs(self, imageIndex, roi=None):
+        #if roi is None:
+        #    roi = [slice(None, None, None)]
+        labels = dict()
+        counts = self.ObjectCounts[imageIndex][0].wait() # WHY???
+        tstart, tstop = min(counts.keys()), max(counts.keys()) + 1
+        for t in range(tstart, tstop):
+            nobjects = counts[t]
+            labels[t] = numpy.zeros((nobjects,))
+
+        # FIXME: does this do the right thing?
+        self.LabelInputs[imageIndex].setValue(labels)
+
 
     def setupOutputs(self):
         pass
@@ -118,19 +131,6 @@ class OpObjectClassification(Operator):
     def propagateDirty(self, slot, subindex, roi):
         if slot == self.ObjectCounts:
             self._resizeLabelInputs(subindex, roi)
-
-    def _resizeLabelInputs(self, imageIndex, roi=None):
-        #if roi is None:
-        #    roi = [slice(None, None, None)]
-        labels = dict()
-        counts = self.ObjectCounts[imageIndex][0].wait() # WHY???
-        tstart, tstop = min(counts.keys()), max(counts.keys()) + 1
-        for t in range(tstart, tstop):
-            nobjects = counts[t] + 1
-            labels[t] = numpy.zeros((nobjects,))
-
-        # FIXME: does this do the right thing?
-        self.LabelInputs[imageIndex].setValue(labels)
 
 
 class OpObjectTrain(Operator):

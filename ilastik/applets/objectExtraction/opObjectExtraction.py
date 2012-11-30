@@ -31,19 +31,19 @@ class OpObjectExtraction(Operator):
         super(OpObjectExtraction, self).__init__(parent=parent,graph=graph)
 
         self._mem_h5 = h5py.File(str(id(self)), driver='core', backing_store=False)
-        self._reg_cents = {}
 
         # FIXME: actually use segmentation operator
         self._opSegmentationImage = OpSegmentationImage(parent=self, graph = self.graph)
         self._opSegmentationImage.BinaryImage.connect(self.BinaryImage)
 
         self._opRegFeats = OpRegionFeatures(parent = self, graph = self.graph)
-        self._opRegFeats.SegmentationImage.connect(self.SegmentationImage)
+        self._opRegFeats.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
 
         self._opObjCounts = OpObjectCounts(parent=self, graph=self.graph)
-        self._opObjCounts.SegmentationImage.connect(self.SegmentationImage)
+        self._opObjCounts.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
 
         # connect outputs to inner operator
+        self.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
         self.RegionFeatures.connect(self._opRegFeats.RegionFeatures)
         self.RegionCenters.connect(self._opRegFeats.RegionCenters)
         self.RegionCounts.connect(self._opRegFeats.RegionCounts)
@@ -53,42 +53,14 @@ class OpObjectExtraction(Operator):
         self._mem_h5.close()
 
     def setupOutputs(self):
-        self.SegmentationImage.meta.assignFrom(self.BinaryImage.meta)
-        self.SegmentationImage.meta.dtype = numpy.uint32
-        m = self.SegmentationImage.meta
-        self._mem_h5.create_dataset('SegmentationImage', shape=m.shape,
-                                    dtype=numpy.uint32, compression=1)
-
-        self._reg_cents = dict.fromkeys(xrange(m.shape[0]),
-                                        numpy.asarray([], dtype=numpy.uint16))
-
         self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
 
     def execute(self, slot, subindex, roi, result):
         if slot is self.ObjectCenterImage:
             return self._execute_ObjectCenterImage(roi, result)
-        if slot is self.SegmentationImage:
-            result = self._mem_h5['SegmentationImage'][roi.toSlice()]
-            return result
 
     def propagateDirty(self, inputSlot, subindex, roi):
         pass
-
-    def updateSegmentationImage(self):
-        # FIXME: use operator
-        for t in range(m.shape[0]):
-            self.updateSegmentationImage(t)
-
-    def updateSegmentationImageAt(self, t):
-        m = self.SegmentationImage.meta
-        start = [t,] + (len(m.shape) - 1) * [0,]
-        stop = [t+1,] + list(m.shape[1:])
-        a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
-        a = a[0,...,0]
-        self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
-        roi = SubRegion(self.SegmentationImage, start=5*(0,), stop=m.shape)
-        self.SegmentationImage.setDirty(roi)
-
 
     def __contained_in_subregion(self, roi, coords):
         b = True
@@ -130,18 +102,25 @@ class OpObjectExtraction(Operator):
 
 class OpSegmentationImage(Operator):
     BinaryImage = InputSlot()
-    SegmentationImageWithBackground = OutputSlot()
+    SegmentationImage = OutputSlot()
 
     def setupOutputs(self):
-        self.SegmentationImageWithBackground.meta.assignFrom(self.BinaryImage.meta)
+        self.SegmentationImage.meta.assignFrom(self.BinaryImage.meta)
 
     def execute(self, slot, subindex, roi, destination):
-        if slot is self.SegmentationImageWithBackground:
+        if slot is self.SegmentationImage:
             a = self.BinaryImage.get(roi).wait()
-            assert(a.shape[0] == 1)
+            assert a.ndim == 5
             assert(a.shape[-1] == 1)
-            destination[0,...,0] = vigra.analysis.labelVolumeWithBackground(a[0,...,0])
+
+            # FIXME: time start may not be 0
+            for t in range(a.shape[0]):
+                destination[t, ..., 0] = vigra.analysis.labelVolumeWithBackground(a[t, ..., 0])
             return destination
+
+    def propagateDirty(self, slot, subindex, roi):
+        if slot is self.BinaryImage:
+            self.SegmentationImage.setDirty([])
 
 
 class OpRegionFeatures(Operator):
@@ -257,9 +236,10 @@ class OpObjectCounts(Operator):
             result = {}
             img = self.SegmentationImage.value
             for t, img in enumerate(img):
-                result[t] = img.max()
+                result[t] = img.max() + 1
         return result
 
     def propagateDirty(self, slot, subindex, roi):
+        import util; util.set_trace()
         if slot is self.SegmentationImage:
             self.ObjectCounts.setDirty(List(slot, range(roi.start[0], roi.stop[0])))

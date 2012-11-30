@@ -172,7 +172,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         localDir = os.path.split(__file__)[0]
         self._drawer = uic.loadUi(localDir+"/drawer.ui")
 
-        self._drawer.labelImageButton.pressed.connect(self._onSegmentationImageButtonPressed)
+#        self._drawer.labelImageButton.pressed.connect(self._onSegmentationImageButtonPressed)
         self._drawer.extractObjectsButton.pressed.connect(self._onExtractObjectsButtonPressed)
 
     def initViewerControlUi( self ):
@@ -209,25 +209,6 @@ class ObjectExtractionGui( LayerViewerGui ):
             for i, layer in enumerate(self.layerstack):
                 layer.visible = (i == row)
         layerListWidget.currentRowChanged.connect( handleSelectionChanged )
-
-    def _onSegmentationImageButtonPressed( self ):
-
-        oper = self.operatorForCurrentImage()
-        m = oper.SegmentationImage.meta
-
-        maxt = m.shape[m.axistags.index('t')]
-        progress = QProgressDialog("Labeling Binary Image...", "Stop", 0, maxt)
-        progress.setWindowModality(Qt.ApplicationModal)
-        progress.setMinimumDuration(0)
-        progress.setCancelButtonText(QString())
-        progress.forceShow()
-        for t in range(maxt):
-            progress.setValue(t)
-            if progress.wasCanceled():
-                break
-            else:
-                oper.updateSegmentationImageAt( t )
-        progress.setValue(maxt)
 
 
     def _onExtractObjectsButtonPressed( self ):
