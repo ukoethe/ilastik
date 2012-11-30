@@ -219,9 +219,8 @@ class ObjectClassificationGui(LabelingGui):
         that object's label.
 
         """
-        # FIXME: depends on time slice
         label = self.editor.brushingModel.drawnNumber
-        slicing = tuple(slice(i, i+1) for i in pos5D[1:])
+        slicing = tuple(slice(i, i+1) for i in pos5D)
         arr = layer.segmentationImageSlot[slicing].wait()
         obj = arr.flat[0]
         if obj == 0: # background

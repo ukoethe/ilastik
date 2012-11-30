@@ -33,6 +33,7 @@ class OpObjectExtraction(Operator):
         self._mem_h5 = h5py.File(str(id(self)), driver='core', backing_store=False)
         self._reg_cents = {}
 
+        # FIXME: actually use segmentation operator
         self._opSegmentationImage = OpSegmentationImage(parent=self, graph = self.graph)
         self._opSegmentationImage.BinaryImage.connect(self.BinaryImage)
 
@@ -40,7 +41,7 @@ class OpObjectExtraction(Operator):
         self._opRegFeats.SegmentationImage.connect(self.SegmentationImage)
 
         self._opObjCounts = OpObjectCounts(parent=self, graph=self.graph)
-        self._opObjCounts.RegionCounts.connect(self._opRegFeats.RegionCounts)
+        self._opObjCounts.SegmentationImage.connect(self.SegmentationImage)
 
         # connect outputs to inner operator
         self.RegionFeatures.connect(self._opRegFeats.RegionFeatures)
@@ -76,6 +77,7 @@ class OpObjectExtraction(Operator):
     def updateSegmentationImage(self):
 
         # FIXME: crazy code duplication
+        # FIXME: use operator
         m = self.SegmentationImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             for t in range(m.shape[0]):
@@ -86,7 +88,6 @@ class OpObjectExtraction(Operator):
                 a = a[0,...,0]
                 self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
                 roi = SubRegion(self.SegmentationImage, start=5*(0,), stop=m.shape)
-                self.SegmentationImage.setDirty(roi)
         else:
             start = len(m.shape)*[0,]
             stop = list(m.shape)
@@ -100,7 +101,8 @@ class OpObjectExtraction(Operator):
             oldshape = self.BinaryImage.meta.shape
             roi = SubRegion(self.SegmentationImage, start=len(oldshape)*(0,),
                             stop=oldshape)
-            self.SegmentationImage.setDirty(roi)
+
+        self.SegmentationImage.setDirty(roi)
 
     def updateSegmentationImageAt(self, t):
         m = self.SegmentationImage.meta
@@ -110,6 +112,9 @@ class OpObjectExtraction(Operator):
                                            start=start, stop=stop)).wait()
         a = a[0,...,0]
         self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
+
+        # FIXME: sets everything dirty
+        self.SegmentationImage.setDirty([])
 
     def __contained_in_subregion(self, roi, coords):
         b = True
@@ -236,15 +241,16 @@ class OpRegionFeatures(Operator):
             feat = self._calcFeat(featname, roi)
             for key, val in feat.iteritems():
                 result[key][featname] = val
-        return result
+        return dict(result)
 
     def execute(self, slot, subindex, roi, result):
         if slot is self.RegionCenters:
-            self._calcFeat('RegionCenter', roi)
+            result = self._calcFeat('RegionCenter', roi)
         elif slot is self.RegionCounts:
-            self._calcFeat('Count', roi)
+            result = self._calcFeat('Count', roi)
         elif slot is self.RegionFeatures:
-            return self._combine_feats(roi, 'RegionCenter', 'Count')
+            result = self._combine_feats(roi, 'RegionCenter', 'Count')
+        return result
 
     def propagateDirty(self, slot, subindex, roi):
         def setdirty(slot):
@@ -256,7 +262,7 @@ class OpRegionFeatures(Operator):
 
 
 class OpObjectCounts(Operator):
-    RegionCounts = InputSlot(stype=Opaque, rtype=List)
+    SegmentationImage = InputSlot()
     ObjectCounts = OutputSlot(stype=Opaque, rtype=List)
 
     def __init__(self, parent=None, graph=None):
@@ -275,12 +281,11 @@ class OpObjectCounts(Operator):
     def execute(self, slot, subindex, roi, result):
         if slot is self.ObjectCounts:
             result = {}
-            rcs = self.RegionCounts[roi]
-            for key, val in rcs.iteritems():
-                result[key] = len(val)
+            img = self.SegmentationImage.value
+            for t, img in enumerate(img):
+                result[t] = img.max()
         return result
 
     def propagateDirty(self, slot, subindex, roi):
-        if slot is self.RegionCounts:
-            self.ObjectCounts.SetDirty(List(self.ObjectCounts,
-                                            range(roi.start[0], roi.stop[0])))
+        if slot is self.SegmentationImage:
+            self.ObjectCounts.setDirty(List(slot, range(roi.start[0], roi.stop[0])))

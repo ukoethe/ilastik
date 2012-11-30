@@ -35,7 +35,7 @@ class OpObjectClassification(Operator):
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
     FreezePredictions = InputSlot(stype='bool')
-    ObjectCounts = InputSlot(level=1, stype=Opaque)
+    ObjectCounts = InputSlot(stype=Opaque, rtype=List, level=1)
 
     ################
     # Output slots #
@@ -104,7 +104,6 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-
         d = defaultdict(lambda: numpy.zeros((0,)))
         self.LabelInputs[imageIndex].setValue(d)
 
@@ -121,15 +120,17 @@ class OpObjectClassification(Operator):
             self._resizeLabelInputs(subindex, roi)
 
     def _resizeLabelInputs(self, imageIndex, roi=None):
-        labels = self.LabelInputs[imageIndex][roi]
-        counts = self.ObjectCounts[imageIndex][roi]
-        tstart, tstop = roi.start[0], roi.stop[0]
+        #if roi is None:
+        #    roi = [slice(None, None, None)]
+        labels = dict()
+        counts = self.ObjectCounts[imageIndex][0].wait() # WHY???
+        tstart, tstop = min(counts.keys()), max(counts.keys()) + 1
         for t in range(tstart, tstop):
-            nlabels = len(labels[t])
-            nobjects = counts[t]
-            if nlabels != nobjects:
-                labels[t] = numpy.zeros((nobjects,))
-                self.LabelInputs[imageIndex][t] = numpy.zeros((nobjects,))
+            nobjects = counts[t] + 1
+            labels[t] = numpy.zeros((nobjects,))
+
+        # FIXME: does this do the right thing?
+        self.LabelInputs[imageIndex].setValue(labels)
 
 
 class OpObjectTrain(Operator):
