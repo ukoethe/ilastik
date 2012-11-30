@@ -108,7 +108,6 @@ class OpObjectClassification(Operator):
         d = defaultdict(lambda: numpy.zeros((0,)))
         self.LabelInputs[imageIndex].setValue(d)
 
-
     def setupOutputs(self):
         pass
 
@@ -118,13 +117,12 @@ class OpObjectClassification(Operator):
         pass
 
     def propagateDirty(self, slot, subindex, roi):
-        # Output slots are directly connected to internal operators
         if slot == self.ObjectCounts:
             self._resizeLabelInputs(subindex, roi)
 
     def _resizeLabelInputs(self, imageIndex, roi=None):
-        labels = self.LabelInputs[imageIndex][roi][0]
-        counts = self.ObjectCounts[imageIndex][roi][0]
+        labels = self.LabelInputs[imageIndex][roi]
+        counts = self.ObjectCounts[imageIndex][roi]
         tstart, tstop = roi.start[0], roi.stop[0]
         for t in range(tstart, tstop):
             nlabels = len(labels[t])

@@ -39,10 +39,14 @@ class OpObjectExtraction(Operator):
         self._opRegFeats = OpRegionFeatures(parent = self, graph = self.graph)
         self._opRegFeats.SegmentationImage.connect(self.SegmentationImage)
 
+        self._opObjCounts = OpObjectCounts(parent=self, graph=self.graph)
+        self._opObjCounts.RegionCounts.connect(self._opRegFeats.RegionCounts)
+
         # connect outputs to inner operator
         self.RegionFeatures.connect(self._opRegFeats.RegionFeatures)
         self.RegionCenters.connect(self._opRegFeats.RegionCenters)
         self.RegionCounts.connect(self._opRegFeats.RegionCounts)
+        self.ObjectCounts.connect(self._opObjCounts.ObjectCounts)
 
     def __del__(self):
         self._mem_h5.close()
@@ -64,11 +68,6 @@ class OpObjectExtraction(Operator):
             return self._execute_ObjectCenterImage(roi, result)
         if slot is self.SegmentationImage:
             result = self._mem_h5['SegmentationImage'][roi.toSlice()]
-            return result
-        if slot is self.ObjectCounts:
-            result = self.RegionCenters[roi]
-            for key, value in result:
-                result[key] = len(value)
             return result
 
     def propagateDirty(self, inputSlot, subindex, roi):
@@ -248,8 +247,40 @@ class OpRegionFeatures(Operator):
             return self._combine_feats(roi, 'RegionCenter', 'Count')
 
     def propagateDirty(self, slot, subindex, roi):
+        def setdirty(slot):
+            slot.setDirty(List(slot, range(roi.start[0], roi.stop[0])))
         if slot is self.SegmentationImage:
-            self.RegionCenter.setDirty(List(self.Output,
+            setdirty(self.RegionCenters)
+            setdirty(self.RegionCounts)
+            setdirty(self.RegionFeatures)
+
+
+class OpObjectCounts(Operator):
+    RegionCounts = InputSlot(stype=Opaque, rtype=List)
+    ObjectCounts = OutputSlot(stype=Opaque, rtype=List)
+
+    def __init__(self, parent=None, graph=None):
+        super(OpObjectCounts, self).__init__(parent=parent,
+                                              graph=graph)
+        def setshape(s):
+            s.meta.shape = (1,)
+            s.meta.dtype = object
+            s.meta.axistags = None
+
+        setshape(self.ObjectCounts)
+
+    def setupOutputs(self):
+        pass
+
+    def execute(self, slot, subindex, roi, result):
+        if slot is self.ObjectCounts:
+            result = {}
+            rcs = self.RegionCounts[roi]
+            for key, val in rcs.iteritems():
+                result[key] = len(val)
+        return result
+
+    def propagateDirty(self, slot, subindex, roi):
+        if slot is self.RegionCounts:
+            self.ObjectCounts.SetDirty(List(self.ObjectCounts,
                                             range(roi.start[0], roi.stop[0])))
-            self.Count.setDirty(List(self.Output, range(roi.start[0],
-                                                        roi.stop[0])))
