@@ -30,14 +30,14 @@ class OpObjectExtraction(Operator):
     def __init__(self, parent = None, graph = None):
         super(OpObjectExtraction, self).__init__(parent=parent,graph=graph)
 
-        self._mem_h5 = h5py.File(str(id(self)), driver='core', backing_store=False)
-
-        # FIXME: actually use segmentation operator
         self._opSegmentationImage = OpSegmentationImage(parent=self, graph = self.graph)
         self._opSegmentationImage.BinaryImage.connect(self.BinaryImage)
 
         self._opRegFeats = OpRegionFeatures(parent = self, graph = self.graph)
         self._opRegFeats.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
+
+        self._opObjectCenterImage = OpObjectCenterImage(parent=self, graph=self.graph)
+        self._opObjectCenterImage.RegionCenters.connect(self._opRegFeats.RegionCenters)
 
         self._opObjCounts = OpObjectCounts(parent=self, graph=self.graph)
         self._opObjCounts.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
@@ -48,56 +48,16 @@ class OpObjectExtraction(Operator):
         self.RegionCenters.connect(self._opRegFeats.RegionCenters)
         self.RegionCounts.connect(self._opRegFeats.RegionCounts)
         self.ObjectCounts.connect(self._opObjCounts.ObjectCounts)
-
-    def __del__(self):
-        self._mem_h5.close()
+        self.ObjectCenterImage.connect(self._opObjectCenterImage.ObjectCenterImage)
 
     def setupOutputs(self):
-        self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
+        pass
 
     def execute(self, slot, subindex, roi, result):
-        if slot is self.ObjectCenterImage:
-            return self._execute_ObjectCenterImage(roi, result)
+        pass
 
     def propagateDirty(self, inputSlot, subindex, roi):
         pass
-
-    def __contained_in_subregion(self, roi, coords):
-        b = True
-        for i in range(len(coords)):
-            b = b and (roi.start[i] <= coords[i] and coords[i] < roi.stop[i])
-        return b
-
-    def __make_key(self, roi, coords):
-        key = [coords[i]-roi.start[i] for i in range(len(roi.start))]
-        return tuple(key)
-
-    def _execute_ObjectCenterImage(self, roi, result):
-        # TODO: this is better, but still inelegent.
-        result[:] = 0
-        m = self.SegmentationImage.meta
-        hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
-        if hasTime:
-            tstart, tstop = roi.start[0], roi.stop[0]
-        else:
-            tstart, tstop = 0, 1
-        for t in range(tstart, tstop):
-            centers = self.RegionFeatures([t]).wait()[t]['RegionCenter']
-            centers = numpy.asarray(centers, dtype=numpy.uint32)
-            if centers.size:
-                centers = centers[1:,:]
-            for center in centers:
-                x, y, z = center[0:3]
-                for dim in (1, 2, 3):
-                    for offset in (-1, 0, 1):
-                        c = [t, x, y, z, 0]
-                        c[dim] += offset
-                        if not hasTime:
-                            c = c[1:]
-                        c = tuple(c)
-                        if self.__contained_in_subregion(roi, c):
-                            result[self.__make_key(roi, c)] = 255
-        return result
 
 
 class OpSegmentationImage(Operator):
@@ -243,3 +203,39 @@ class OpObjectCounts(Operator):
         import util; util.set_trace()
         if slot is self.SegmentationImage:
             self.ObjectCounts.setDirty(List(slot, range(roi.start[0], roi.stop[0])))
+
+
+class OpObjectCenterImage(Operator):
+    RegionCenters = InputSlot()
+    ObjectCenterImage = OutputSlot()
+
+    @staticmethod
+    def __contained_in_subregion(roi, coords):
+        b = True
+        for i in range(len(coords)):
+            b = b and (roi.start[i] <= coords[i] and coords[i] < roi.stop[i])
+        return b
+
+    @staticmethod
+    def __make_key(roi, coords):
+        key = [coords[i] - roi.start[i] for i in range(len(roi.start))]
+        return tuple(key)
+
+    def _execute_ObjectCenterImage(self, roi, result):
+        result[:] = 0
+        tstart, tstop = roi.start[0], roi.stop[0]
+        for t in range(tstart, tstop):
+            centers = self.RegionCenters([t]).wait()[t]
+            centers = numpy.asarray(centers, dtype=numpy.uint32)
+            if centers.size:
+                centers = centers[1:,:]
+            for center in centers:
+                x, y, z = center[0:3]
+                for dim in (1, 2, 3):
+                    for offset in (-1, 0, 1):
+                        c = [t, x, y, z, 0]
+                        c[dim] += offset
+                        c = tuple(c)
+                        if self.__contained_in_subregion(roi, c):
+                            result[self.__make_key(roi, c)] = 255
+        return result
