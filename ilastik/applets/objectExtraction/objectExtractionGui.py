@@ -24,7 +24,7 @@ import vigra
 class ObjectExtractionGui( LayerViewerGui ):
     """
     """
-    
+
     ###########################################
     ### AppletGuiInterface Concrete Methods ###
     ###########################################
@@ -44,13 +44,13 @@ class ObjectExtractionGui( LayerViewerGui ):
 
         layers = []
         mainOperator = self.operatorForCurrentImage()
-        
+
         #inputSlot = self.pipeline.InputImages[currentImageIndex]
         binarySlot = mainOperator.BinaryImage
         segmentationSlot = mainOperator.SegmentationImage
         centerSlot = mainOperator.ObjectCenterImage
-        
-        
+
+
         if binarySlot.ready():
             ct = colortables.create_default_8bit()
             self.binaryimagesrc = LazyflowSource( binarySlot )
@@ -74,7 +74,7 @@ class ObjectExtractionGui( LayerViewerGui ):
             layer.name = "Object Centers"
             layers.append(layer)
             #self.layerstack.append( layer )
-        return layers 
+        return layers
 
     '''
     def setImageIndex( self, imageIndex ):
@@ -102,14 +102,14 @@ class ObjectExtractionGui( LayerViewerGui ):
 
         if mainOperator.BinaryImage.meta.shape:
             self.editor.dataShape = mainOperator.SegmentationImage.meta.shape
-        mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )            
+        mainOperator.BinaryImage.notifyMetaChanged( self._onMetaChanged )
     '''
     def reset( self ):
         pass
 
     ###########################################
     ###########################################
-    
+
     def __init__(self, mainOperator):
         """
         """
@@ -133,13 +133,13 @@ class ObjectExtractionGui( LayerViewerGui ):
 
         self._initAppletDrawerUi()
         '''
-        
+
     '''
     def _onMetaChanged( self, slot ):
         if slot is self.curOp.BinaryImage:
             if slot.meta.shape:
                 self.editor.dataShape = slot.meta.shape
- 
+
     def _initEditor(self):
         """
         Initialize the Volume Editor GUI.
@@ -156,7 +156,7 @@ class ObjectExtractionGui( LayerViewerGui ):
         model = self.editor.layerStack
         model.canMoveSelectedUp.connect(self._viewerControlWidget.UpButton.setEnabled)
         model.canMoveSelectedDown.connect(self._viewerControlWidget.DownButton.setEnabled)
-        model.canDeleteSelected.connect(self._viewerControlWidget.DeleteButton.setEnabled)     
+        model.canDeleteSelected.connect(self._viewerControlWidget.DeleteButton.setEnabled)
 
         # Connect our layer movement buttons to the appropriate layerstack actions
         self._viewerControlWidget.layerWidget.init(model)
@@ -166,7 +166,7 @@ class ObjectExtractionGui( LayerViewerGui ):
 
         self.editor._lastImageViewFocus = 0
 
-    '''        
+    '''
     def initAppletDrawerUi(self):
         # Load the ui file (find it in our own directory)
         localDir = os.path.split(__file__)[0]
@@ -187,13 +187,13 @@ class ObjectExtractionGui( LayerViewerGui ):
         self._viewerControlWidget = uic.loadUi(path)
         layerListWidget = self._viewerControlWidget.featureListWidget
 
-        # Need to handle data changes because the layerstack model hasn't 
+        # Need to handle data changes because the layerstack model hasn't
         # updated his data yet by the time he calls the rowsInserted signal
         def handleLayerStackDataChanged(startIndex, stopIndex):
             row = startIndex.row()
             layerListWidget.item(row).setText(self.layerstack[row].name)
         self.layerstack.dataChanged.connect(handleLayerStackDataChanged)
-        
+
         def handleInsertedLayers(parent, start, end):
             for i in range(start, end+1):
                 layerListWidget.insertItem(i, self.layerstack[i].name)
@@ -203,7 +203,7 @@ class ObjectExtractionGui( LayerViewerGui ):
             for i in reversed(range(start, end+1)):
                 layerListWidget.takeItem(i)
         self.layerstack.rowsRemoved.connect( handleRemovedLayers )
-        
+
         def handleSelectionChanged(row):
             # Only one layer is visible at a time
             for i, layer in enumerate(self.layerstack):
@@ -211,29 +211,27 @@ class ObjectExtractionGui( LayerViewerGui ):
         layerListWidget.currentRowChanged.connect( handleSelectionChanged )
 
     def _onSegmentationImageButtonPressed( self ):
-        
+
         oper = self.operatorForCurrentImage()
         m = oper.SegmentationImage.meta
-        
-        if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
-            maxt = m.shape[m.axistags.index('t')]
-            progress = QProgressDialog("Labeling Binary Image...", "Stop", 0, maxt)
-            progress.setWindowModality(Qt.ApplicationModal)
-            progress.setMinimumDuration(0)
-            progress.setCancelButtonText(QString())
-            progress.forceShow()
-            for t in range(maxt):
-                progress.setValue(t)
-                if progress.wasCanceled():
-                    break
-                else:
-                    oper.updateSegmentationImageAt( t )
-            progress.setValue(maxt)   
-        else:
-            oper.updateSegmentationImage()
+
+        maxt = m.shape[m.axistags.index('t')]
+        progress = QProgressDialog("Labeling Binary Image...", "Stop", 0, maxt)
+        progress.setWindowModality(Qt.ApplicationModal)
+        progress.setMinimumDuration(0)
+        progress.setCancelButtonText(QString())
+        progress.forceShow()
+        for t in range(maxt):
+            progress.setValue(t)
+            if progress.wasCanceled():
+                break
+            else:
+                oper.updateSegmentationImageAt( t )
+        progress.setValue(maxt)
+
 
     def _onExtractObjectsButtonPressed( self ):
-        
+
         oper = self.operatorForCurrentImage()
         m = oper.SegmentationImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) >0:
@@ -242,7 +240,7 @@ class ObjectExtractionGui( LayerViewerGui ):
             progress.setWindowModality(Qt.ApplicationModal)
             progress.setMinimumDuration(0)
             progress.setCancelButtonText(QString())
-    
+
             reqs = []
             oper._opRegFeats.fixed = False
             for t in range(maxt):
@@ -254,12 +252,12 @@ class ObjectExtractionGui( LayerViewerGui ):
                     req.cancel()
                 else:
                     req.wait()
-                    
-            oper._opRegFeats.fixed = True 
+
+            oper._opRegFeats.fixed = True
             progress.setValue(maxt)
         else:
             oper._opRegFeats.fixed = False
             oper.RegionFeatures([0]).wait()
             oper._opRegFeats.fixed = True
-            
+
         oper.ObjectCenterImage.setDirty( SubRegion(oper.ObjectCenterImage))

@@ -75,46 +75,20 @@ class OpObjectExtraction(Operator):
         pass
 
     def updateSegmentationImage(self):
-
-        # FIXME: crazy code duplication
         # FIXME: use operator
-        m = self.SegmentationImage.meta
-        if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
-            for t in range(m.shape[0]):
-                #self.updateSegmentationImageAt(t)
-                start = [t,] + (len(m.shape) - 1) * [0,]
-                stop = [t+1,] + list(m.shape[1:])
-                a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
-                a = a[0,...,0]
-                self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
-                roi = SubRegion(self.SegmentationImage, start=5*(0,), stop=m.shape)
-        else:
-            start = len(m.shape)*[0,]
-            stop = list(m.shape)
-            a = self.BinaryImage.get(SubRegion(self.BinaryImage,
-                                               start=start, stop=stop)).wait()
-            a = a.squeeze()
-            if len(a.shape)>2:
-                self._mem_h5['SegmentationImage'][...,0] = vigra.analysis.labelVolumeWithBackground(a)
-            else:
-                self._mem_h5['SegmentationImage'][...,0] = vigra.analysis.labelImageWithBackground(a)
-            oldshape = self.BinaryImage.meta.shape
-            roi = SubRegion(self.SegmentationImage, start=len(oldshape)*(0,),
-                            stop=oldshape)
-
-        self.SegmentationImage.setDirty(roi)
+        for t in range(m.shape[0]):
+            self.updateSegmentationImage(t)
 
     def updateSegmentationImageAt(self, t):
         m = self.SegmentationImage.meta
         start = [t,] + (len(m.shape) - 1) * [0,]
         stop = [t+1,] + list(m.shape[1:])
-        a = self.BinaryImage.get(SubRegion(self.BinaryImage,
-                                           start=start, stop=stop)).wait()
+        a = self.BinaryImage.get(SubRegion(self.BinaryImage, start=start, stop=stop)).wait()
         a = a[0,...,0]
         self._mem_h5['SegmentationImage'][t,...,0] = vigra.analysis.labelVolumeWithBackground(a)
+        roi = SubRegion(self.SegmentationImage, start=5*(0,), stop=m.shape)
+        self.SegmentationImage.setDirty(roi)
 
-        # FIXME: sets everything dirty
-        self.SegmentationImage.setDirty([])
 
     def __contained_in_subregion(self, roi, coords):
         b = True
