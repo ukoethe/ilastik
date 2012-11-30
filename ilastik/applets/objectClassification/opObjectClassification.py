@@ -3,6 +3,7 @@ import h5py
 import vigra
 import vigra.analysis
 import copy
+from collections import defaultdict
 
 from lazyflow.graph import Operator, InputSlot, OutputSlot
 from lazyflow.stype import Opaque
@@ -104,6 +105,10 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
 
+        d = defaultdict(lambda: numpy.zeros((0,)))
+        self.LabelInputs[imageIndex].setValue(d)
+
+
     def setupOutputs(self):
         pass
 
@@ -126,7 +131,7 @@ class OpObjectClassification(Operator):
             nobjects = counts[t]
             if nlabels != nobjects:
                 labels[t] = numpy.zeros((nobjects,))
-        self.LabelInputs[imageIndex][roi] = labels
+                self.LabelInputs[imageIndex][t] = numpy.zeros((nobjects,))
 
 
 class OpObjectTrain(Operator):
