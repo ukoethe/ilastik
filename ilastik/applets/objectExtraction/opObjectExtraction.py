@@ -8,6 +8,8 @@ from lazyflow.stype import Opaque
 from lazyflow.rtype import Everything, SubRegion, List
 from lazyflow.operators.ioOperators.opStreamingHdf5Reader import OpStreamingHdf5Reader
 
+from collections import defaultdict
+
 class OpObjectExtraction(Operator):
     name = "Object Extraction"
 
@@ -18,9 +20,12 @@ class OpObjectExtraction(Operator):
     SegmentationImage = OutputSlot()
     ObjectCenterImage = OutputSlot()
 
-    RegionCenters = OutputSlot(stype=Opaque, rtype=List)
+    # all of these slots produce a dictionary keyed by integers
+    # indexing the time dimension.
     RegionFeatures = OutputSlot(stype=Opaque, rtype=List)
-    RegionCount = OutputSlot(stype=Opaque) #total number of regions
+    RegionCenters = OutputSlot(stype=Opaque, rtype=List)
+    RegionCounts = OutputSlot(stype=Opaque, rtype=List)
+    ObjectCounts = OutputSlot(stype=Opaque, rtype=List)
 
     def __init__(self, parent = None, graph = None):
         super(OpObjectExtraction, self).__init__(parent=parent,graph=graph)
@@ -31,20 +36,13 @@ class OpObjectExtraction(Operator):
         self._opSegmentationImage = OpSegmentationImage(parent=self, graph = self.graph)
         self._opSegmentationImage.BinaryImage.connect(self.BinaryImage)
 
-        self._opRegCent = OpRegionCenters(parent=self, graph = self.graph)
-        self._opRegCent.SegmentationImage.connect(self.SegmentationImage)
-
         self._opRegFeats = OpRegionFeatures(parent = self, graph = self.graph)
         self._opRegFeats.SegmentationImage.connect(self.SegmentationImage)
 
-        self.RegionFeatures.meta.shape=(1,)
-        self.RegionFeatures.meta.dtype=object
-        self.RegionFeatures.meta.axistags =None
-
-        self.RegionCount.meta.shape = (1,)
-        self.RegionCount.meta.dtype = object
-        self.RegionCount.meta.axistags = None
-        self.RegionCount.setValue([0])
+        # connect outputs to inner operator
+        self.RegionFeatures.connect(self._opRegFeats.RegionFeatures)
+        self.RegionCenters.connect(self._opRegFeats.RegionCenters)
+        self.RegionCounts.connect(self._opRegFeats.RegionCounts)
 
     def __del__(self):
         self._mem_h5.close()
@@ -67,42 +65,18 @@ class OpObjectExtraction(Operator):
         if slot is self.SegmentationImage:
             result = self._mem_h5['SegmentationImage'][roi.toSlice()]
             return result
-        if slot is self.RegionCenters:
-            res = self._opRegCent.Output.get(roi).wait()
-            return res
-        if slot is self.RegionFeatures:
-            res = self._opRegFeats.Output.get(roi).wait()
-
-            # FIXME: depends on time slice
-            self._regionCount(roi, res[0])
-
-            return res
-        if slot is self.RegionCount:
-            result = self._regionCount(roi)
-            return [result]
-
-    def _regionCount(self, roi, feats=None):
-        # FIXME: this ignores roi and always returns length of
-        # features. But what if features were only calculated on a
-        # region?
-
-        # FIXME: there has to be some magic here, to extract not only
-        # from the first time slice
-        if feats is None:
-            feats = self._opRegFeats.Output.get(roi).wait()
-            feats = feats[0]
-
-        # FIXME: do not hardcode key.
-        nobjects = len(feats['Count'])
-        if self.RegionCount.value[0] != nobjects:
-            self.RegionCount.setValue([nobjects])
-            self.RegionCount.setDirty(roi)
-        return nobjects
+        if slot is self.ObjectCounts:
+            result = self.RegionCenters[roi]
+            for key, value in result:
+                result[key] = len(value)
+            return result
 
     def propagateDirty(self, inputSlot, subindex, roi):
         pass
 
     def updateSegmentationImage(self):
+
+        # FIXME: crazy code duplication
         m = self.SegmentationImage.meta
         if m.axistags.axisTypeCount(vigra.AxisType.Time) > 0:
             for t in range(m.shape[0]):
@@ -194,7 +168,9 @@ class OpSegmentationImage(Operator):
 
 class OpRegionFeatures(Operator):
     SegmentationImage = InputSlot()
-    Output = OutputSlot(stype=Opaque, rtype=List)
+    RegionFeatures = OutputSlot(stype=Opaque, rtype=List)
+    RegionCenters = OutputSlot(stype=Opaque, rtype=List)
+    RegionCounts = OutputSlot(stype=Opaque, rtype=List)
 
     def __init__(self, parent=None, graph=None):
         super(OpRegionFeatures, self).__init__(parent=parent,
@@ -202,99 +178,78 @@ class OpRegionFeatures(Operator):
         self._cache = {}
         self.fixed = True
 
+        def setshape(s):
+            s.meta.shape = (1,)
+            s.meta.dtype = object
+            s.meta.axistags = None
+
+        setshape(self.RegionFeatures)
+        setshape(self.RegionCenters)
+        setshape(self.RegionCounts)
+
+
     def setupOutputs(self):
         pass
 
-    def execute(self, slot, subindex, roi, result):
-        if slot is self.Output:
-            def extract(a):
-                labels = numpy.asarray(a, dtype=numpy.uint32)
-                data = numpy.asarray(a, dtype=numpy.float32)
-                feats = vigra.analysis.extractRegionFeatures(data,
-                                                             labels,
-                                                             features=['RegionCenter', 'Count'],
-                                                             ignoreLabel=0)
-                return feats
+    @staticmethod
+    def _callVigra(a, featname):
+        labels = numpy.asarray(a, dtype=numpy.uint32)
+        data = numpy.asarray(a, dtype=numpy.float32)
+        feats = vigra.analysis.extractRegionFeatures(data,
+                                                     labels,
+                                                     features=[featname],
+                                                     ignoreLabel=0)
+        return feats
 
-            feats = {}
-            for t in roi:
-                if t in self._cache:
-                    feats_at = self._cache[t]
-                elif self.fixed:
-                    feats_at = { 'RegionCenter': numpy.asarray([]), 'Count': numpy.asarray([]) }
-                else:
-                    m = self.SegmentationImage.meta
-                    hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
-                    troi = None
-                    if hasTime:
-                        troi = SubRegion(self.SegmentationImage,
-                                         start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
-                                         stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
-                    else:
-                        troi = SubRegion(self.SegmentationImage,
-                                         start=len(self.SegmentationImage.meta.shape)*[0,],
-                                         stop=list(self.SegmentationImage.meta.shape))
-                    a = self.SegmentationImage.get(troi).wait()
-
-                    if hasTime > 0:
-                        a = a[0,...,0] # assumes t,x,y,z,c
-                    else:
-                        a = a.squeeze()
-                    feats_at = extract(a)
-                    self._cache[t] = feats_at
-                feats[t] = feats_at
-            return feats
-
-    def propagateDirty(self, slot, subindex, roi):
-        if slot is self.SegmentationImage:
-            self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0])))
-
-
-class OpRegionCenters(Operator):
-    SegmentationImage = InputSlot()
-    Output = OutputSlot(stype=Opaque, rtype=List)
-
-    def __init__(self, parent=None, graph=None):
-        super(OpRegionCenters, self).__init__(parent=parent,
-                                              graph=graph)
-        self._cache = {}
-        self.fixed = True
-
-    def setupOutputs(self):
-        self.Output.meta.shape = self.SegmentationImage.meta.shape
-        self.Output.meta.dtype = self.SegmentationImage.meta.dtype
-
-    def execute(self, slot, subindex, roi, result):
-        if slot is self.Output:
-            def extract(a):
-                labels = numpy.asarray(a, dtype=numpy.uint32)
-                data = numpy.asarray(a, dtype=numpy.float32)
-                feats = vigra.analysis.extractRegionFeatures(data,
-                                                             labels,
-                                                             features=['RegionCenter'],
-                                                             ignoreLabel=0)
-                centers = numpy.asarray(feats['RegionCenter'], dtype=numpy.uint16)
-                centers = centers[1:,:]
-                return centers
-
-            centers = {}
-            for t in roi:
-                if t in self._cache:
-                    centers_at = self._cache[t]
-                elif self.fixed:
-                    centers_at = numpy.asarray([], dtype=numpy.uint16)
+    def _calcFeat(self, featname, roi):
+        feats = {}
+        for t in roi:
+            if t in self._cache:
+                feats_at = self._cache[t]
+            elif self.fixed:
+                feats_at = {featname: numpy.asarray([])}
+            else:
+                m = self.SegmentationImage.meta
+                hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
+                troi = None
+                if hasTime:
+                    troi = SubRegion(self.SegmentationImage,
+                                     start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
+                                     stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
                 else:
                     troi = SubRegion(self.SegmentationImage,
-                                     start = [t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
-                                     stop = [t+1,] + list(self.SegmentationImage.meta.shape[1:]))
-                    a = self.SegmentationImage.get(troi).wait()
-                    a = a[0,...,0] # assumes t,x,y,z,c
-                    centers_at = extract(a)
-                    self._cache[t] = centers_at
-                centers[t] = centers_at
+                                     start=len(self.SegmentationImage.meta.shape)*[0,],
+                                     stop=list(self.SegmentationImage.meta.shape))
+                a = self.SegmentationImage.get(troi).wait()
 
-            return centers
+                if hasTime > 0:
+                    a = a[0,...,0] # assumes t,x,y,z,c
+                else:
+                    a = a.squeeze()
+                feats_at = self._callVigra(a, featname)
+                self._cache[t] = feats_at
+            feats[t] = feats_at
+        return feats
+
+    def _combine_feats(self, roi, *args):
+        result = defaultdict(dict)
+        for featname in args:
+            feat = self._calcFeat(featname, roi)
+            for key, val in feat.iteritems():
+                result[key][featname] = val
+        return result
+
+    def execute(self, slot, subindex, roi, result):
+        if slot is self.RegionCenters:
+            self._calcFeat('RegionCenter', roi)
+        elif slot is self.RegionCounts:
+            self._calcFeat('Count', roi)
+        elif slot is self.RegionFeatures:
+            return self._combine_feats(roi, 'RegionCenter', 'Count')
 
     def propagateDirty(self, slot, subindex, roi):
         if slot is self.SegmentationImage:
-            self.Output.setDirty(List(self.Output, range(roi.start[0], roi.stop[0])))
+            self.RegionCenter.setDirty(List(self.Output,
+                                            range(roi.start[0], roi.stop[0])))
+            self.Count.setDirty(List(self.Output, range(roi.start[0],
+                                                        roi.stop[0])))

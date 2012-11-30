@@ -34,7 +34,7 @@ class OpObjectClassification(Operator):
     LabelsAllowedFlags = InputSlot(stype='bool', level=1)
     LabelInputs = InputSlot(stype=Opaque, optional=True, level=1)
     FreezePredictions = InputSlot(stype='bool')
-    NumObjects = InputSlot(level=1, stype=Opaque)
+    ObjectCounts = InputSlot(level=1, stype=Opaque)
 
     ################
     # Output slots #
@@ -103,7 +103,6 @@ class OpObjectClassification(Operator):
         self.LabelInputs[imageIndex].meta.shape = (1,)
         self.LabelInputs[imageIndex].meta.dtype = object
         self.LabelInputs[imageIndex].meta.axistags = None
-        self._resizeLabelInputs(imageIndex)
 
     def setupOutputs(self):
         pass
@@ -115,17 +114,19 @@ class OpObjectClassification(Operator):
 
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
-        if slot == self.NumObjects:
-            self._resizeLabelInputs(subindex)
+        if slot == self.ObjectCounts:
+            self._resizeLabelInputs(subindex, roi)
 
-    def _resizeLabelInputs(self, imageIndex):
-        try:
-            nlabels = len(self.LabelInputs[imageIndex].value[0])
-            nobjects = self.NumObjects[imageIndex].value
-        except:
-            nlabels, nobjects = -1, 0
-        if nlabels != nobjects:
-            self.LabelInputs[imageIndex].setValue([numpy.zeros((nobjects,))])
+    def _resizeLabelInputs(self, imageIndex, roi=None):
+        labels = self.LabelInputs[imageIndex][roi][0]
+        counts = self.ObjectCounts[imageIndex][roi][0]
+        tstart, tstop = roi.start[0], roi.stop[0]
+        for t in range(tstart, tstop):
+            nlabels = len(labels[t])
+            nobjects = counts[t]
+            if nlabels != nobjects:
+                labels[t] = numpy.zeros((nobjects,))
+        self.LabelInputs[imageIndex][roi] = labels
 
 
 class OpObjectTrain(Operator):

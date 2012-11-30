@@ -48,7 +48,7 @@ class ObjectClassificationWorkflow(Workflow):
         # connect extraction -> classification
         opObjClassification.SegmentationImages.connect(opObjExtraction.SegmentationImage)
         opObjClassification.ObjectFeatures.connect(opObjExtraction.RegionFeatures)
-        opObjClassification.NumObjects.connect(opObjExtraction.RegionCount)
+        opObjClassification.ObjectCounts.connect(opObjExtraction.ObjectCounts)
 
         self._applets.append(self.projectMetadataApplet)
         self._applets.append(self.dataSelectionApplet)
