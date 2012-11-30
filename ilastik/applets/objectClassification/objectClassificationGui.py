@@ -228,7 +228,7 @@ class ObjectClassificationGui(LabelingGui):
         if obj == 0: # background
             return
         labelslot = layer._datasources[0]._inputSlot
-        labels = labelslot[:].wait()[0]
-        labels[obj] = label
-        labelslot.setValue([labels])
+        labels = labelslot.value
+        labels[pos5D[0]][obj] = label
+        labelslot.setValue(labels)
         labelslot.setDirty(slice(None))

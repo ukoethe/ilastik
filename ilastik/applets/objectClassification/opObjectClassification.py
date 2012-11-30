@@ -271,10 +271,11 @@ class OpToImage(Operator):
     def execute(self, slot, subindex, roi, result):
         im = self.Image[:].wait()
         map_ = self.ObjectMap[:].wait()
-        map_ = map_[0].squeeze()
-        if len(map_) != 0:
-            map_[0] = 0
-            im = map_[im]
+        for t in range(im.shape[0]):
+            tmap = map_[t].squeeze()
+            if len(tmap) != 0:
+                tmap[0] = 0
+                im[t] = tmap[im[t]]
         return im[roi.toSlice()]
 
     def propagateDirty(self, slot, subindex, roi):
