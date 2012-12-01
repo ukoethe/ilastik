@@ -40,12 +40,19 @@ class OpPixelClassification( Operator ):
 
     UncertaintyEstimate = OutputSlot(level=1)
 
+    # GUI-only (not part of the pipeline, but saved to the project)
+    LabelNames = OutputSlot()
+    LabelColors = OutputSlot()
+
     def __init__( self, *args, **kwargs ):
         """
         Instantiate all internal operators and connect them together.
         """
         super(OpPixelClassification, self).__init__(*args, **kwargs)
-
+        
+        self.LabelNames.setValue( [] ) # Default
+        self.LabelColors.setValue( [] ) # Default
+        
         self.FreezePredictions.setValue(True) # Default
         
         # Create internal operators
@@ -197,7 +204,7 @@ class OpPixelClassification( Operator ):
         axisOrder = [ tag.key for tag in inputSlot.meta.axistags ]
         
         ## Label Array blocks
-        blockDims = { 't' : 1, 'x' : 32, 'y' : 32, 'z' : 32, 'c' : 1 }
+        blockDims = { 't' : 1, 'x' : 64, 'y' : 64, 'z' : 64, 'c' : 1 }
         blockShape = tuple( blockDims[k] for k in axisOrder )
         self.opLabelArray.blockShape.setValue( blockShape )
 

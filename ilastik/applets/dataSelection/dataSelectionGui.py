@@ -11,7 +11,10 @@ import glob
 import threading
 import h5py
 
-from ilastik.utility import bind, PreferencesManager
+from volumina.utility import PreferencesManager
+
+from ilastik.shell.gui.iconMgr import ilastikIcons
+from ilastik.utility import bind
 from ilastik.utility.gui import ThreadRouter, threadRouted
 from ilastik.utility.pathHelpers import getPathVariants
 
@@ -58,9 +61,7 @@ class DataSelectionGui(QMainWindow):
         return self
 
     def appletDrawers(self):
-        DrawerNames = { GuiMode.Batch  : 'Batch Inputs',
-                        GuiMode.Normal : 'Input Selection' }        
-        return [ (DrawerNames[self.guiMode], self.drawer) ]
+        return [ (self.title, self.drawer) ]
     
     def menus( self ):
         return []
@@ -78,9 +79,11 @@ class DataSelectionGui(QMainWindow):
     ###########################################
     ###########################################
 
-    def __init__(self, dataSelectionOperator, serializer, guiControlSignal, guiMode=GuiMode.Normal):
+    def __init__(self, dataSelectionOperator, serializer, guiControlSignal, guiMode=GuiMode.Normal, title="Input Selection"):
         with Tracer(traceLogger):
             super(DataSelectionGui, self).__init__()
+            
+            self.title = title
     
             self.drawer = None
             self.mainOperator = dataSelectionOperator
@@ -125,9 +128,16 @@ class DataSelectionGui(QMainWindow):
     
             # Set up our handlers
             self.drawer.addFileButton.clicked.connect(self.handleAddFileButtonClicked)
+            self.drawer.addFileButton.setIcon( QIcon(ilastikIcons.AddSel) )
+
             self.drawer.addStackButton.clicked.connect(self.handleAddStackButtonClicked)
+            self.drawer.addStackButton.setIcon( QIcon(ilastikIcons.AddSel) )
+
             self.drawer.addStackFilesButton.clicked.connect(self.handleAddStackFilesButtonClicked)
+            self.drawer.addStackFilesButton.setIcon( QIcon(ilastikIcons.AddSel) )
+
             self.drawer.removeFileButton.clicked.connect(self.handleRemoveButtonClicked)
+            self.drawer.removeFileButton.setIcon( QIcon(ilastikIcons.RemSel) )
     
     def initCentralUic(self):
         """
@@ -142,15 +152,19 @@ class DataSelectionGui(QMainWindow):
             self.fileInfoTableWidget.resizeColumnsToContents()
             self.fileInfoTableWidget.setAlternatingRowColors(True)
             self.fileInfoTableWidget.setShowGrid(False)
-            self.fileInfoTableWidget.horizontalHeader().setResizeMode(0, QHeaderView.Interactive)
+            self.fileInfoTableWidget.horizontalHeader().setResizeMode(Column.Name, QHeaderView.Interactive)
+            self.fileInfoTableWidget.horizontalHeader().setResizeMode(Column.Location, QHeaderView.Interactive)
+            self.fileInfoTableWidget.horizontalHeader().setResizeMode(Column.InternalID, QHeaderView.Interactive)
             
             self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.Name, 200)
-            self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.Location, 250)
-            self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.InternalID, 100)
+            self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.Location, 300)
+            self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.InternalID, 200)
     
             if self.guiMode == GuiMode.Batch:
                 # It doesn't make sense to provide a labeling option in batch mode
                 self.fileInfoTableWidget.removeColumn( Column.LabelsAllowed )
+                self.fileInfoTableWidget.horizontalHeader().resizeSection(Column.LabelsAllowed, 150)
+                self.fileInfoTableWidget.horizontalHeader().setResizeMode(Column.LabelsAllowed, QHeaderView.Fixed)
             
             self.fileInfoTableWidget.verticalHeader().hide()
     
