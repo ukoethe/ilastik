@@ -8,15 +8,13 @@ from ilastik.applets.lightfield.lighfieldApplet import LightfieldApplet
 
 class LightfieldWorkflow(Workflow):
     def __init__(self):
-        super(LightfieldWorkflow, self).__init__()
+        graph = Graph()
+        super(LightfieldWorkflow, self).__init__(graph = graph)
         self._applets = []
 
-        # Create a graph to be shared by all operators
-        graph = Graph()
-
         # Create applets 
-        self.dataSelectionApplet = DataSelectionApplet(graph, "Input Data", "Input Data", supportIlastik05Import=True, batchDataGui=False)
-        self.lightfieldApplet = LightfieldApplet(graph)
+        self.dataSelectionApplet = DataSelectionApplet(self, "Input Data", "Input Data", supportIlastik05Import=True, batchDataGui=False)
+        self.lightfieldApplet = LightfieldApplet(self)
         self.lightfieldApplet.gui.dataSelectionOperator = self.dataSelectionApplet.topLevelOperator
 #        self.lightfieldApplet = LightfieldApplet2(graph)
 
