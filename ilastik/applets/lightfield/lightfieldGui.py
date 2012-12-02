@@ -4,7 +4,6 @@ Created on Oct 14, 2012
 @author: fredo
 '''
 from ilastik.applets.layerViewer.layerViewerGui import LayerViewerGui
-import operations
 from PyQt4 import uic
 import os
 useVTK = True
@@ -20,7 +19,7 @@ except:
 
 class LightfieldGui(LayerViewerGui):
     
-    APPLET_DRAWER_PATH = os.path.join(os.path.dirname(__file__),"drawer.ui")
+    APPLET_DRAWER_PATH = os.path.join(os.path.dirname(__file__),"drawerNew.ui")
     logger = logging.getLogger(__name__)
     
     def __init__(self, toplevelOperator):
@@ -28,15 +27,15 @@ class LightfieldGui(LayerViewerGui):
         #=======================================================================
         # rearrange views
         #=======================================================================
-        x_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(1)
-        y_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal2.widget(0)
-        z_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(0)
-        view_3d = self.volumeEditorWidget.quadview.splitHorizontal2.widget(1)
-        
-        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(x_slicing_view)
-        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(y_slicing_view)
-        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(z_slicing_view)
-        self.volumeEditorWidget.quadview.splitHorizontal2.addWidget(view_3d)
+#        x_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(1)
+#        y_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal2.widget(0)
+#        z_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(0)
+#        view_3d = self.volumeEditorWidget.quadview.splitHorizontal2.widget(1)
+#        
+#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(x_slicing_view)
+#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(y_slicing_view)
+#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(z_slicing_view)
+#        self.volumeEditorWidget.quadview.splitHorizontal2.addWidget(view_3d)
         
         self.initDrawers()
         self.dataSelectionOperator = None
@@ -45,11 +44,11 @@ class LightfieldGui(LayerViewerGui):
     def initDrawers(self):
         self._drawers = uic.loadUi(self.APPLET_DRAWER_PATH)
         
-        self._drawers.editChannelSubmit.clicked.connect(self.editChannel)
-        self._drawers.editGaussSubmit.clicked.connect(self.editGauss)
-        self._drawers.editContrastSubmit.clicked.connect(self.editContrast)
-        self._drawers.editGammaSubmit.clicked.connect(self.editGamma)
-        self._drawers.editMedianSubmit.clicked.connect(self.editMedian)
+#        self._drawers.editChannelSubmit.clicked.connect(self.editChannel)
+#        self._drawers.editGaussSubmit.clicked.connect(self.editGauss)
+#        self._drawers.editContrastSubmit.clicked.connect(self.editContrast)
+#        self._drawers.editGammaSubmit.clicked.connect(self.editGamma)
+#        self._drawers.editMedianSubmit.clicked.connect(self.editMedian)
         self._drawers.editDepthSubmit.clicked.connect(self.editDepth)
         
     def appletDrawers(self):
@@ -63,8 +62,9 @@ class LightfieldGui(LayerViewerGui):
 #        self.logger.info("Calculating depth")
 #        depth = operations.depth(self.dataSelectionOperator.outputs["Image"][:].allocate().wait(),inner,outer)
 #        depth.dirty = True
-        self.operation = "Depth"
-        self.options = {"inner" : inner, "outer" : outer}
+        self.topLevelOperator.innerScale.setValue(inner)
+        self.topLevelOperator.outerScale.setValue(outer)
+        
 #        print depth
     
     def editGauss(self):
