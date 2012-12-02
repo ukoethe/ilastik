@@ -11,7 +11,6 @@ import coherenceMerge as cM
 #import lazyflow stuff
 from lazyflow.graph import Operator, InputSlot, OutputSlot
 
-from ilastik.applets.lightfield.LFLib.ImageProcessing.ui import show
 
 import traceback
 import sys
@@ -47,9 +46,7 @@ class OpCalcDepth(Operator):
         #input and output roi are not the same, change output request roi to input roi 
         slic = roi.toSlice()
         slic = (slic[0], slice(0, self.inputLF.meta.shape[1])) + slic[2:4] + (slice(0,3),)
-        
-        print str(roi.toSlice())
-        
+                
         #fetch input lf
         lf = self.inputLF[slic].wait()
         
@@ -59,7 +56,7 @@ class OpCalcDepth(Operator):
             tmp = 0.3*lf[:,:,:,:,0]+0.59*0.3*lf[:,:,:,:,1]+0.11*lf[:,:,:,:,2]
         elif self.colorMode.value == 1:
             print "convert RGB LF to HSV LF"
-            from ilastik.applets.lightfield.LFLib.ImageProcessing.improc import rgbLF2hsvLF
+            from ilastik.applets.lightfield.ImageProcessing.improc import rgbLF2hsvLF
             rgbLF2hsvLF(lf,tmp)
             tmp = tmp[:,:,:,:,2]*255
           
@@ -171,12 +168,12 @@ def labelDirection(lf,result,params,direction):
       subLF = getSubspace(lf,u=angle)
     elif direction == 'v':
       subLF = getSubspace(lf,v=angle)
-    print "subLf shape %s" % str(subLF.shape)
+    
     for spatial in range(spatials):
       
       if direction == 'u':
         epi = subLF[:,spatial,:]
-        print "spatial %d, epi-shape %s" % (spatial, str(epi.shape))  
+        
       elif direction == 'v':
         epi = subLF[:,:,spatial]
   

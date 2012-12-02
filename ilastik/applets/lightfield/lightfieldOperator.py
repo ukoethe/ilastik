@@ -4,7 +4,6 @@ Created on Oct 27, 2012
 @author: fredo
 '''
 from lazyflow.graph import Operator,InputSlot, OutputSlot
-import depth
 import logging
 #import NativeUtil as nativeOperations
 from opCalcDepth import OpCalcDepth
