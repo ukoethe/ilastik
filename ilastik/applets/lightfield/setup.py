@@ -6,5 +6,6 @@ from Cython.Distutils import build_ext
 
 setup(
     cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("NativeUtil", ["src/NativeUtil.pyx"],language='c++')]
+    ext_modules = [Extension("NativeUtil", ["src/NativeUtil.pyx"],language='c++'),
+                   Extension("coherenceMerge", ["src/coherenceMerge.pyx"],language='c++')]
 )
