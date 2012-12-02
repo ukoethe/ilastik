@@ -41,7 +41,7 @@ class opTest(TestCase):
         lf = self.oneRow(100)
         op = OpAdjContrast(graph=self.graph)
         op.Input.setValue(lf)
-        op.Brightness.setValue(0.5)
+        op.Brightness.setValue(1.2)
         op.Contrast.setValue(1.0)
         lf = op.Output[:].wait()
         print lf

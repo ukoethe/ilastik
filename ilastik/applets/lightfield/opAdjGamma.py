@@ -13,7 +13,6 @@ Created on Jul 9, 2012
 
 from lazyflow.graph import Operator, InputSlot, OutputSlot
 import NativeUtil as native
-from LFOp.Util import shapeToSlice,copyMeta
 
 class OpAdjGamma(Operator):
     
