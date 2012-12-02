@@ -119,7 +119,11 @@ def contrast(np.ndarray lf, int channel, float brightness, float contrast):
     else:
         table[i] = 255 * value
        
-    filterLf(lf,channel,table,table,table)
+    if channel == -1:
+        filterLf(lf,channel,table,table,table)
+    else:
+        for channel in range(lf.shape[4]):
+            filterLf(lf, channel, table, table, table)
     
 def channel(np.ndarray lf, int channel, float red, float green, float blue):
   
@@ -152,16 +156,20 @@ cdef _channel(np.ndarray[int_t, ndim = 1] table, float weight):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def gamma(np.ndarray lf,int channel, float gamma):
+def gamma(np.ndarray lf, float gamma, int channel):
     cdef np.ndarray[int_t,ndim = 1] table = np.zeros(shape = 255,dtype = np.uint8)
     
     for i in range(255):
         value = 255.0 * pow(i/255.0,1.0/gamma) + 0.5
         if value > 255:
             value = 255
-        table[i] = value
-   
-    filterLf(lf,channel,table,table,table)
+        table[i] = int(value)
+        
+    if channel != -1:
+        filterLf(lf,channel,table,table,table)
+    else:
+        for channel in range(lf.shape[4]):
+            filterLf(lf, channel, table, table, table)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -186,7 +194,15 @@ cdef filterLf(np.ndarray lf,
   
     for i in range(vRes):
         for j in range(hRes):
-            _filter(lf[i,j,:,:,0],selectedTable)
+#            yRes = lf.shape[2]
+#            xRes = lf.shape[3]
+#            
+#            for k in range(yRes):
+#                for l in range(xRes):
+#                    index = lf[i,j,k,l,channel]
+#                    lf[i,j,k,l,channel] = selectedTable[index - 1]
+
+            _filter(lf[i,j,:,:,channel],selectedTable)
                         
     
     
@@ -196,6 +212,7 @@ cdef _filter(np.ndarray[int_t, ndim = 2] im, np.ndarray[int_t,ndim = 1] table):
 
     cdef int yRes = im.shape[0]
     cdef int xRes = im.shape[1]
+    
 
     for i in range(yRes):
         for j in range(xRes):
