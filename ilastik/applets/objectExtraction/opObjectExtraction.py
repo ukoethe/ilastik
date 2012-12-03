@@ -37,6 +37,7 @@ class OpObjectExtraction(Operator):
         self._opRegFeats.SegmentationImage.connect(self._opSegmentationImage.SegmentationImage)
 
         self._opObjectCenterImage = OpObjectCenterImage(parent=self, graph=self.graph)
+        self._opObjectCenterImage.BinaryImage.connect(self.BinaryImage)
         self._opObjectCenterImage.RegionCenters.connect(self._opRegFeats.RegionCenters)
 
         self._opObjCounts = OpObjectCounts(parent=self, graph=self.graph)
@@ -127,22 +128,12 @@ class OpRegionFeatures(Operator):
                 feats_at = {featname: numpy.asarray([])}
             else:
                 m = self.SegmentationImage.meta
-                hasTime = m.axistags.axisTypeCount(vigra.AxisType.Time) > 0
-                troi = None
-                if hasTime:
-                    troi = SubRegion(self.SegmentationImage,
-                                     start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
-                                     stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
-                else:
-                    troi = SubRegion(self.SegmentationImage,
-                                     start=len(self.SegmentationImage.meta.shape)*[0,],
-                                     stop=list(self.SegmentationImage.meta.shape))
+                troi = SubRegion(self.SegmentationImage,
+                                 start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
+                                 stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
                 a = self.SegmentationImage.get(troi).wait()
 
-                if hasTime > 0:
-                    a = a[0,...,0] # assumes t,x,y,z,c
-                else:
-                    a = a.squeeze()
+                a = a[0,...,0]
                 feats_at = self._callVigra(a, featname)
                 self._cache[t] = feats_at
             feats[t] = feats_at
@@ -205,8 +196,12 @@ class OpObjectCounts(Operator):
 
 
 class OpObjectCenterImage(Operator):
+    BinaryImage = InputSlot()
     RegionCenters = InputSlot()
     ObjectCenterImage = OutputSlot()
+
+    def setupOutputs(self):
+        self.ObjectCenterImage.meta.assignFrom(self.BinaryImage.meta)
 
     @staticmethod
     def __contained_in_subregion(roi, coords):
@@ -220,7 +215,7 @@ class OpObjectCenterImage(Operator):
         key = [coords[i] - roi.start[i] for i in range(len(roi.start))]
         return tuple(key)
 
-    def _execute_ObjectCenterImage(self, roi, result):
+    def execute(self, slot, subindex, roi, result):
         result[:] = 0
         tstart, tstop = roi.start[0], roi.stop[0]
         for t in range(tstart, tstop):
@@ -238,3 +233,7 @@ class OpObjectCenterImage(Operator):
                         if self.__contained_in_subregion(roi, c):
                             result[self.__make_key(roi, c)] = 255
         return result
+
+    def propagateDirty(self, slot, subindex, roi):
+        if slot is self.RegionCenters:
+            self.ObjectCenterImage.setDirty([])
