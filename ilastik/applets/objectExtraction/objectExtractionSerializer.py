@@ -34,9 +34,8 @@ class ObjectExtractionSerializer(AppletSerializer):
 
     def _serializeOperatorToHdf5(self, op, topGroup, hdf5File,
                                  projectFilePath):
-        src = op._mem_h5
         self.deleteIfPresent(topGroup, "SegmentationImage")
-        src.copy('/SegmentationImage', topGroup)
+        topGroup.create_dataset('SegmentationImage', data=op.SegmentationImage.value)
 
         self.deleteIfPresent(topGroup, "samples")
         samples_gr = self.getOrCreateGroup(topGroup, "samples")
@@ -48,10 +47,7 @@ class ObjectExtractionSerializer(AppletSerializer):
 
     def _deserializeOperatorFromHdf5(self, op, topGroup, groupVersion,
                                      hdf5File, projectFilePath):
-        dest = op._mem_h5
-
-        del dest['SegmentationImage']
-        topGroup.copy('SegmentationImage', dest)
+        top.SegmentationImage.setValue(topGroup['SegmentationImage'][()])
 
         if "samples" in topGroup.keys():
             cache = {}
