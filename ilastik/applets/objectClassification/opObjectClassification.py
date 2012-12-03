@@ -141,7 +141,7 @@ class OpObjectTrain(Operator):
     # setDirty with an empty slice and fails)
 
     Labels = InputSlot(level=1)
-    Features = InputSlot(stype=Opaque, level=1, rtype=List)
+    Features = InputSlot(stype=Opaque, level=1)
     FixClassifier = InputSlot(stype="bool")
 
     Classifier = OutputSlot()
@@ -165,14 +165,16 @@ class OpObjectTrain(Operator):
 
         # FIXME: only get labeled objects and their features.
 
-        for i, labels in enumerate(self.Labels):
+        for i in range(len(self.Labels)):
+            labels = self.Labels[i][:].wait()
+            feats = self.Features[i][:].wait()
 
-            feats = self.Features[i][0].wait()
-            counts = numpy.asarray(feats[0]['Count']).squeeze()
-            lab = labels[:].wait()[0].squeeze()
-            index = numpy.nonzero(lab)
-            featMatrix.append(counts[index])
-            labelsMatrix.append(lab[index])
+            for t in labels.keys():
+                lab = labels[t].squeeze()
+                counts = numpy.asarray(feats[t]['Count']).squeeze()
+                index = numpy.nonzero(lab)
+                featMatrix.append(counts[index])
+                labelsMatrix.append(lab[index])
 
         if len(featMatrix) == 0 or len(labelsMatrix) == 0:
             result[:] = None
@@ -204,7 +206,7 @@ class OpObjectTrain(Operator):
 class OpObjectPredict(Operator):
     name = "OpObjectPredict"
 
-    Features = InputSlot(stype=Opaque, rtype=List)
+    Features = InputSlot(stype=Opaque)
     LabelsCount = InputSlot(stype='integer')
     Classifier = InputSlot()
 
@@ -217,7 +219,6 @@ class OpObjectPredict(Operator):
         self.Predictions.meta.axistags = None
 
     def execute(self, slot, subindex, roi, result):
-
         forests=self.inputs["Classifier"][:].wait()
 
         if forests is None:
@@ -229,21 +230,22 @@ class OpObjectPredict(Operator):
         # FIXME FIXME: over here, we should really select only the
         # objects in the roi. However, roi of list type doesn't work
         # with setValue, so for now we compute everything.
-        features = self.Features[0].wait()
-        counts = numpy.asarray(features[0]['Count'])
-        if len(counts.shape)==1:
-            counts.resize(counts.shape+(1,))
+        feats = {}
+        predictions = {}
+        features = self.Features[:].wait()
+        for t, val in features.iteritems():
+            feats[t] = np.asarray(val['Count']).astype(np.float32)
+            predictions[t]  = [0] * len(forests)
 
-        predictions = [0]*len(forests)
-
-        def predict_forest(number):
-            predictions[number] = forests[number].predictLabels(counts.astype(numpy.float32))
+        def predict_forest(t, number):
+            predictions[t][number] = forests[number].predictLabels(feats[t])
 
         # predict the data with all the forests in parallel
         pool = Pool()
 
-        for i,f in enumerate(forests):
-            req = pool.request(partial(predict_forest, i))
+        for t in features.keys():
+            for i, f in enumerate(forests):
+                req = pool.request(partial(predict_forest, t, i))
 
         pool.wait()
         pool.clean()
@@ -252,7 +254,7 @@ class OpObjectPredict(Operator):
         #really average the pool results
         return predictions
 
-        prediction=numpy.dstack(predictions)
+        prediction = numpy.dstack(predictions)
         prediction = numpy.average(prediction, axis=2)
         return prediction
 
