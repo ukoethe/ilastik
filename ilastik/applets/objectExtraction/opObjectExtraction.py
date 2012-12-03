@@ -127,10 +127,10 @@ class OpRegionFeatures(Operator):
             elif self.fixed:
                 feats_at = {featname: numpy.asarray([])}
             else:
-                m = self.SegmentationImage.meta
+                shape = self.SegmentationImage.meta.shape
                 troi = SubRegion(self.SegmentationImage,
-                                 start=[t,] + (len(self.SegmentationImage.meta.shape) - 1) * [0,],
-                                 stop=[t+1,] + list(self.SegmentationImage.meta.shape[1:]))
+                                 start=[t,] + [0,] * (len(shape) - 1),
+                                 stop=[t + 1,] + list(shape[1:]))
                 a = self.SegmentationImage.get(troi).wait()
 
                 a = a[0,...,0]
