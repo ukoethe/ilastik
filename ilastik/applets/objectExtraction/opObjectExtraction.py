@@ -200,7 +200,6 @@ class OpObjectCounts(Operator):
         return result
 
     def propagateDirty(self, slot, subindex, roi):
-        import util; util.set_trace()
         if slot is self.SegmentationImage:
             self.ObjectCounts.setDirty(List(slot, range(roi.start[0], roi.stop[0])))
 
