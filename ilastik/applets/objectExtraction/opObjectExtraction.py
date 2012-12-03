@@ -121,6 +121,9 @@ class OpRegionFeatures(Operator):
 
     def _calcFeat(self, featname, roi):
         feats = {}
+        if isinstance(roi, SubRegion):
+              # FIXME: should this be necessary???
+              roi = range(roi.start[0], roi.stop[0])
         for t in roi:
             if t in self._cache:
                 feats_at = self._cache[t]
@@ -136,7 +139,7 @@ class OpRegionFeatures(Operator):
                 a = a[0,...,0]
                 feats_at = self._callVigra(a, featname)
                 self._cache[t] = feats_at
-            feats[t] = feats_at
+            feats[t] = feats_at[featname]
         return feats
 
     def _combine_feats(self, roi, *args):
@@ -219,7 +222,7 @@ class OpObjectCenterImage(Operator):
         result[:] = 0
         tstart, tstop = roi.start[0], roi.stop[0]
         for t in range(tstart, tstop):
-            centers = self.RegionCenters([t]).wait()[t]
+            centers = self.RegionCenters[t].wait()[t]
             centers = numpy.asarray(centers, dtype=numpy.uint32)
             if centers.size:
                 centers = centers[1:,:]
