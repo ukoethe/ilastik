@@ -24,8 +24,6 @@ class OpObjectClassification(Operator):
     name = "OpObjectClassification"
     category = "Top-level"
 
-    # FIXME: labels, features, etc. depend on time slice.
-
     ###############
     # Input slots #
     ###############
@@ -165,7 +163,10 @@ class OpObjectTrain(Operator):
         featMatrix = []
         labelsMatrix = []
 
+        # FIXME: only get labeled objects and their features.
+
         for i, labels in enumerate(self.Labels):
+
             feats = self.Features[i][0].wait()
             counts = numpy.asarray(feats[0]['Count']).squeeze()
             lab = labels[:].wait()[0].squeeze()
@@ -260,6 +261,12 @@ class OpObjectPredict(Operator):
 
 
 class OpToImage(Operator):
+    """Takes a segmentation image and a mapping and returns the
+    mapped image.
+
+    For instance, map prediction labels onto objects.
+
+    """
     name = "OpToImage"
     Image = InputSlot()
     ObjectMap = InputSlot(stype=Opaque)
