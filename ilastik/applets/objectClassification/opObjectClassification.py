@@ -19,7 +19,6 @@ from ilastik.applets.pixelClassification.opPixelClassification import OpShapeRea
 
 _MAXLABELS = 2
 
-
 class OpObjectClassification(Operator):
     name = "OpObjectClassification"
     category = "Top-level"
@@ -108,7 +107,7 @@ class OpObjectClassification(Operator):
         #if roi is None:
         #    roi = [slice(None, None, None)]
         labels = dict()
-        counts = self.ObjectCounts[imageIndex][()].wait() # WHY???
+        counts = self.ObjectCounts[imageIndex][()].wait() # WHY cant we use .value???
         for t in counts.keys():
             # add one for background,))
             labels[t] = numpy.zeros((counts[t] + 1),)
@@ -165,6 +164,7 @@ class OpObjectTrain(Operator):
         # FIXME: only get labeled objects and their features.
 
         for i in range(len(self.Labels)):
+            # FIXME: why can't we use .value?
             labels = self.Labels[i][:].wait() # FIXME: sometimes [0]???
             feats = self.Features[i][:].wait()
 
@@ -284,6 +284,7 @@ class OpToImage(Operator):
         self.Output.meta.assignFrom(self.Image.meta)
 
     def execute(self, slot, subindex, roi, result):
+        # FIXME: .value
         im = self.Image[:].wait()
         map_ = self.ObjectMap[:].wait()
         for t in range(im.shape[0]):
