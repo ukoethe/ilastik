@@ -190,7 +190,7 @@ class OpObjectCounts(Operator):
             result = {}
             img = self.SegmentationImage.value
             for t, img in enumerate(img):
-                result[t] = img.max() + 1
+                result[t] = img.max()
         return result
 
     def propagateDirty(self, slot, subindex, roi):
