@@ -128,6 +128,8 @@ class OpRegionFeatures(Operator):
             ts = range(roi.start[0], roi.stop[0] + 1)
         elif isinstance(roi, List):
             ts = roi._l[0]
+        elif isinstance(roi, slice) and roi.start is None and roi.stop is None:
+            ts = range(self.SegmentationImage.meta.shape[0])
         else:
             raise Exception
 

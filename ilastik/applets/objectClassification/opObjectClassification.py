@@ -165,7 +165,7 @@ class OpObjectTrain(Operator):
         # FIXME: only get labeled objects and their features.
 
         for i in range(len(self.Labels)):
-            labels = self.Labels[i][:].wait()
+            labels = self.Labels[i][:].wait()[0] # FIXME: why [0]???
             feats = self.Features[i][:].wait()
 
             for t in labels.keys():
@@ -233,7 +233,14 @@ class OpObjectPredict(Operator):
         predictions = {}
         features = self.Features[:].wait()
         for t, val in features.iteritems():
-            feats[t] = np.asarray(val['Count']).astype(np.float32)
+            tempfeats = numpy.asarray(val['Count']).astype(numpy.float32)
+
+            ### FIXME: is this right???
+            if tempfeats.ndim == 1:
+                tempfeats.resize(tempfeats.shape + (1,))
+            ###
+
+            feats[t] = tempfeats
             predictions[t]  = [0] * len(forests)
 
         def predict_forest(t, number):
