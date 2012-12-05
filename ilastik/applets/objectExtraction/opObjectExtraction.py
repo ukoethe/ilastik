@@ -121,10 +121,17 @@ class OpRegionFeatures(Operator):
 
     def _calcFeat(self, featname, roi):
         feats = {}
+
+        # FIXME: roi is all bollixed up
         if isinstance(roi, SubRegion):
-              # FIXME: should this be necessary???
-              roi = range(roi.start[0], roi.stop[0])
-        for t in roi:
+            # FIXME: should this be necessary???
+            ts = range(roi.start[0], roi.stop[0] + 1)
+        elif isinstance(roi, List):
+            ts = roi._l[0]
+        else:
+            raise Exception
+
+        for t in ts:
             if t in self._cache:
                 feats_at = self._cache[t]
             elif self.fixed:
