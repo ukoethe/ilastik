@@ -288,6 +288,8 @@ class OpToImage(Operator):
         im = self.Image[:].wait()
         map_ = self.ObjectMap[:].wait()
         for t in range(im.shape[0]):
+
+            # FIXME: sometimes (1, n), sometimes (n, 1)
             tmap = map_[t]
 
             # FIXME: why???

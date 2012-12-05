@@ -133,7 +133,7 @@ class OpRegionFeatures(Operator):
         elif isinstance(roi, slice) and roi.start is None and roi.stop is None:
             ts = range(self.SegmentationImage.meta.shape[0])
         else:
-            raise Exception
+            raise Exception('unknown roi: {}'.format(roi))
 
         for t in ts:
             if t in self._cache:
