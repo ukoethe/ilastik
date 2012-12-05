@@ -1,11 +1,13 @@
 #!/bin/bash
 
+branch=${1-"master"}
+
 # Remove everything from the repo
 git rm -rf .
 # Except don't remove this script
 git checkout HEAD $0
 git commit -m "Removed old docs"
-git checkout master
+git checkout ${branch}
 git pull
 cd docs
 make html
@@ -16,7 +18,7 @@ git checkout gh-pages
 mv html/* .
 rm -rf html
 git add .
-git commit -m "Added new docs (built from master)"
+git commit -m "Added new docs (built from ${branch})"
 
 # Prepare the files for github...
 for fl in `find . -name "*.html"` `find . -name "*.txt"` `find . -name "*.svg"` `find . -name "*.js"` `find . -name "*.css"`
