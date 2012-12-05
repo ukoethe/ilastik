@@ -108,11 +108,10 @@ class OpObjectClassification(Operator):
         #if roi is None:
         #    roi = [slice(None, None, None)]
         labels = dict()
-        counts = self.ObjectCounts[imageIndex][0].wait() # WHY???
-        tstart, tstop = min(counts.keys()), max(counts.keys()) + 1
-        for t in range(tstart, tstop):
-            nobjects = counts[t]
-            labels[t] = numpy.zeros((nobjects,))
+        counts = self.ObjectCounts[imageIndex][()].wait() # WHY???
+        for t in counts.keys():
+            # add one for background,))
+            labels[t] = numpy.zeros((counts[t] + 1),)
 
         # FIXME: does this do the right thing?
         self.LabelInputs[imageIndex].setValue(labels)
