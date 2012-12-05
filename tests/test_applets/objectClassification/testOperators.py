@@ -6,11 +6,11 @@ from ilastik.applets.objectClassification.opObjectClassification import \
 
 def segImage():
     img = np.zeros((2, 50, 50, 50, 1), dtype=np.int)
-    img[0 ,  0:10,  0:10,  0:10, 0] = 1
-    img[0 , 20:30, 20:30, 20:30, 0] = 2
-    img[1 ,  0:10,  0:10,  0:10, 0] = 1
-    img[1 , 10:20, 10:20, 10:20, 0] = 2
-    img[1 , 20:30, 20:30, 20:30, 0] = 3
+    img[0,  0:10,  0:10,  0:10, 0] = 1
+    img[0, 20:30, 20:30, 20:30, 0] = 2
+    img[1,  0:10,  0:10,  0:10, 0] = 1
+    img[1, 10:20, 10:20, 10:20, 0] = 2
+    img[1, 20:30, 20:30, 20:30, 0] = 3
     return img
 
 
@@ -29,11 +29,11 @@ class TestOpToImage(unittest.TestCase):
 
         self.assertEquals(img[0, 49, 49, 49, 0], 0)
         self.assertEquals(img[1, 49, 49, 49, 0], 0)
-        self.assertTrue(np.all(img[0 ,  0:10,  0:10,  0:10, 0] == 20))
-        self.assertTrue(np.all(img[0 , 20:30, 20:30, 20:30, 0] == 30))
-        self.assertTrue(np.all(img[1 ,  0:10,  0:10,  0:10, 0] == 50))
-        self.assertTrue(np.all(img[1 , 10:20, 10:20, 10:20, 0] == 70))
-        self.assertTrue(np.all(img[1 , 20:30, 20:30, 20:30, 0] == 70))
+        self.assertTrue(np.all(img[0,  0:10,  0:10,  0:10, 0] == 20))
+        self.assertTrue(np.all(img[0, 20:30, 20:30, 20:30, 0] == 30))
+        self.assertTrue(np.all(img[1,  0:10,  0:10,  0:10, 0] == 50))
+        self.assertTrue(np.all(img[1, 10:20, 10:20, 10:20, 0] == 70))
+        self.assertTrue(np.all(img[1, 20:30, 20:30, 20:30, 0] == 70))
 
 
 

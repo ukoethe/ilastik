@@ -6,9 +6,9 @@ from ilastik.applets.objectExtraction.opObjectExtraction import \
 
 def binaryImage():
     img = np.zeros((2, 50, 50, 50, 1), dtype=np.float32)
-    img[0 ,  0:10,  0:10,  0:10, 0] = 1
-    img[0 , 20:30, 20:30, 20:30, 0] = 1
-    img[1 , 20:30, 20:30, 20:30, 0] = 1
+    img[0,  0:10,  0:10,  0:10, 0] = 1
+    img[0, 20:30, 20:30, 20:30, 0] = 1
+    img[1, 20:30, 20:30, 20:30, 0] = 1
 
     return img
 
