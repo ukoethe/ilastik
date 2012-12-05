@@ -165,7 +165,7 @@ class OpObjectTrain(Operator):
         # FIXME: only get labeled objects and their features.
 
         for i in range(len(self.Labels)):
-            labels = self.Labels[i][:].wait()[0] # FIXME: why [0]???
+            labels = self.Labels[i][:].wait() # FIXME: sometimes [0]???
             feats = self.Features[i][:].wait()
 
             for t in labels.keys():
@@ -287,7 +287,13 @@ class OpToImage(Operator):
         im = self.Image[:].wait()
         map_ = self.ObjectMap[:].wait()
         for t in range(im.shape[0]):
-            tmap = map_[t].squeeze()
+            tmap = map_[t]
+
+            # FIXME: why???
+            if isinstance(tmap, list):
+                tmap = tmap[0]
+
+            tmap = tmap.squeeze()
             if len(tmap) != 0:
                 tmap[0] = 0
                 im[t] = tmap[im[t]]
