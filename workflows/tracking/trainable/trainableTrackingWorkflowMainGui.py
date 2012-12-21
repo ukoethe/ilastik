@@ -1,14 +1,14 @@
 from ilastik.shell.gui.startShellGui import startShellGui
 from trainableTrackingWorkflow import TrainableTrackingWorkflow
 
-debug_testing = False
+debug_testing = True
 
 if debug_testing:
-    def test(shell, workflow):
+    def test(shell):
         #projFilePath = '/home/bergs/Downloads/synapse_detection_training1.ilp'
         #projFilePath = '/home/bkausler/withLabelImageAndRegionCenters.ilp'
         #projFilePath = '/home/mschiegg/hufnagel2012-08-03/375-386_classification.ilp'        
-        projFilePath = '/home/mschiegg/hufnagel2012-08-03/segmentation/375-386_tracking.ilp'
+        projFilePath = '/home/bkausler/LabelImage.ilp'
         
         #shell.createAndLoadNewProject(projFilePath)
         shell.openProjectFile(projFilePath)        
@@ -21,7 +21,7 @@ if debug_testing:
         #opDataSelection = workflow.dataSelectionApplet.topLevelOperator
         #opDataSelection.Dataset.resize(1)
         #opDataSelection.Dataset[0].setValue(info)
-        shell.setSelectedAppletDrawer(2)
+        shell.setSelectedAppletDrawer(1)
     
     startShellGui( TrainableTrackingWorkflow, test )
     
