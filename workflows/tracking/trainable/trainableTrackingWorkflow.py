@@ -34,6 +34,6 @@ class TrainableTrackingWorkflow( Workflow ):
         opTracking = self.trackingApplet.topLevelOperator.getLane(laneIndex)
         
         ## Connect operators ##
-        
+        opTracking.LabelImage.connect( opData.Image )
         
         

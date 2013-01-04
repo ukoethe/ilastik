@@ -1,12 +1,12 @@
 from ilastik.applets.base.standardApplet import StandardApplet
 from ilastik.applets.tracking.trainable.opTrainableTracking import OpTrainableTracking
-from ilastik.applets.tracking.base.trackingSerializer import TrackingSerializer
+from ilastik.applets.tracking.trainable.trainableTrackingSerializer import TrainableTrackingSerializer
 from ilastik.applets.tracking.trainable.trainableTrackingGui import TrainableTrackingGui
 
 class TrainableTrackingApplet( StandardApplet ):
     def __init__( self, name="Trainable Tracking", workflow=None, projectFileGroupName="TrainableTracking" ):
         super(TrainableTrackingApplet, self).__init__( name=name, workflow=workflow )        
-        self._serializableItems = [ TrackingSerializer(self.topLevelOperator, projectFileGroupName) ]
+        self._serializableItems = [ TrainableTrackingSerializer(self.topLevelOperator, projectFileGroupName) ]
 
     @property
     def singleLaneOperatorClass( self ):
