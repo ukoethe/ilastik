@@ -1,6 +1,7 @@
 from lazyflow.graph import Operator, InputSlot, OutputSlot
 
 from lazyflow.operators import OpPixelFeaturesPresmoothed, OpSlicedBlockedArrayCache, OpMultiArraySlicer2
+from lazyflow.operators import OpPixelFeaturesInterpPresmoothed
 
 class OpFeatureSelection(Operator):
     """
@@ -33,7 +34,9 @@ class OpFeatureSelection(Operator):
         super(OpFeatureSelection, self).__init__(*args, **kwargs)
 
         # Two internal operators: features and cache
-        self.opPixelFeatures = OpPixelFeaturesPresmoothed(parent=self)
+        #self.opPixelFeatures = OpPixelFeaturesPresmoothed(parent=self)
+        self.opPixelFeatures = OpPixelFeaturesInterpPresmoothed(parent=self)
+        self.opPixelFeatures.InterpolationScaleZ.setValue(2)
         self.opPixelFeatureCache = OpSlicedBlockedArrayCache(parent=self)
         self.opPixelFeatureCache.name = "opPixelFeatureCache"
 
