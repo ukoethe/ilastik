@@ -63,7 +63,6 @@ class OpCalcDepth(Operator):
         lf = tmp
         
         params = {"inner":self.innerScale.value,"outer":self.outerScale.value,"sigmaXStrength":self.sigmaXStrength.value,"maxLabel":self.maxLabel.value,"minLabel":self.minLabel.value,"coherenceSmooth":self.coherenceSmooth.value}   
-        
         labeled_h, labeled_v = label(lf,params,self.useThreading.value)
         labeled, coherence = cM._coherenceMerge(labeled_h[:,:,:,:,1],labeled_v[:,:,:,:,1],labeled_h[:,:,:,:,0],labeled_v[:,:,:,:,0])
         
