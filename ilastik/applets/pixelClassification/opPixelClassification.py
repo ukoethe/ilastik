@@ -1,6 +1,8 @@
+from functools import partial
 import numpy
 import vigra
 from lazyflow.graph import Operator, InputSlot, OutputSlot, OperatorWrapper
+from ilastik.utility.operatorSubView import OperatorSubView
 
 from lazyflow.operators import OpBlockedSparseLabelArray, OpValueCache, OpTrainRandomForestBlocked, \
                                OpPredictRandomForest, OpSlicedBlockedArrayCache, OpMultiArraySlicer2, OpPrecomputedInput, OpPixelOperator
@@ -26,7 +28,7 @@ class OpPixelClassification( Operator ):
 
     PredictionsFromDisk = InputSlot(optional=True, level=1)
 
-    PredictionProbabilities = OutputSlot(level=1) # Classification predictions
+    PredictionProbabilities = OutputSlot(level=1) # Classification predictions (via feature cache for interactive speed)
 
     PredictionProbabilityChannels = OutputSlot(level=2) # Classification predictions, enumerated by channel
     SegmentationChannels = OutputSlot(level=2) # Binary image of the final selections.
@@ -36,7 +38,9 @@ class OpPixelClassification( Operator ):
     NonzeroLabelBlocks = OutputSlot(level=1) # A list if slices that contain non-zero label values
     Classifier = OutputSlot() # We provide the classifier as an external output for other applets to use
 
-    CachedPredictionProbabilities = OutputSlot(level=1) # Classification predictions (via a cache)
+    CachedPredictionProbabilities = OutputSlot(level=1) # Classification predictions (via feature cache AND prediction cache)
+
+    HeadlessPredictionProbabilities = OutputSlot(level=1) # Classification predictions ( via no image caches (except for the classifier itself )
 
     UncertaintyEstimate = OutputSlot(level=1)
 
@@ -133,6 +137,16 @@ class OpPixelClassification( Operator ):
         self.PredictionProbabilities.connect(self.predict.PMaps)
         self.CachedPredictionProbabilities.connect(self.precomputed_predictions.Output)
         self.Classifier.connect( self.classifier_cache.Output )
+
+        
+        # CACHELESS FLOW (Don't pass through feature cache)
+        #  This is terrible for interactive labeling, but fast for command-line predictions.
+        self.cacheless_predict = OperatorWrapper( OpPredictRandomForest, parent=self, graph=self.graph )
+        self.cacheless_predict.inputs['Classifier'].connect(self.classifier_cache.outputs['Output']) 
+        self.cacheless_predict.inputs['Image'].connect(self.FeatureImages) # <--- Not from cache
+        self.cacheless_predict.inputs['LabelsCount'].connect(self.opMaxLabel.Output)
+
+        self.HeadlessPredictionProbabilities.connect(self.cacheless_predict.PMaps)
         
         def inputResizeHandler( slot, oldsize, newsize ):
             if ( newsize == 0 ):
@@ -178,6 +192,20 @@ class OpPixelClassification( Operator ):
             multislot[index].notifyReady(handleInputReady)
                 
         self.InputImages.notifyInserted( handleNewInputImage )
+
+        # All input multi-slots should be kept in sync
+        # Output multi-slots will auto-sync via the graph
+        multiInputs = filter( lambda s: s.level >= 1, self.inputs.values() )
+        for s1 in multiInputs:
+            for s2 in multiInputs:
+                if s1 != s2:
+                    def insertSlot( a, b, position, finalsize ):
+                        a.insertSlot(position, finalsize)
+                    s1.notifyInserted( partial(insertSlot, s2 ) )
+                    
+                    def removeSlot( a, b, position, finalsize ):
+                        a.removeSlot(position, finalsize)
+                    s1.notifyRemoved( partial(removeSlot, s2 ) )
 
     def setupCaches(self, imageIndex):
         numImages = len(self.InputImages)
@@ -254,6 +282,18 @@ class OpPixelClassification( Operator ):
         # Nothing to do here: All outputs are directly connected to 
         #  internal operators that handle their own dirty propagation.
         pass
+
+    def addLane(self, laneIndex):
+        numLanes = len(self.InputImages)
+        assert numLanes == laneIndex, "Image lanes must be appended."        
+        self.InputImages.resize(numLanes+1)
+        
+    def removeLane(self, laneIndex, finalLength):
+        self.InputImages.removeSlot(laneIndex, finalLength)
+
+    def getLane(self, laneIndex):
+        return OperatorSubView(self, laneIndex)
+
 
 class OpShapeReader(Operator):
     """

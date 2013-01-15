@@ -9,6 +9,8 @@ import traceback
 import hashlib
 import glob
 import pickle
+import functools
+import tempfile
 
 # Third-party
 import h5py
@@ -19,20 +21,25 @@ from lazyflow.operators.ioOperators import OpStackToH5Writer
 
 # ilastik
 import ilastik.utility.monkey_patches
-from ilastik.shell.headless.startShellHeadless import startShellHeadless
+from ilastik.shell.headless.headlessShell import HeadlessShell
 from pixelClassificationWorkflow import PixelClassificationWorkflow
 from ilastik.applets.dataSelection.opDataSelection import DatasetInfo
 from ilastik.applets.batchIo.opBatchIo import ExportFormat
 from ilastik.utility import PathComponents
 import ilastik.utility.globals
 
+import ilastik.ilastik_logging
+ilastik.ilastik_logging.default_config.init()
+ilastik.ilastik_logging.startUpdateInterval(10) # 10 second periodic refresh
+
 logger = logging.getLogger(__name__)
 
 def main(argv):
     parser = getArgParser()
-    parsed_args = parser.parse_args(argv[1:])
 
-    ilastik.utility.monkey_patches.init_with_args(parsed_args)
+    ilastik.utility.monkey_patches.extend_arg_parser(parser)
+    parsed_args = parser.parse_args(argv[1:])
+    ilastik.utility.monkey_patches.apply_setting_dict( parsed_args.__dict__ )
 
     try:
         runWorkflow(parsed_args)
@@ -50,14 +57,17 @@ def getArgParser():
     parser.add_argument('--batch_export_dir', default='', help='A directory to save batch outputs. (Default saves with input files)')
     parser.add_argument('--batch_output_suffix', default='_prediction', help='Suffix for batch output filenames (before extension).')
     parser.add_argument('--batch_output_dataset_name', default='/volume/prediction', help='HDF5 internal dataset path')
-    parser.add_argument('--sys_tmp_dir', help='Override the default directory for temporary file storage.')
     parser.add_argument('--assume_old_ilp_axes', action='store_true', help='When importing 0.5 project files, assume axes are in the wrong order and need to be transposed.')
-    parser.add_argument('--stack_volume_cache_dir', default='/tmp', help='The preprocessing step converts image stacks to hdf5 volumes.  The volumes will be saved to this directory.')
+    parser.add_argument('--stack_volume_cache_dir', help='The preprocessing step converts image stacks to hdf5 volumes.  The volumes will be saved to this directory.', required=False)
     parser.add_argument('batch_inputs', nargs='*', help='List of input files to process. Supported filenames: .h5, .npy, or globstring for stacks (e.g. *.png)')
     return parser
 
 def runWorkflow(parsed_args):
     args = parsed_args
+    
+    # Use a temporary cache dir
+    if args.stack_volume_cache_dir is None:
+        args.stack_volume_cache_dir = tempfile.tempdir
     
     # Make sure project file exists.
     if not os.path.exists(args.project):
@@ -79,7 +89,7 @@ def runWorkflow(parsed_args):
             raise RuntimeError("Could not find one or more batch inputs.  See logged errors.")
 
     # Instantiate 'shell'
-    shell, workflow = startShellHeadless( PixelClassificationWorkflow )
+    shell = HeadlessShell( functools.partial(PixelClassificationWorkflow, appendBatchOperators=True) )
     
     if args.assume_old_ilp_axes:
         # Special hack for Janelia: 
@@ -99,12 +109,12 @@ def runWorkflow(parsed_args):
         else:
             # Predictions for project input datasets
             if args.generate_project_predictions:
-                generateProjectPredictions(shell, workflow)
+                generateProjectPredictions(shell)
         
             # Predictions for other datasets ('batch datasets')
             result = True
             if len(args.batch_inputs) > 0:
-                result = generateBatchPredictions(workflow,
+                result = generateBatchPredictions(shell.workflow,
                                                   args.batch_inputs,
                                                   args.batch_export_dir,
                                                   args.batch_output_suffix,
@@ -113,11 +123,11 @@ def runWorkflow(parsed_args):
                 assert result
     finally:
         logger.info("Closing project...")
-        shell.projectManager.closeCurrentProject()
+        del shell
 
     logger.info("FINISHED.")
         
-def generateProjectPredictions(shell, workflow):
+def generateProjectPredictions(shell):
     """
     Compute predictions for all project inputs (not batch inputs), and save them to the project file.
     """
@@ -127,16 +137,16 @@ def generateProjectPredictions(shell, workflow):
         if currentProgress[0] != percentComplete:
             currentProgress[0] = percentComplete
             logger.info("Project Predictions: {}% complete.".format(percentComplete))
-    workflow.pcApplet.progressSignal.connect( handleProgress )
+    shell.workflow.pcApplet.progressSignal.connect( handleProgress )
     
     # Enable prediction saving
-    workflow.pcApplet.topLevelOperator.FreezePredictions.setValue(False)
-    workflow.pcApplet.dataSerializers[0].predictionStorageEnabled = True
+    shell.workflow.pcApplet.topLevelOperator.FreezePredictions.setValue(False)
+    shell.workflow.pcApplet.dataSerializers[0].predictionStorageEnabled = True
 
     # Save the project (which will request all predictions)
     shell.projectManager.saveProject()
     
-    workflow.pcApplet.dataSerializers[0].predictionStorageEnabled = False
+    shell.workflow.pcApplet.dataSerializers[0].predictionStorageEnabled = False
 
 def generateBatchPredictions(workflow, batchInputPaths, batchExportDir, batchOutputSuffix, exportedDatasetName, stackVolumeCacheDir):
     """
@@ -249,24 +259,40 @@ if __name__ == "__main__":
     # DEBUG ARGS
     if False:
         args = ""
-        #args += " --project=/home/bergs/tinyfib/boundary_training/pred.ilp"
         args += " --project=/home/bergs/tinyfib/boundary_training/pred_imported.ilp"
         args += " --batch_output_dataset_name=/volume/pred_volume"
         args += " --batch_export_dir=/home/bergs/tmp"
-#        args += " /home/bergs/tinyfib/initial_segmentation/version1.h5/volume/data"
         args += " /magnetic/small_seq/111211_subset_PSC_final_export_scaled_1k_00*.png"
+
+        print args
+        sys.argv += args.split()
+
+    if False:
+        args = ""
+        args += " --project=/groups/flyem/data/bergs_scratch/project_files/gigacube.ilp"
+        args += " --batch_output_dataset_name=/volume/pred_volume"
+        args += " --batch_export_dir=/home/bergs/tmp"
+        args += " /groups/flyem/data/bergs_scratch/input_data/gigacube.h5/volume/data"
+
+        print args
+        sys.argv += args.split()
+
+        #args += " --project=/home/bergs/tinyfib/boundary_training/pred.ilp"
+        #args += " /home/bergs/tinyfib/initial_segmentation/version1.h5/volume/data"
 
         #args = "--project=/groups/flyem/proj/cluster/tbar_detect_files/best.ilp --batch_export_dir=/home/bergs/tmp /groups/flyem/proj/cluster/tbar_detect_files/grayscale.h5"
         #args = "--project=/groups/flyem/proj/cluster/tbar_detect_files/best.ilp" # --batch_export_dir=/home/bergs/tmp /groups/flyem/proj/cluster/tbar_detect_files/grayscale.h5"
 
-        print args
 
         #args += " --project=/home/bergs/Downloads/synapse_detection_training1.ilp"
         #args = " --project=/home/bergs/synapse_small.ilp"
         #args += " --generate_project_predictions"
         #args += " /home/bergs/synapse_small.npy"
 
-        sys.argv += args.split()
+
+    #make the program quit on Ctrl+C
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     # MAIN
     sys.exit( main(sys.argv) )

@@ -1,6 +1,8 @@
-from lazyflow.graph import Operator, InputSlot, OutputSlot
-
+from lazyflow.graph import Operator, InputSlot, OutputSlot, OperatorWrapper
 from lazyflow.operators.ioOperators import OpStreamingHdf5Reader, OpInputDataReader
+from ilastik.utility.operatorSubView import OperatorSubView
+
+from lazyflow.operators import Op5ifyer
 
 import uuid
 
@@ -51,13 +53,16 @@ class OpDataSelection(Operator):
     Dataset = InputSlot(stype='object') #: A DatasetInfo object
 
     # Outputs
-    ImageName = OutputSlot(stype='string') #: The name of the output image
     Image = OutputSlot() #: The output image
     AllowLabels = OutputSlot(stype='bool') #: A bool indicating whether or not this image can be used for training
+
+    # Must be declared last of all slots.
+    # When the shell detects that this slot has been resized, it assumes all the others have already been resized.
+    ImageName = OutputSlot(stype='string') #: The name of the output image
     
     def __init__(self, *args, **kwargs):
         super(OpDataSelection, self).__init__(*args, **kwargs)
-        self._opReader = None
+        self._opReaders = []
     
     def setupOutputs(self):
         datasetInfo = self.Dataset.value
@@ -68,24 +73,36 @@ class OpDataSelection(Operator):
         datasetInProject &= self.ProjectFile.connected() and \
                             internalPath in self.ProjectFile.value
 
-        if self._opReader is not None:
+        if len(self._opReaders) > 0:
             self.Image.disconnect()
-            self._opReader.cleanUp()
+            for reader in reversed(self._opReaders):
+                reader.cleanUp()
         
         # If we should find the data in the project file, use a dataset reader
         if datasetInProject:
-            self._opReader = OpStreamingHdf5Reader(parent=self)
-            self._opReader.Hdf5File.setValue(self.ProjectFile.value)
-            self._opReader.InternalPath.setValue(internalPath)
-            providerSlot = self._opReader.OutputImage
+            opReader = OpStreamingHdf5Reader(parent=self)
+            opReader.Hdf5File.setValue(self.ProjectFile.value)
+            opReader.InternalPath.setValue(internalPath)
+            providerSlot = opReader.OutputImage
+            self._opReaders.append(opReader)
         else:
             # Use a normal (filesystem) reader
-            self._opReader = OpInputDataReader(parent=self)
+            opReader = OpInputDataReader(parent=self)
             if datasetInfo.axisorder is not None:
-                self._opReader.DefaultAxisOrder.setValue( datasetInfo.axisorder )
-            self._opReader.WorkingDirectory.connect( self.WorkingDirectory )
-            self._opReader.FilePath.setValue(datasetInfo.filePath)
-            providerSlot = self._opReader.Output        
+                opReader.DefaultAxisOrder.setValue( datasetInfo.axisorder )
+            opReader.WorkingDirectory.connect( self.WorkingDirectory )
+            opReader.FilePath.setValue(datasetInfo.filePath)
+            providerSlot = opReader.Output
+            self._opReaders.append(opReader)
+
+        # If there is no channel axis, use an Op5ifyer to append one.
+        if providerSlot.meta.axistags.index('c') >= len( providerSlot.meta.axistags ):
+            op5 = Op5ifyer( parent=self )
+            providerKeys = "".join( providerSlot.meta.getTaggedShape().keys() )
+            op5.order.setValue(providerKeys + 'c')
+            op5.input.connect( providerSlot )
+            providerSlot = op5.output
+            self._opReaders.append( op5 )
         
         # Connect our external outputs to the internal operators we chose
         self.Image.connect(providerSlot)
@@ -97,3 +114,30 @@ class OpDataSelection(Operator):
     def propagateDirty(self, slot, subindex, roi):
         # Output slots are directly connected to internal operators
         pass
+
+class OpMultiLaneDataSelection( OperatorWrapper ):
+    
+    def __init__(self, parent):
+        super( OpMultiLaneDataSelection, self ).__init__(OpDataSelection, parent=parent, broadcastingSlotNames=['ProjectFile', 'ProjectDataGroup', 'WorkingDirectory'] )
+    
+    def addLane(self, laneIndex):
+        """
+        Add an image lane.
+        """
+        numLanes = len(self.innerOperators)
+        
+        # Only add this lane if we don't already have it
+        # We might be called from within the context of our own insertSlot signal.
+        if numLanes == laneIndex:
+            self._insertInnerOperator(numLanes, numLanes+1)
+
+    def removeLane(self, laneIndex, finalLength):
+        """
+        Remove an image lane.
+        """
+        numLanes = len(self.innerOperators)
+        if numLanes > finalLength:
+            self._removeInnerOperator(laneIndex, numLanes-1)
+
+    def getLane(self, laneIndex):
+        return OperatorSubView(self, laneIndex)

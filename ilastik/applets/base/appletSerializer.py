@@ -13,7 +13,7 @@ import numpy
 #######################
 
 def getOrCreateGroup(parentGroup, groupName):
-    """Returns parentGorup[groupName], creating first it if
+    """Returns parentGroup[groupName], creating first it if
     necessary.
 
     """
@@ -23,7 +23,7 @@ def getOrCreateGroup(parentGroup, groupName):
         return parentGroup.create_group(groupName)
 
 def deleteIfPresent(parentGroup, name):
-    """Deletes parentGorup[groupName], if it exists."""
+    """Deletes parentGroup[name], if it exists."""
     try:
         del parentGroup[name]
     except KeyError:
@@ -135,6 +135,7 @@ class SerialSlot(object):
             slot.notifyDirty(self.setDirty)
         else:
             slot.notifyInserted(doMulti)
+            slot.notifyRemoved( self.setDirty )
 
     def shouldSerialize(self, group):
         """Whether to serialize or not."""
@@ -153,7 +154,7 @@ class SerialSlot(object):
         _serialize().
 
         :param group: The parent group in which to create this slot's
-            group.
+                      group.
         :type group: h5py.Group
 
         """
@@ -163,20 +164,29 @@ class SerialSlot(object):
         self._serialize(group)
         self.dirty = False
 
+    @staticmethod
+    def _saveValue(group, name, value):
+        """Seperate so that subclasses can override, if necessary.
+
+        For instance, SerialListSlot needs to save an extra attribute
+        if the value is an empty list.
+
+        """
+        group.create_dataset(name, data=value)
+
     def _serialize(self, group):
-        """"
+        """
         :param group: The parent group.
         :type group: h5py.Group
 
         """
         if self.slot.level == 0:
-            group.create_dataset(self.name, data=self.slot.value)
+            self._saveValue(group, self.name, self.slot.value)
         else:
             subgroup = group.create_group(self.name)
             for i, subslot in enumerate(self.slot):
                 subname = self.subname.format(i)
-                subgroup.create_dataset(subname,
-                                        data=self.slot[i].value)
+                self._saveValue(subgroup, subname, self.slot[i].value)
 
     def deserialize(self, group):
         """Performs tasks common to all deserializations.
@@ -198,7 +208,7 @@ class SerialSlot(object):
     def _deserialize(self, subgroup):
         """
         :param subgroup: *not* the parent group. This slot's group.
-        :typpe subgroup: h5py.Group
+        :type subgroup: h5py.Group
 
         """
         if self.slot.level == 0:
@@ -242,11 +252,22 @@ class SerialListSlot(SerialSlot):
         :param transform: function applied to members on deserialization.
 
         """
+        if slot.level > 0:
+            raise NotImplementedError()
+
         super(SerialListSlot, self).__init__(slot, name, default, depends,
                                              autodepends)
         if transform is None:
             transform = lambda x: x
         self.transform = transform
+
+    @staticmethod
+    def _saveValue(group, name, value):
+        isempty = (len(value) == 0)
+        if isempty:
+            value = numpy.empty((1,))
+        sg = group.create_dataset(name, data=value)
+        sg.attrs['isEmpty'] = isempty
 
     def deserialize(self, group):
         try:
@@ -254,10 +275,13 @@ class SerialListSlot(SerialSlot):
         except KeyError:
             self.unload()
         else:
-            if self.slot.level == 0:
-                self.slot.setValue(list(map(self.transform, subgroup)))
+            if 'isEmpty' in subgroup.attrs and subgroup.attrs['isEmpty']:
+                self.unload()
             else:
-                raise NotImplementedError()
+                try:
+                    self.slot.setValue(list(map(self.transform, subgroup[()])))
+                except:
+                    self.unload()
         finally:
             self.dirty = False
 
@@ -266,6 +290,7 @@ class SerialListSlot(SerialSlot):
             self.slot.setValue([])
         else:
             self.slot.resize(0)
+        self.dirty = False
 
 
 class SerialBlockSlot(SerialSlot):
@@ -348,7 +373,7 @@ class SerialClassifierSlot(SerialSlot):
             group.copy(cacheFile[self.name], self.name)
 
         os.remove(cachePath)
-        os.removedirs(tmpDir)
+        os.rmdir(tmpDir)
 
     def deserialize(self, group):
         """
@@ -372,7 +397,7 @@ class SerialClassifierSlot(SerialSlot):
             forests.append(vigra.learning.RandomForest(cachePath, targetname))
 
         os.remove(cachePath)
-        os.removedirs(tmpDir)
+        os.rmdir(tmpDir)
 
         # Now force the classifier into our classifier cache. The
         # downstream operators (e.g. the prediction operator) can
@@ -507,10 +532,9 @@ class AppletSerializer(object):
         self.progressSignal.emit(0)
 
         # Set the version
-        if 'StorageVersion' not in topGroup.keys():
-            topGroup.create_dataset('StorageVersion', data=self.version)
-        else:
-            topGroup['StorageVersion'][()] = self.version
+        key = 'StorageVersion'
+        deleteIfPresent(topGroup, key)
+        topGroup.create_dataset(key, data=self.version)
 
         try:
             inc = self.progressIncrement(topGroup)
