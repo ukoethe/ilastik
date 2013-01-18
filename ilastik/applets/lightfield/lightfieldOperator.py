@@ -7,6 +7,7 @@ from lazyflow.graph import Operator,InputSlot, OutputSlot
 import logging
 #import NativeUtil as nativeOperations
 from opCalcDepth import OpCalcDepth
+from ilastik.utility import OperatorSubView
 
 
 class LightfieldOperator(Operator):
@@ -52,6 +53,18 @@ class LightfieldOperator(Operator):
     
     def propagateDirty(self, slot, subindex, roi):
         pass
+    
+
+    def addLane(self, laneIndex):
+        numLanes = len(self.InputImage)
+        assert numLanes == laneIndex, "Image lanes must be appended."        
+        self.InputImage.resize(numLanes+1)
+        
+    def removeLane(self, laneIndex, finalLength):
+        self.InputImage.removeSlot(laneIndex, finalLength)
+
+    def getLane(self, laneIndex):
+        return OperatorSubView(self, laneIndex)
          
         
     
