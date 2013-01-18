@@ -47,7 +47,7 @@ class ObjectExtractionSerializer(AppletSerializer):
 
     def _deserializeOperatorFromHdf5(self, op, topGroup, groupVersion,
                                      hdf5File, projectFilePath):
-        top.SegmentationImage.setValue(topGroup['SegmentationImage'][()])
+        op.SegmentationImage.setValue(topGroup['SegmentationImage'][()])
 
         if "samples" in topGroup.keys():
             cache = {}
