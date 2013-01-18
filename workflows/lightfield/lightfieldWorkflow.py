@@ -4,18 +4,20 @@ from lazyflow.graph import Graph
 
 from ilastik.applets.dataSelection import DataSelectionApplet
 
-from ilastik.applets.lightfield.lighfieldApplet import LightfieldApplet
+from ilastik.applets.lightfield.lightfieldApplet import LightfieldApplet
 
 class LightfieldWorkflow(Workflow):
-    def __init__(self):
+    
+    def __init__(self, *args, **kwargs):
         graph = Graph()
-        super(LightfieldWorkflow, self).__init__(graph = graph)
+        self.graph = graph
+        super(LightfieldWorkflow, self).__init__( graph = graph, *args, **kwargs)
         self._applets = []
 
         # Create applets 
         self.dataSelectionApplet = DataSelectionApplet(self, "Input Data", "Input Data", supportIlastik05Import=True, batchDataGui=False)
-        self.lightfieldApplet = LightfieldApplet(self)
-        self.lightfieldApplet.gui.dataSelectionOperator = self.dataSelectionApplet.topLevelOperator
+        self.lightfieldApplet = LightfieldApplet("layer Viewer", self)
+#        self.lightfieldApplet.gui.dataSelectionOperator = self.dataSelectionApplet.topLevelOperator
 #        self.lightfieldApplet = LightfieldApplet2(graph)
 
         self._applets.append( self.dataSelectionApplet )
@@ -23,7 +25,7 @@ class LightfieldWorkflow(Workflow):
 #        self._applets.append( self.lightfieldApplet )
         
         # Connect top-level operators
-        self.lightfieldApplet.topLevelOperator.InputImage.connect( self.dataSelectionApplet.topLevelOperator.Image )
+#        self.lightfieldApplet.topLevelOperator.InputImage.connect( self.dataSelectionApplet.topLevelOperator.Image )
 
     @property
     def applets(self):
@@ -32,3 +34,12 @@ class LightfieldWorkflow(Workflow):
     @property
     def imageNameListSlot(self):
         return self.dataSelectionApplet.topLevelOperator.ImageName
+    
+    
+    def connectLane(self, laneIndex):
+        opDataSelection = self.dataSelectionApplet.topLevelOperator.getLane(laneIndex)
+        opLightfield = self.lightfieldApplet.topLevelOperator.getLane(laneIndex)
+
+        # Connect top-level operators
+        opLightfield.InputImage.connect( opDataSelection.Image )
+        
