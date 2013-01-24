@@ -10,7 +10,7 @@ import coherenceMerge as cM
 
 #import lazyflow stuff
 from lazyflow.graph import Operator, InputSlot, OutputSlot
-
+from ilastik.utility import OperatorSubView
 
 import traceback
 import sys
@@ -27,7 +27,7 @@ class OpCalcDepth(Operator):
     
     name = "OpCalcDepth"
     
-    inputLF = InputSlot()  # define lf input slot -> 5d numpy array lf[h,v,y,x,channel]
+    inputLF = InputSlot(level=1)  # define lf input slot -> 5d numpy array lf[h,v,y,x,channel]
     outerScale = InputSlot(stype="float") # define outerscale of structure tensor input slot -> float > 0
     innerScale = InputSlot(stype="float") # define innerscale of structure tensor input slot -> float > 0
     sigmaXStrength = InputSlot(stype="float", optional = True, value = 1.0) #defines a scaling factor for the sigma in x direction
@@ -36,7 +36,7 @@ class OpCalcDepth(Operator):
     coherenceSmooth = InputSlot(stype="float", optional = True, value = 0.8) # define coherence smooth value input slot -> float > 0 
     colorMode = InputSlot(stype="int", optional = True, value = 1) # defines the color conversion mode, 0: rgb->gray, 1: rgb->hsv->v
     useThreading = InputSlot(stype="bool", optional = True, value = False)
-    outputLF = OutputSlot() # define label output slot
+    outputLF = OutputSlot(level=1) # define label output slot
   
   
     def execute(self, slot, subindex, roi, result):
@@ -98,6 +98,17 @@ class OpCalcDepth(Operator):
             self.outputLF.setDirty( slice(None) )
         else:
             assert False, "Unknown dirty input slot"
+            
+    def addLane(self, laneIndex):
+        numLanes = len(self.inputLF)
+        assert numLanes == laneIndex, "Image lanes must be appended."        
+        self.inputLF.resize(numLanes+1)
+        
+    def removeLane(self, laneIndex, finalLength):
+        self.inputLF.removeSlot(laneIndex, finalLength)
+
+    def getLane(self, laneIndex):
+        return OperatorSubView(self, laneIndex)
 
         
                      

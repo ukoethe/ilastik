@@ -9,41 +9,41 @@ import os
 useVTK = True
 import numpy as np
 import logging
-import pickle
+from ilastik.utility import bind
 
-try:
-    from volumina.view3d.view3d import OverviewScene
-except:
-    print "Warning: could not import optional dependency VTK"
-    useVTK = False
 
 class LightfieldGui(LayerViewerGui):
     
     APPLET_DRAWER_PATH = os.path.join(os.path.dirname(__file__),"drawerNew.ui")
     logger = logging.getLogger(__name__)
     
-    def __init__(self, toplevelOperator):
-        super(LightfieldGui,self).__init__(toplevelOperator)
-        #=======================================================================
-        # rearrange views
-        #=======================================================================
-#        x_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(1)
-#        y_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal2.widget(0)
-#        z_slicing_view = self.volumeEditorWidget.quadview.splitHorizontal1.widget(0)
-#        view_3d = self.volumeEditorWidget.quadview.splitHorizontal2.widget(1)
-#        
-#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(x_slicing_view)
-#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(y_slicing_view)
-#        self.volumeEditorWidget.quadview.splitHorizontal1.addWidget(z_slicing_view)
-#        self.volumeEditorWidget.quadview.splitHorizontal2.addWidget(view_3d)
-        self.topLevelOperator = toplevelOperator
-        self.initDrawers()
-        self.dataSelectionOperator = None
+    def __init__(self, toplevelOperatorView):
+        self.topLevelOperatorView = toplevelOperatorView
+        super(LightfieldGui,self).__init__(toplevelOperatorView)
+                
         
-        
-    def initDrawers(self):
+    def initAppletDrawerUi(self):
         self._drawers = uic.loadUi(self.APPLET_DRAWER_PATH)
         self._drawers.editDepthSubmit.clicked.connect(self.editDepth)
+        
+        def updateDrawerFromOperator():
+            innerScale, outerScale = (0.8,0.6)
+
+            if self.topLevelOperatorView.innerScale.ready():
+                innerScale = self.topLevelOperatorView.ScalingFactor.value
+            if self.topLevelOperatorView.outerScale.ready():
+                outerScale = self.topLevelOperatorView.Offset.value
+
+            self._drawer.editDepthInner.setValue(innerScale)
+            self._drawer.editDepthOuter.setValue(outerScale)
+            
+        self.topLevelOperatorView.innerScale.notifyDirty( bind(updateDrawerFromOperator) )
+        self.topLevelOperatorView.outerScale.notifyDirty( bind(updateDrawerFromOperator) )
+        
+#        if not self.topLevelOperatorView.innerScale.ready():
+#            self.topLevelOperatorView.
+        
+        
         
     def appletDrawer(self):
 #        return [("Lightfield View", self._drawers )]
@@ -52,44 +52,27 @@ class LightfieldGui(LayerViewerGui):
     def editDepth(self):
         inner = self._drawers.editDepthInner.value()
         outer = self._drawers.editDepthOuter.value()
-#        self.operation = "pass"
-#        self.options = {}
-#        self.logger.info("Calculating depth")
-#        depth = operations.depth(self.dataSelectionOperator.outputs["Image"][:].allocate().wait(),inner,outer)
-#        depth.dirty = True
-        self.topLevelOperator.innerScale.setValue(inner)
-        self.topLevelOperator.outerScale.setValue(outer)
+
+        self.topLevelOperatorView.innerScale.setValue(inner)
+        self.topLevelOperatorView.outerScale.setValue(outer)
     
-    @property
-    def operation(self):
-        pass
-    
-    @operation.setter
-    def operation(self,value):
-        self.topLevelOperator.Operation.setValue(value)
-    
-    @property
-    def options(self):
-        pass
-    
-    @options.setter
-    def options(self,value):
-        self.topLevelOperator.Options.setValue(value)
 
     
 #    def setupLayers(self ):
-#        self.logger.info("setupLayers called")
-#        slotNames = ["InputImage, outerScale, innerScale, Output"]
 #        layers = []
-#        for slot, name in zip(self.observedSlots, slotNames):
-#            if slot.ready() and slot.meta.axistags is not None:
-#                layer = self.createStandardLayerFromSlot(slot)
-#                layer.name = name 
-#                layers.append(layer)
+#
+#        # Show the Output data
+#        outputImageSlot = self.topLevelOperatorView.outputLF
+#        if outputImageSlot.ready():
+#            outputLayer = self.createStandardLayerFromSlot( outputImageSlot )
+#            outputLayer.name = "outputlf"
+#            outputLayer.visible = True
+#            outputLayer.opacity = 1.0
+#            layers.append(outputLayer)
+#        
 #        return layers
-
 #        # Show the thresholded data
-#        outputImageSlot = self.topLevelOperator.Output[ currentImageIndex ]
+#        outputImageSlot = self.topLevelOperatorView.Output[ currentImageIndex ]
 #        if outputImageSlot.ready():
 #            outputLayer = self.createStandardLayerFromSlot( outputImageSlot )
 #            outputLayer.name = "min <= x <= max"
@@ -98,7 +81,7 @@ class LightfieldGui(LayerViewerGui):
 #            layers.append(outputLayer)
         
 #        # Show the  data
-#        invertedOutputSlot = self.topLevelOperator.InvertedOutput[ currentImageIndex ]
+#        invertedOutputSlot = self.topLevelOperatorView.InvertedOutput[ currentImageIndex ]
 #        if invertedOutputSlot.ready():
 #            invertedLayer = self.createStandardLayerFromSlot( invertedOutputSlot )
 #            invertedLayer.name = "(x < min) U (x > max)"
@@ -107,7 +90,7 @@ class LightfieldGui(LayerViewerGui):
 #            layers.append(invertedLayer)
         
         # Show the raw input data
-#        inputImageSlot = self.topLevelOperator.InputImage[ currentImageIndex ]
+#        inputImageSlot = self.topLevelOperatorView.InputImage[ currentImageIndex ]
 #        if inputImageSlot.ready():
 #            inputLayer = self.createStandardLayerFromSlot( inputImageSlot )
 #            inputLayer.name = "Raw Input"

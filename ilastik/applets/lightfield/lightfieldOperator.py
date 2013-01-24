@@ -7,7 +7,7 @@ from lazyflow.graph import Operator,InputSlot, OutputSlot
 import logging
 #import NativeUtil as nativeOperations
 from opCalcDepth import OpCalcDepth
-from ilastik.utility import OperatorSubView
+from ilastik.utility import OperatorSubView, MultiLaneOperatorABC
 
 
 class LightfieldOperator(Operator):
@@ -18,11 +18,11 @@ class LightfieldOperator(Operator):
     
     name="OpLightfield"
     
-    InputImage = InputSlot()    
-    outerScale = InputSlot()
-    innerScale = InputSlot()
+    InputImage = InputSlot(level = 1)    
+    outerScale = InputSlot(stype="float")
+    innerScale = InputSlot(stype="float")
 
-    Output = OutputSlot()
+    Output = OutputSlot(level = 1)
     
     logger = logging.getLogger(__name__)
     
@@ -56,17 +56,20 @@ class LightfieldOperator(Operator):
     
 
     def addLane(self, laneIndex):
-        numLanes = len(self.InputImage)
-        assert numLanes == laneIndex, "Image lanes must be appended."        
-        self.InputImage.resize(numLanes+1)
+#        numLanes = len(self.InputImage)
+#        assert numLanes == laneIndex, "Image lanes must be appended."        
+#        self.InputImage.resize(numLanes+1)
+        return self.opDepth.addLane(laneIndex)
         
     def removeLane(self, laneIndex, finalLength):
-        self.InputImage.removeSlot(laneIndex, finalLength)
+#        self.InputImage.removeSlot(laneIndex, finalLength)
+        return self.opDepth.removeLane(laneIndex, finalLength)
+    
 
     def getLane(self, laneIndex):
-        return OperatorSubView(self, laneIndex)
+        return self.opDepth.getLane(laneIndex)
          
-        
+assert issubclass(LightfieldOperator, MultiLaneOperatorABC)       
     
 
         
